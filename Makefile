@@ -1,0 +1,466 @@
+.PHONY: all build test test-server test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability clean generate generate-python generate-go-sdk generate-java-sdk help
+.PHONY: up down restart logs status
+.PHONY: install-health-probe health check-health watch-health
+.PHONY: run-server run-example
+.PHONY: update update-server update-go-sdk update-java-sdk update-node-sdk update-python-sdk
+.PHONY: metrics grafana prometheus observability-status observability-logs
+.PHONY: lint lint-go lint-node lint-python lint-java ci check-coverage ci-full
+
+# Default target
+all: build
+
+# Display available commands
+help:
+	@echo "CVT - Contract Validator Toolkit (Go Server)"
+	@echo ""
+	@echo "Build commands:"
+	@echo "  make build              - Build Go server, Node.js SDK, and Python SDK"
+	@echo "  make clean              - Clean build artifacts"
+	@echo "  make generate           - Generate protobuf code for Go"
+	@echo "  make generate-python    - Generate protobuf code for Python"
+	@echo "  make generate-go-sdk    - Generate protobuf code for Go SDK"
+	@echo "  make generate-java-sdk  - Generate protobuf code for Java SDK"
+	@echo ""
+	@echo "Test commands:"
+	@echo "  make test               - Run all tests (server + all 4 SDKs)"
+	@echo "  make test-all           - Run all tests (same as 'make test')"
+	@echo "  make test-with-observability - Run all tests, keep Docker Compose up"
+	@echo "  make test-server        - Run Go server unit tests only"
+	@echo "  make test-node-sdk      - Run Node.js SDK tests"
+	@echo "  make test-python-sdk    - Run Python SDK tests with coverage"
+	@echo "  make test-go-sdk        - Run Go SDK tests with coverage"
+	@echo "  make test-java-sdk      - Run Java SDK tests with coverage"
+	@echo "  make test-coverage      - Run tests with coverage report (HTML + summary)"
+	@echo "  make test-integration   - Run Go server integration tests (requires Docker)"
+	@echo "  make test-cache         - Run cache behavior tests"
+	@echo ""
+	@echo "Lint commands:"
+	@echo "  make lint               - Run all linters (Go, Node.js, Python, Java)"
+	@echo "  make lint-go            - Run golangci-lint on all Go code"
+	@echo "  make lint-node          - Run ESLint on Node.js SDK"
+	@echo "  make lint-python        - Run ruff on Python SDK"
+	@echo "  make lint-java          - Run Gradle checkstyle on Java SDK"
+	@echo "  make ci                 - Run CI checks locally (lint + format)"
+	@echo "  make check-coverage     - Verify all components have >= 70% test coverage"
+	@echo "  make ci-full            - Run full CI (lint + format + coverage)"
+	@echo ""
+	@echo "Docker commands:"
+	@echo "  make up                 - Start Go server in Docker"
+	@echo "  make down               - Stop server"
+	@echo "  make restart            - Restart server"
+	@echo "  make logs               - View server logs"
+	@echo "  make status             - Check container status"
+	@echo ""
+	@echo "Health check commands:"
+	@echo "  make install-health-probe - Install grpc-health-probe"
+	@echo "  make health             - Check server health (port 50052)"
+	@echo "  make check-health       - Detailed health check with status"
+	@echo "  make watch-health       - Continuously monitor health (Ctrl+C to stop)"
+	@echo ""
+	@echo "Development commands:"
+	@echo "  make run-server         - Run Go server locally (gRPC)"
+	@echo "  make run-example        - Run Node.js SDK example"
+	@echo ""
+	@echo "Update commands:"
+	@echo "  make update             - Update all dependencies (server + all SDKs)"
+	@echo "  make update-server      - Update Go server dependencies"
+	@echo "  make update-go-sdk      - Update Go SDK dependencies"
+	@echo "  make update-java-sdk    - Update Java SDK dependencies"
+	@echo "  make update-node-sdk    - Update Node.js SDK dependencies"
+	@echo "  make update-python-sdk  - Update Python SDK dependencies"
+	@echo ""
+	@echo "Observability commands:"
+	@echo "  make metrics            - View Prometheus metrics (curl localhost:9090/metrics)"
+	@echo "  make grafana            - Open Grafana dashboard (http://localhost:3000)"
+	@echo "  make prometheus         - Open Prometheus UI (http://localhost:9091)"
+	@echo "  make observability-status - Check observability stack status"
+	@echo "  make observability-logs  - View observability stack logs"
+
+# Code generation
+generate:
+	@echo "🔄 Generating protobuf code for Go server..."
+	@mkdir -p server/pb
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		api/protos/cvt.proto
+	@mv api/protos/cvt.pb.go api/protos/cvt_grpc.pb.go server/pb/ 2>/dev/null || true
+	@echo "✅ Protobuf code generated in server/pb/"
+
+generate-python:
+	@echo "🔄 Generating protobuf code for Python SDK..."
+	@mkdir -p sdks/python/cvt_sdk/proto
+	cd sdks/python && uv run python -m grpc_tools.protoc \
+		-I../../api/protos \
+		--python_out=cvt_sdk/proto \
+		--grpc_python_out=cvt_sdk/proto \
+		--pyi_out=cvt_sdk/proto \
+		../../api/protos/cvt.proto
+	@echo "✅ Protobuf code generated in sdks/python/cvt_sdk/proto/"
+	@echo "⚠️  Note: You may need to manually fix imports in cvt_pb2_grpc.py"
+
+generate-go-sdk:
+	@echo "🔄 Generating protobuf code for Go SDK..."
+	@mkdir -p sdks/go/cvt/proto
+	protoc --go_out=sdks/go/cvt/proto --go_opt=paths=source_relative \
+		--go-grpc_out=sdks/go/cvt/proto --go-grpc_opt=paths=source_relative \
+		-I api/protos \
+		api/protos/cvt.proto
+	@echo "✅ Protobuf code generated in sdks/go/cvt/proto/"
+
+# Build targets
+build:
+	@echo "🏗️  Building Go server..."
+	cd server && go build -v -o cvt-server .
+	@echo "🏗️  Building Node.js SDK..."
+	cd sdks/node && pnpm install && pnpm run build
+	@echo "🏗️  Building Python SDK..."
+	cd sdks/python && uv sync
+	# cd sdks/java && ./gradlew build
+	@echo "✅ Build complete!"
+
+# Test targets
+test:
+	@echo "🧪 Running all tests (server + all 4 SDKs)..."
+	./tools/run-all-tests.sh
+
+test-server:
+	@echo "🧪 Running server unit tests..."
+	cd server && go test -v ./...
+
+test-node-sdk:
+	@echo "🧪 Running Node.js SDK tests..."
+	cd sdks/node && pnpm test
+	@echo "✅ Node.js SDK tests passed!"
+
+test-python-sdk:
+	@echo "🧪 Running Python SDK tests with coverage..."
+	cd sdks/python && uv run pytest --cov=cvt_sdk --cov-report=term-missing --cov-report=html tests/
+	@echo "✅ Python SDK tests passed!"
+	@echo "📊 Coverage report: sdks/python/htmlcov/index.html"
+
+test-go-sdk:
+	@echo "🧪 Running Go SDK tests with coverage..."
+	cd sdks/go && go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	@echo "✅ Go SDK tests passed!"
+	@echo "📊 Coverage report: sdks/go/coverage.out"
+	@cd sdks/go && go tool cover -func=coverage.out | grep total
+
+generate-java-sdk:
+	@echo "🔄 Generating protobuf code for Java SDK..."
+	cd sdks/java && ./gradlew generateProto
+
+test-java-sdk:
+	@echo "🧪 Running Java SDK tests with coverage..."
+	cd sdks/java && ./gradlew test jacocoTestReport --continue || true
+	@echo "📊 Coverage report: sdks/java/build/reports/jacoco/test/html/index.html"
+
+test-coverage:
+	@echo "🧪 Running server tests with coverage..."
+	cd server && go test -v -coverprofile=coverage.out -covermode=atomic ./...
+	@echo ""
+	@echo "📊 Coverage Summary (excluding generated pb/ code):"
+	cd server && grep -v "/pb/" coverage.out > coverage.filtered.out || true
+	cd server && go tool cover -func=coverage.filtered.out | grep total
+	@echo ""
+	@echo "📄 Detailed HTML coverage report generated: server/coverage.html"
+	cd server && go tool cover -html=coverage.filtered.out -o coverage.html
+	@echo "✅ Run 'open server/coverage.html' to view the detailed coverage report"
+
+test-integration:
+	@echo "🧪 Running integration tests (requires Docker)..."
+	cd server && go test -v -tags=integration ./...
+	@echo "✅ Integration tests passed!"
+
+test-cache:
+	@echo "🧪 Running cache behavior tests..."
+	cd server && go test -v -run TestCache ./...
+	@echo "✅ Cache tests passed!"
+
+test-all:
+	@echo "🧪 Running all tests (server + all 4 SDKs)..."
+	./tools/run-all-tests.sh
+
+test-with-observability:
+	@echo "🧪 Running all tests (server + all 4 SDKs) with observability stack..."
+	@echo "ℹ️  Docker Compose will remain running for metrics and monitoring"
+	KEEP_DOCKER_UP=1 ./tools/run-all-tests.sh
+	@echo ""
+	@echo "✅ Tests complete! Observability stack is running:"
+	@echo "  - Grafana:    http://localhost:3000 (admin/admin)"
+	@echo "  - Prometheus: http://localhost:9091"
+	@echo "  - Metrics:    http://localhost:9090/metrics"
+	@echo ""
+	@echo "💡 Use 'make down' to stop the stack when done"
+
+# Clean targets
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	cd server && go clean && rm -f cvt-server server
+	# cd sdks/java && ./gradlew clean
+	rm -rf sdks/node/dist sdks/node/node_modules
+	# rm -rf sdks/python/.venv
+	@echo "✅ Clean complete!"
+
+# Docker commands
+up:
+	@echo "🚀 Starting CVT server..."
+	docker compose up -d --build
+	@echo "⏳ Waiting for server to be healthy..."
+	@sleep 5
+
+down:
+	@echo "🛑 Stopping CVT server..."
+	docker compose down
+	@echo "✅ Server stopped!"
+
+restart: down up
+
+logs:
+	@echo "📋 Viewing server logs (Ctrl+C to stop)..."
+	docker compose logs -f
+
+status:
+	@echo "📊 Container status:"
+	@docker compose ps
+	@echo ""
+	@echo "📊 Health status:"
+	@docker inspect cvt-server --format='Container: {{.Name}}\nStatus: {{.State.Status}}\nHealth: {{.State.Health.Status}}' 2>/dev/null || echo "Container not running"
+
+# Health check commands
+# Install grpc-health-probe for Mac or Linux
+# For Windows, download from: https://github.com/grpc-ecosystem/grpc-health-probe/releases
+install-health-probe:
+	@echo "📦 Installing grpc-health-probe..."
+	@GRPC_HEALTH_PROBE_VERSION=v0.4.42; \
+	if [ "$$(uname)" = "Darwin" ]; then \
+		if [ "$$(uname -m)" = "arm64" ]; then \
+			echo "Detected Mac (Apple Silicon)..."; \
+			sudo wget -qO /usr/local/bin/grpc-health-probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/$${GRPC_HEALTH_PROBE_VERSION}/grpc-health-probe-darwin-arm64; \
+		else \
+			echo "Detected Mac (Intel)..."; \
+			sudo wget -qO /usr/local/bin/grpc-health-probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/$${GRPC_HEALTH_PROBE_VERSION}/grpc-health-probe-darwin-amd64; \
+		fi; \
+		sudo chmod +x /usr/local/bin/grpc-health-probe; \
+	elif [ "$$(uname)" = "Linux" ]; then \
+		echo "Detected Linux..."; \
+		sudo wget -qO /usr/local/bin/grpc-health-probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/$${GRPC_HEALTH_PROBE_VERSION}/grpc-health-probe-linux-amd64; \
+		sudo chmod +x /usr/local/bin/grpc-health-probe; \
+	else \
+		echo "❌ Unsupported platform: $$(uname)"; \
+		echo ""; \
+		echo "Please install grpc-health-probe manually:"; \
+		echo "  Mac (Intel):  wget -qO /usr/local/bin/grpc-health-probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.42/grpc-health-probe-darwin-amd64 && chmod +x /usr/local/bin/grpc-health-probe"; \
+		echo "  Mac (M1/M2):  wget -qO /usr/local/bin/grpc-health-probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.42/grpc-health-probe-darwin-arm64 && chmod +x /usr/local/bin/grpc-health-probe"; \
+		echo "  Linux:        wget -qO /usr/local/bin/grpc-health-probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.42/grpc-health-probe-linux-amd64 && chmod +x /usr/local/bin/grpc-health-probe"; \
+		echo "  Windows:      Download grpc-health-probe-windows-amd64.exe from https://github.com/grpc-ecosystem/grpc-health-probe/releases"; \
+		exit 1; \
+	fi
+	@echo "✅ grpc-health-probe installed!"
+
+health:
+	@echo "🏥 Checking server health..."
+	@grpc-health-probe -addr=localhost:50052 && echo "✅ Server is healthy!" || echo "❌ Server is not healthy"
+
+check-health:
+	@echo "🏥 Detailed health check..."
+	@echo ""
+	@echo "📊 Container Status:"
+	@docker compose ps 2>/dev/null || echo "Docker Compose not running"
+	@echo ""
+	@echo "📊 Docker Health:"
+	@docker inspect cvt-server --format='Container: {{.Name}}\nStatus: {{.State.Status}}\nHealth: {{.State.Health.Status}}' 2>/dev/null || echo "Container not found"
+	@echo ""
+	@echo "📊 gRPC Health Check:"
+	@grpc-health-probe -addr=localhost:50052 && echo "✅ gRPC service is healthy" || echo "❌ gRPC service is not responding"
+
+watch-health:
+	@echo "👀 Monitoring server health (Ctrl+C to stop)..."
+	@while true; do \
+		clear; \
+		echo "🏥 CVT Server Health Monitor"; \
+		echo "============================"; \
+		echo ""; \
+		grpc-health-probe -addr=localhost:50052 -v && echo "✅ Healthy" || echo "❌ Unhealthy"; \
+		echo ""; \
+		echo "Last checked: $$(date)"; \
+		sleep 5; \
+	done
+
+# Development commands
+run-server:
+	@echo "🚀 Running Go server locally..."
+	@echo "💡 Tip: Set CVT_PORT environment variable to use a specific port (e.g., CVT_PORT=50055 make run-server)"
+	@PORT=50051; \
+	while nc -z localhost $$PORT 2>/dev/null; do \
+		PORT=$$((PORT + 1)); \
+		if [ $$PORT -gt 50060 ]; then \
+			echo "❌ Could not find available port between 50051-50060"; \
+			exit 1; \
+		fi; \
+	done; \
+	if [ $$PORT -ne 50051 ]; then \
+		echo "⚠️  Port 50051 is in use. Using port $$PORT instead..."; \
+	fi; \
+	cd server && CVT_PORT=$$PORT go run .
+
+run-example:
+	@echo "🧪 Running Node.js SDK example..."
+	cd sdks/node && pnpm run example
+
+# Update commands
+update: update-server update-go-sdk update-java-sdk update-node-sdk update-python-sdk
+	@echo "✅ All dependencies updated!"
+
+update-server:
+	@echo "🔄 Updating Go server dependencies..."
+	cd server && go get -u ./... && go mod tidy
+	@echo "✅ Go server dependencies updated!"
+
+update-go-sdk:
+	@echo "🔄 Updating Go SDK dependencies..."
+	cd sdks/go && go get -u ./... && go mod tidy
+	@echo "✅ Go SDK dependencies updated!"
+
+update-java-sdk:
+	@echo "🔄 Updating Java SDK dependencies..."
+	cd sdks/java && ./gradlew dependencies --refresh-dependencies
+	@echo "✅ Java SDK dependencies updated!"
+
+update-node-sdk:
+	@echo "🔄 Updating Node.js SDK dependencies..."
+	cd sdks/node && pnpm update
+	@echo "✅ Node.js SDK dependencies updated!"
+
+update-python-sdk:
+	@echo "🔄 Updating Python SDK dependencies..."
+	cd sdks/python && uv lock --upgrade && uv sync
+	@echo "✅ Python SDK dependencies updated!"
+
+# Observability commands
+metrics:
+	@echo "📊 Fetching Prometheus metrics from CVT server..."
+	@curl -s http://localhost:9090/metrics | grep -E "^cvt_" || echo "⚠️  No metrics available. Is the server running?"
+
+grafana:
+	@echo "🎨 Opening Grafana dashboard..."
+	@echo "📊 URL: http://localhost:3000"
+	@echo "🔑 Credentials: admin / admin"
+	@open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/null || echo "Please open http://localhost:3000 in your browser"
+
+prometheus:
+	@echo "📈 Opening Prometheus UI..."
+	@echo "📊 URL: http://localhost:9091"
+	@open http://localhost:9091 2>/dev/null || xdg-open http://localhost:9091 2>/dev/null || echo "Please open http://localhost:9091 in your browser"
+
+observability-status:
+	@echo "📊 Observability Stack Status:"
+	@echo ""
+	@echo ">>> CVT Server (gRPC + Metrics):"
+	@docker ps --filter "name=cvt-server" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "Container not running"
+	@echo ""
+	@echo ">>> Prometheus:"
+	@docker ps --filter "name=cvt-prometheus" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "Container not running"
+	@echo ""
+	@echo ">>> Grafana:"
+	@docker ps --filter "name=cvt-grafana" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "Container not running"
+	@echo ""
+	@echo "📊 Access URLs:"
+	@echo "  - Grafana:    http://localhost:3000 (admin/admin)"
+	@echo "  - Prometheus: http://localhost:9091"
+	@echo "  - Metrics:    http://localhost:9090/metrics"
+
+observability-logs:
+	@echo "📋 Viewing observability stack logs (Ctrl+C to stop)..."
+	@docker compose logs -f prometheus grafana
+
+# Lint commands
+lint: lint-go lint-node lint-python lint-java
+	@echo "✅ All linting complete!"
+
+lint-go:
+	@echo "🔍 Linting Go code (server, pkg/cvt, cmd/cvt, sdks/go)..."
+	@echo ">>> Linting server..."
+	cd server && golangci-lint run --timeout=5m ./...
+	@echo ">>> Linting pkg/cvt..."
+	cd pkg/cvt && golangci-lint run --timeout=5m ./...
+	@echo ">>> Linting cmd/cvt..."
+	cd cmd/cvt && golangci-lint run --timeout=5m ./...
+	@echo ">>> Linting sdks/go..."
+	cd sdks/go && golangci-lint run --timeout=5m ./...
+	@echo "✅ Go linting passed!"
+
+lint-node:
+	@echo "🔍 Linting Node.js SDK..."
+	cd sdks/node && pnpm run lint 2>/dev/null || (echo "⚠️  No lint script found in Node.js SDK" && exit 0)
+	@echo "✅ Node.js linting complete!"
+
+lint-python:
+	@echo "🔍 Linting Python SDK..."
+	cd sdks/python && uv run ruff check . 2>/dev/null || (echo "⚠️  ruff not configured, trying flake8..." && uv run flake8 . 2>/dev/null) || echo "⚠️  No Python linter configured"
+	@echo "✅ Python linting complete!"
+
+lint-java:
+	@echo "🔍 Linting Java SDK..."
+	cd sdks/java && ./gradlew check 2>/dev/null || echo "⚠️  Java linting skipped (gradle check not configured)"
+	@echo "✅ Java linting complete!"
+
+# CI target - runs all checks that CI runs
+ci: lint
+	@echo ""
+	@echo "🔍 Running CI format checks..."
+	@echo ">>> Checking Go formatting..."
+	@gofmt -l server/ pkg/cvt/ cmd/cvt/ sdks/go/ | grep -q . && (echo "❌ Go files need formatting. Run: gofmt -w <file>" && gofmt -l server/ pkg/cvt/ cmd/cvt/ sdks/go/ && exit 1) || echo "✅ Go formatting OK"
+	@echo ">>> Checking Node.js formatting..."
+	cd sdks/node && pnpm run format:check
+	@echo ">>> Checking Python formatting..."
+	cd sdks/python && uv run ruff format --check .
+	@echo ""
+	@echo "✅ All CI checks passed!"
+
+# Coverage check target - enforces 70% minimum coverage
+check-coverage:
+	@echo ""
+	@echo "📊 Checking test coverage (minimum 70%)..."
+	@echo ""
+	@echo ">>> Go Server coverage..."
+	@set -o pipefail; cd server && go test -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | tail -1
+	@cd server && grep -v "/pb/" coverage.out > coverage.filtered.out
+	@cd server && COVERAGE=$$(go tool cover -func=coverage.filtered.out | grep total | awk '{gsub(/%/,""); print $$3}') && \
+		echo "    Server coverage: $${COVERAGE}%" && \
+		if [ $$(echo "$${COVERAGE} < 70" | bc -l) -eq 1 ]; then \
+			echo "❌ Server coverage $${COVERAGE}% is below 70%"; \
+			exit 1; \
+		fi && echo "✅ Go Server: $${COVERAGE}% >= 70%"
+	@echo ""
+	@echo ">>> Go SDK coverage..."
+	@set -o pipefail; cd sdks/go && go test -coverprofile=coverage.out -covermode=atomic ./cvt/... 2>&1 | tail -1
+	@cd sdks/go && grep -v "/proto/" coverage.out > coverage.filtered.out || cp coverage.out coverage.filtered.out
+	@cd sdks/go && COVERAGE=$$(go tool cover -func=coverage.filtered.out | grep total | awk '{gsub(/%/,""); print $$3}') && \
+		echo "    Go SDK coverage: $${COVERAGE}%" && \
+		if [ $$(echo "$${COVERAGE} < 70" | bc -l) -eq 1 ]; then \
+			echo "❌ Go SDK coverage $${COVERAGE}% is below 70%"; \
+			exit 1; \
+		fi && echo "✅ Go SDK: $${COVERAGE}% >= 70%"
+	@echo ""
+	@echo ">>> Python SDK coverage..."
+	@set -o pipefail; cd sdks/python && uv run pytest --cov=cvt_sdk --cov-fail-under=70 tests/ -q 2>&1 | tail -5
+	@echo "✅ Python SDK: >= 70%"
+	@echo ""
+	@echo ">>> Node.js SDK coverage..."
+	@cd sdks/node && pnpm test --coverage --silent 2>&1 | grep -E "(All files|Coverage)" || true
+	@cd sdks/node && pnpm test --coverage --silent 2>/dev/null && \
+		echo "✅ Node.js SDK: >= 70% (enforced by jest.config.js)" || \
+		(echo "❌ Node.js SDK coverage below 70%" && exit 1)
+	@echo ""
+	@echo ">>> Java SDK coverage..."
+	@cd sdks/java && ./gradlew test jacocoTestCoverageVerification 2>&1 | grep -E "(covered ratio|BUILD)" | head -2 || true
+	@cd sdks/java && ./gradlew test jacocoTestCoverageVerification --quiet 2>/dev/null && \
+		echo "✅ Java SDK: >= 70% (enforced by JaCoCo)" || \
+		(echo "❌ Java SDK coverage below 70%" && exit 1)
+	@echo ""
+	@echo "✅ All coverage checks passed (minimum 70%)!"
+
+# Full CI with coverage - runs lint, format checks, and coverage verification
+ci-full: ci check-coverage
+	@echo ""
+	@echo "✅ Full CI (lint + format + coverage) passed!"

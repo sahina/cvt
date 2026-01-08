@@ -1,0 +1,28 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Invalid Reference",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/test": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Test",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NonExistentSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {}
+  }
+}

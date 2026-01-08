@@ -1,0 +1,12 @@
+# golangci-lint configuration
+version: "2"
+
+linters:
+  disable:
+    - depguard  # Not needed for this project
+  exclusions:
+    paths:
+      - pb  # Generated protobuf code
+
+run:
+  timeout: 5m

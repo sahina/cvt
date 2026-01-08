@@ -1,0 +1,44 @@
+# Prometheus configuration for CVT (Contract Validator Toolkit)
+#
+# This configuration scrapes metrics from the CVT server at regular intervals
+# and stores them for querying and visualization.
+
+global:
+  # How frequently to scrape targets by default
+  scrape_interval: 15s
+
+  # How frequently to evaluate rules
+  evaluation_interval: 15s
+
+  # Add these labels to all time series collected by this server
+  external_labels:
+    monitor: 'cvt-metrics'
+    environment: 'development'
+
+# Scrape configuration
+scrape_configs:
+  # CVT Server metrics
+  - job_name: 'cvt-server'
+
+    # Override the global default scrape interval for this job
+    scrape_interval: 10s
+
+    # Timeout for scraping metrics from this target
+    scrape_timeout: 5s
+
+    # Metrics path (default is /metrics)
+    metrics_path: /metrics
+
+    # Static targets to scrape
+    static_configs:
+      - targets: ['cvt-server:9090']
+        labels:
+          service: 'cvt'
+          component: 'server'
+
+    # Relabeling configuration (optional)
+    relabel_configs:
+      # Keep only metrics that match specific patterns
+      - source_labels: [__name__]
+        regex: 'cvt_.*'
+        action: keep

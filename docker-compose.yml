@@ -1,0 +1,78 @@
+services:
+  cvt-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "50052:50051"  # gRPC port
+      - "9090:9090"     # Metrics port
+    container_name: cvt-server
+    environment:
+      - LOG_LEVEL=debug
+      - CVT_PORT=50051
+      - CVT_METRICS_PORT=9090
+      # TLS configuration (uncomment to enable)
+      # - CVT_TLS_ENABLED=true
+      # - CVT_TLS_CERT_FILE=/certs/server.crt
+      # - CVT_TLS_KEY_FILE=/certs/server.key
+      # - CVT_TLS_CA_FILE=/certs/ca.crt
+      # - CVT_TLS_CLIENT_AUTH=none
+      # API key authentication (uncomment to enable)
+      # - CVT_API_KEY_ENABLED=true
+      # - CVT_API_KEYS_FILE=/config/api-keys.json
+    volumes:
+      # Uncomment to mount certificates for TLS
+      # - ./certs:/certs:ro
+      # Uncomment to mount API keys configuration
+      # - ./config:/config:ro
+      []
+    networks:
+      - cvt-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cvt-prometheus
+    ports:
+      - "9091:9090"  # Expose Prometheus UI on host port 9091
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - cvt-server
+    networks:
+      - cvt-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cvt-grafana
+    ports:
+      - "3000:3000"  # Grafana UI
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/cvt-dashboard.json
+      - ./observability/grafana-dashboard-provisioning.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ./observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    networks:
+      - cvt-network
+    restart: unless-stopped
+
+networks:
+  cvt-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

@@ -1,0 +1,95 @@
+openapi: 3.0.0
+info:
+  title: Contract Validator Toolkit
+  version: 1.0.0
+paths:
+  /schemas:
+    post:
+      summary: Register a schema
+      operationId: registerSchema
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchemaRequest'
+      responses:
+        '200':
+          description: Schema registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterSchemaResponse'
+  /validate:
+    post:
+      summary: Validate an interaction
+      operationId: validateInteraction
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InteractionRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+
+components:
+  schemas:
+    RegisterSchemaRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        spec:
+          type: string
+          format: byte
+    RegisterSchemaResponse:
+      type: object
+      properties:
+        schemaId:
+          type: string
+    InteractionRequest:
+      type: object
+      properties:
+        schemaId:
+          type: string
+        request:
+          $ref: '#/components/schemas/RequestData'
+        response:
+          $ref: '#/components/schemas/ResponseData'
+    RequestData:
+      type: object
+      properties:
+        method:
+          type: string
+        path:
+          type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        body:
+          type: string
+    ResponseData:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        body:
+          type: string
+    ValidationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string

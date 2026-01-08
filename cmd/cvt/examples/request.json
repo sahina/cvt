@@ -1,0 +1,7 @@
+{
+  "method": "GET",
+  "path": "/users/123",
+  "headers": {
+    "Accept": "application/json"
+  }
+}

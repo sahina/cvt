@@ -1,0 +1,7 @@
+{
+  "statusCode": 200,
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"id\": 123, \"name\": \"John Doe\", \"email\": \"john@example.com\", \"role\": \"user\"}"
+}

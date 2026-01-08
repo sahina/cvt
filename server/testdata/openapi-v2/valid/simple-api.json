@@ -1,0 +1,288 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Simple API",
+    "version": "1.0.0",
+    "description": "A simple Swagger 2.0 API for testing"
+  },
+  "schemes": ["https"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "api_key": {
+      "type": "apiKey",
+      "name": "X-API-Key",
+      "in": "header"
+    },
+    "basic_auth": {
+      "type": "basic"
+    }
+  },
+  "paths": {
+    "/users": {
+      "get": {
+        "summary": "List users",
+        "description": "Returns a list of users",
+        "operationId": "listUsers",
+        "security": [],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "required": false,
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "default": 1
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Items per page",
+            "required": false,
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "users": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/User"
+                  }
+                },
+                "total": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create user",
+        "description": "Creates a new user",
+        "operationId": "createUser",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "User object",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/NewUser"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User created",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}": {
+      "get": {
+        "summary": "Get user by ID",
+        "operationId": "getUserById",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "User ID",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "X-Request-ID",
+            "in": "header",
+            "description": "Request ID for tracking",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "schema": {
+              "$ref": "#/definitions/User"
+            },
+            "headers": {
+              "X-Response-ID": {
+                "type": "string",
+                "description": "Response ID"
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update user",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/NewUser"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User updated",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete user",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "User": {
+      "type": "object",
+      "required": ["id", "username", "email"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user ID"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50,
+          "pattern": "^[a-zA-Z0-9_]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0,
+          "maximum": 150
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "NewUser": {
+      "type": "object",
+      "required": ["username", "email", "password"],
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 50,
+          "pattern": "^[a-zA-Z0-9_]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "format": "password"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 150
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "keys": [
+    {
+      "key": "cvt-dev-key-12345",
+      "name": "development",
+      "scopes": ["*"]
+    },
+    {
+      "key": "cvt-test-key-67890",
+      "name": "testing",
+      "scopes": ["*"]
+    },
+    {
+      "key": "cvt-prod-key-abcde",
+      "name": "production",
+      "scopes": ["*"],
+      "expires_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "name": "@cvt/cvt-sdk",
+  "version": "0.1.0",
+  "description": "Contract Validator Toolkit SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./producer": {
+      "types": "./dist/producer/index.d.ts",
+      "default": "./dist/producer/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint . --ext .ts",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "example": "ts-node examples/basic-usage.ts"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/proto-loader": "^0.8.0"
+  },
+  "peerDependencies": {
+    "axios": "^1.0.0",
+    "express": "^4.0.0 || ^5.0.0",
+    "fastify": "^4.0.0 || ^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "axios": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    },
+    "fastify": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.19.3",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
+    "axios": "^1.13.2",
+    "eslint": "^9.39.2",
+    "fastify": "^5.6.2",
+    "globals": "^16.5.0",
+    "jest": "^30.2.0",
+    "prettier": "^3.7.4",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.27.0+sha512.72d699da16b1179c14ba9e64dc71c9a40988cbdc65c264cb0e489db7de917f20dcf4d64d8723625f2969ba52d4b7e2a1170682d9ac2a5dcaeaab732b7e16f04a"
+}

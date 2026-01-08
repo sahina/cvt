@@ -1,0 +1,142 @@
+// CVT Contract Validation Pipeline for Jenkins
+// Copy this file to your repository or use as a shared library
+
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'SCHEMA_PATH', defaultValue: 'openapi.json', description: 'Path to OpenAPI schema')
+        string(name: 'FIXTURES_PATH', defaultValue: 'tests/fixtures', description: 'Path to fixture files')
+        booleanParam(name: 'FAIL_ON_BREAKING_CHANGES', defaultValue: true, description: 'Fail build on breaking changes')
+    }
+
+    environment {
+        GO_VERSION = '1.21'
+        CVT_REPO = 'https://github.com/your-org/cvt.git'
+    }
+
+    stages {
+        stage('Setup') {
+            steps {
+                script {
+                    // Install Go if not available
+                    sh '''
+                        if ! command -v go &> /dev/null; then
+                            echo "Installing Go ${GO_VERSION}..."
+                            curl -LO https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz
+                            tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
+                            export PATH=$PATH:/usr/local/go/bin
+                        fi
+                    '''
+
+                    // Clone and build CVT
+                    sh '''
+                        git clone --depth 1 ${CVT_REPO} /tmp/cvt
+                        cd /tmp/cvt
+                        go build -o ${WORKSPACE}/cvt ./cmd/cvt
+                    '''
+                }
+            }
+        }
+
+        stage('Validate Schema') {
+            steps {
+                script {
+                    echo "Validating schema: ${params.SCHEMA_PATH}"
+                    sh "./cvt generate --schema ${params.SCHEMA_PATH} --list"
+                }
+            }
+        }
+
+        stage('Check Breaking Changes') {
+            when {
+                changeRequest()
+            }
+            steps {
+                script {
+                    echo "Checking for breaking changes..."
+
+                    // Get the previous version of the schema
+                    sh """
+                        git fetch origin ${env.CHANGE_TARGET}
+                        git show origin/${env.CHANGE_TARGET}:${params.SCHEMA_PATH} > /tmp/old-schema.json || true
+                    """
+
+                    // Compare schemas
+                    def result = sh(
+                        script: "./cvt compare --old /tmp/old-schema.json --new ${params.SCHEMA_PATH}",
+                        returnStatus: true
+                    )
+
+                    if (result != 0 && params.FAIL_ON_BREAKING_CHANGES) {
+                        error("Breaking changes detected!")
+                    }
+                }
+            }
+        }
+
+        stage('Validate Fixtures') {
+            when {
+                expression {
+                    return fileExists(params.FIXTURES_PATH)
+                }
+            }
+            steps {
+                script {
+                    echo "Validating fixtures in: ${params.FIXTURES_PATH}"
+
+                    def fixtures = findFiles(glob: "${params.FIXTURES_PATH}/**/*.json")
+                    def failed = false
+
+                    fixtures.each { fixture ->
+                        echo "Validating: ${fixture.path}"
+                        def result = sh(
+                            script: "./cvt validate --schema ${params.SCHEMA_PATH} --interaction ${fixture.path}",
+                            returnStatus: true
+                        )
+                        if (result != 0) {
+                            echo "FAILED: ${fixture.path}"
+                            failed = true
+                        }
+                    }
+
+                    if (failed) {
+                        error("Some fixtures failed validation")
+                    }
+                }
+            }
+        }
+
+        stage('Generate Report') {
+            steps {
+                script {
+                    // Generate a contract report
+                    sh """
+                        echo "# Contract Validation Report" > contract-report.md
+                        echo "" >> contract-report.md
+                        echo "## Schema: ${params.SCHEMA_PATH}" >> contract-report.md
+                        echo "" >> contract-report.md
+                        echo "## Endpoints" >> contract-report.md
+                        echo '```' >> contract-report.md
+                        ./cvt generate --schema ${params.SCHEMA_PATH} --list >> contract-report.md
+                        echo '```' >> contract-report.md
+                    """
+
+                    archiveArtifacts artifacts: 'contract-report.md', fingerprint: true
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Contract validation passed!'
+        }
+        failure {
+            echo 'Contract validation failed!'
+        }
+    }
+}

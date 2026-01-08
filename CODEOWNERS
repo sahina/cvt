@@ -1,0 +1,46 @@
+# CVT (Contract Validator Toolkit) Code Owners
+#
+# This file defines ownership for code review and maintenance.
+# Each line is a file pattern followed by one or more owners.
+#
+# These owners will be automatically requested for review when
+# someone opens a pull request that modifies code they own.
+#
+# Order matters: later patterns take precedence over earlier ones.
+
+# Default owners for everything in the repo
+*                           @platform-team
+
+# Core server implementation
+/server/                    @platform-team @backend-team
+
+# Protocol definitions (changes here affect all SDKs)
+/api/protos/                @platform-team
+
+# SDK ownership - each SDK team owns their implementation
+/sdks/node/                 @platform-team @node-team
+/sdks/python/               @platform-team @python-team
+/sdks/go/                   @platform-team @go-team
+/sdks/java/                 @platform-team @java-team
+
+# Shared test schemas (changes affect all SDKs)
+/sdks/shared/               @platform-team
+
+# CLI and embedded library
+/cmd/cvt/                   @platform-team
+/pkg/cvt/                   @platform-team
+
+# CI/CD and infrastructure
+/.github/                   @platform-team @devops-team
+/docker-compose*.yml        @platform-team @devops-team
+/Dockerfile                 @platform-team @devops-team
+/Makefile                   @platform-team
+
+# Documentation
+/docs/                      @platform-team
+README.md                   @platform-team
+CONTRIBUTING.md             @platform-team
+
+# Observability configuration
+/grafana/                   @platform-team @observability-team
+/prometheus/                @platform-team @observability-team

@@ -1,0 +1,571 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "E-Commerce API",
+    "version": "2.0.0",
+    "description": "Complex e-commerce API with advanced OpenAPI features"
+  },
+  "paths": {
+    "/products": {
+      "get": {
+        "summary": "List products",
+        "operationId": "listProducts",
+        "tags": ["products"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["electronics", "clothing", "books", "home"]
+            }
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "float",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "float",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "X-Request-ID",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "products": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Product"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create product",
+        "operationId": "createProduct",
+        "tags": ["products"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PhysicalProduct"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DigitalProduct"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "productType",
+                  "mapping": {
+                    "physical": "#/components/schemas/PhysicalProduct",
+                    "digital": "#/components/schemas/DigitalProduct"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "summary": "Create order",
+        "operationId": "createOrder",
+        "tags": ["orders"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/users/{userId}/profile": {
+      "get": {
+        "summary": "Get user profile",
+        "operationId": "getUserProfile",
+        "tags": ["users"],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "Additional data to include",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["orders", "wishlist", "reviews"]
+              }
+            },
+            "style": "form",
+            "explode": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "oauth2": {
+        "type": "oauth2",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://auth.example.com/oauth/authorize",
+            "tokenUrl": "https://auth.example.com/oauth/token",
+            "scopes": {
+              "read:products": "Read products",
+              "write:products": "Create products",
+              "read:orders": "Read orders",
+              "write:orders": "Create orders"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Product": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": ["id", "name", "price"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "price": {
+                "type": "number",
+                "format": "float",
+                "minimum": 0,
+                "exclusiveMinimum": true
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$",
+                "default": "USD"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "minItems": 1,
+                "maxItems": 10
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true
+              },
+              "metadata": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PhysicalProduct": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Product"
+          },
+          {
+            "type": "object",
+            "required": ["productType", "weight", "dimensions"],
+            "properties": {
+              "productType": {
+                "type": "string",
+                "enum": ["physical"]
+              },
+              "weight": {
+                "type": "number",
+                "format": "float",
+                "description": "Weight in kilograms"
+              },
+              "dimensions": {
+                "type": "object",
+                "required": ["length", "width", "height"],
+                "properties": {
+                  "length": {"type": "number"},
+                  "width": {"type": "number"},
+                  "height": {"type": "number"},
+                  "unit": {
+                    "type": "string",
+                    "enum": ["cm", "in"],
+                    "default": "cm"
+                  }
+                }
+              },
+              "shippingClass": {
+                "type": "string",
+                "enum": ["standard", "express", "overnight"]
+              }
+            }
+          }
+        ]
+      },
+      "DigitalProduct": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Product"
+          },
+          {
+            "type": "object",
+            "required": ["productType", "downloadUrl"],
+            "properties": {
+              "productType": {
+                "type": "string",
+                "enum": ["digital"]
+              },
+              "downloadUrl": {
+                "type": "string",
+                "format": "uri"
+              },
+              "fileSize": {
+                "type": "integer",
+                "description": "File size in bytes"
+              },
+              "fileFormat": {
+                "type": "string",
+                "enum": ["pdf", "epub", "mp3", "mp4", "zip"]
+              }
+            }
+          }
+        ]
+      },
+      "OrderRequest": {
+        "type": "object",
+        "required": ["items", "shippingAddress"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["productId", "quantity"],
+              "properties": {
+                "productId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              }
+            },
+            "minItems": 1
+          },
+          "shippingAddress": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "billingAddress": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "paymentMethod": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreditCardPayment"
+              },
+              {
+                "$ref": "#/components/schemas/PayPalPayment"
+              }
+            ]
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": ["id", "status", "total", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+          },
+          "total": {
+            "type": "number",
+            "format": "float"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Address": {
+        "type": "object",
+        "required": ["street", "city", "country", "postalCode"],
+        "properties": {
+          "street": {
+            "type": "string",
+            "minLength": 1
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "postalCode": {
+            "type": "string",
+            "pattern": "^[0-9]{5}(-[0-9]{4})?$"
+          }
+        }
+      },
+      "CreditCardPayment": {
+        "type": "object",
+        "required": ["type", "cardNumber", "expiryDate", "cvv"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["credit_card"]
+          },
+          "cardNumber": {
+            "type": "string",
+            "pattern": "^[0-9]{16}$"
+          },
+          "expiryDate": {
+            "type": "string",
+            "pattern": "^(0[1-9]|1[0-2])\\/[0-9]{2}$"
+          },
+          "cvv": {
+            "type": "string",
+            "pattern": "^[0-9]{3,4}$"
+          }
+        }
+      },
+      "PayPalPayment": {
+        "type": "object",
+        "required": ["type", "email"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["paypal"]
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "required": ["id", "email", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^\\+?[1-9]\\d{1,14}$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": ["code", "message", "errors"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": ["VALIDATION_ERROR"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Authentication required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Unauthorized"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
