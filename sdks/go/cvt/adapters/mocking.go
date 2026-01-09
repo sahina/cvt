@@ -252,13 +252,15 @@ func (m *MockingRoundTripper) extractRequest(req *http.Request, body []byte) cvt
 		_ = json.Unmarshal(body, &bodyData)
 	}
 
-	// Store full URL (including scheme and host) for schemaID auto-extraction
-	// Auto-registration extracts schemaID from hostname: http://mock.user-api/... -> "user-api"
-	fullURL := req.URL.String()
+	// Build path with query string (matching the format used elsewhere)
+	path := req.URL.Path
+	if req.URL.RawQuery != "" {
+		path += "?" + req.URL.RawQuery
+	}
 
 	return cvt.ValidationRequest{
 		Method:  req.Method,
-		Path:    fullURL,
+		Path:    path,
 		Headers: headers,
 		Body:    bodyData,
 	}
