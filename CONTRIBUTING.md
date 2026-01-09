@@ -44,8 +44,11 @@ Follow the code style guidelines below. Run tests locally before pushing.
 ### 3. Run Tests
 
 ```bash
-# Run all tests
+# Run all tests (fast, direct server - no Docker required)
 make test
+
+# Run all tests with Docker (includes PostgreSQL integration)
+make test-docker
 
 # Run specific test suites
 make test-server      # Go server tests
@@ -121,16 +124,26 @@ cd sdks/java
 ```shell
 cvt/
 ├── api/protos/          # gRPC protocol definitions
+├── assets/              # Static assets (images, diagrams)
+├── certs/               # TLS certificates
+├── ci-templates/        # CI/CD pipeline templates
 ├── cmd/cvt/             # CLI application
+├── config/              # Configuration files
 ├── docs/                # Documentation
+├── examples/            # Example code and schemas
+├── internal/            # Internal packages (not exported)
+├── observability/       # Prometheus/Grafana configuration
 ├── pkg/cvt/             # Embedded Go library
 ├── server/              # gRPC server implementation
-└── sdks/
-    ├── go/              # Go SDK
-    ├── java/            # Java SDK
-    ├── node/            # Node.js SDK
-    ├── python/          # Python SDK
-    └── shared/          # Shared test schemas
+│   ├── cvtservice/      # Core service logic
+│   └── storage/         # Persistence backends
+├── sdks/
+│   ├── go/              # Go SDK
+│   ├── java/            # Java SDK
+│   ├── node/            # Node.js SDK
+│   ├── python/          # Python SDK
+│   └── shared/          # Shared test schemas
+└── tools/               # Build and test scripts
 ```
 
 ## Making Changes
@@ -196,14 +209,19 @@ The Node SDK uses `ts-proto` and regenerates automatically during build.
 
 ### Documentation Locations
 
-| Content           | Location                    |
-| ----------------- | --------------------------- |
-| Getting started   | `README.md`                 |
-| SDK usage         | `sdks/<sdk>/README.md`      |
-| Architecture      | `docs/prd.md`               |
-| Observability     | `docs/OBSERVABILITY.md`     |
-| Adoption strategy | `docs/adoption-strategy.md` |
-| Roadmap           | `ROADMAP.md`                |
+| Content           | Location                         |
+| ----------------- | -------------------------------- |
+| Getting started   | `README.md`                      |
+| SDK usage         | `sdks/<sdk>/README.md`           |
+| Architecture      | `docs/prd.md`                    |
+| Development setup | `docs/DEVELOPMENT.md`            |
+| Observability     | `docs/OBSERVABILITY.md`          |
+| Adoption strategy | `docs/adoption-strategy.md`      |
+| Producer testing  | `docs/producer-testing.md`       |
+| Consumer testing  | `docs/consumer-testing-guide.md` |
+| Use cases         | `docs/use-cases.md`              |
+| Sequence diagrams | `docs/sequence-diagrams.md`      |
+| Operating modes   | `docs/modes.md`                  |
 
 ## Getting Help
 
