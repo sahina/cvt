@@ -34,7 +34,7 @@ uv add cvt-sdk
 ```python
 from cvt_sdk import ContractValidator
 
-validator = ContractValidator(host="localhost:50052")
+validator = ContractValidator(host="localhost:9550")
 
 # Register from local file
 validator.register_schema("my-schema", "path/to/openapi.json")
@@ -76,7 +76,7 @@ The SDK includes a Requests adapter for automatic HTTP traffic validation:
 from cvt_sdk import ContractValidator
 from cvt_sdk.adapters import ContractValidatingSession
 
-validator = ContractValidator(host="localhost:50052")
+validator = ContractValidator(host="localhost:9550")
 validator.register_schema("petstore", "./openapi.json")
 
 # Create a validating session (drop-in replacement for requests.Session)
@@ -124,7 +124,7 @@ from cvt_sdk import ContractValidator
 from cvt_sdk.producer import ProducerConfig, ValidationMode
 from cvt_sdk.producer.adapters import ASGIMiddleware
 
-validator = ContractValidator(host="localhost:50052")
+validator = ContractValidator(host="localhost:9550")
 validator.register_schema("my-api", "./openapi.json")
 
 config = ProducerConfig(
@@ -164,7 +164,7 @@ Detect breaking changes between OpenAPI schema versions before deployment:
 ```python
 from cvt_sdk import ContractValidator
 
-validator = ContractValidator(host="localhost:50052")
+validator = ContractValidator(host="localhost:9550")
 
 # Register both schema versions
 validator.register_schema_with_version("my-api", "./openapi-v1.json", "1.0.0")
@@ -204,7 +204,7 @@ from cvt_sdk.producer import ProducerTestKit, TestConfig, TestResponseData
 
 test_kit = ProducerTestKit(TestConfig(
     schema_id="user-api",
-    server_address="localhost:50051",
+    server_address="localhost:9550",
 ))
 
 # Validate handler response
@@ -274,7 +274,7 @@ See [Producer Testing Guide](../../docs/producer-testing.md) for complete docume
 
 ```python
 validator = ContractValidator(
-    host="localhost:50051",
+    host="localhost:9550",
     tls_enabled=True,
     tls_root_cert="./certs/ca.crt",
     tls_client_cert="./certs/client.crt",  # For mTLS
@@ -286,14 +286,14 @@ validator = ContractValidator(
 
 ```python
 validator = ContractValidator(
-    host="localhost:50051",
+    host="localhost:9550",
     api_key="your-api-key-here"
 )
 ```
 
 ## Prerequisites
 
-Ensure the CVT gRPC server is running (default: `localhost:50052`).
+Ensure the CVT gRPC server is running (default: `localhost:9550`).
 
 ## Testing
 
@@ -346,7 +346,7 @@ from cvt_sdk import ContractValidator
 @pytest.fixture
 def validator():
     """Create validator instance for testing."""
-    v = ContractValidator(host="localhost:50052")
+    v = ContractValidator(host="localhost:9550")
     yield v
     v.close()
 

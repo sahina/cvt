@@ -41,7 +41,7 @@ implementation 'com.cvt:cvt-sdk:1.0.0'
 make up
 
 # Or use Docker directly
-docker run -d -p 50052:50051 cvt-server
+docker run -d -p 9550:9550 cvt-server
 ```
 
 ### Step 4: Write Your First Contract Test
@@ -55,7 +55,7 @@ describe("User Service Contract", () => {
   let validator: ContractValidator;
 
   beforeAll(async () => {
-    validator = new ContractValidator("localhost:50052");
+    validator = new ContractValidator("localhost:9550");
     // Schema ID "user-service" is used to reference this schema in validate()
     await validator.registerSchema(
       "user-service",
@@ -89,7 +89,7 @@ from cvt_sdk import ContractValidator
 
 @pytest.fixture(scope="module")
 def validator():
-    v = ContractValidator(host="localhost:50052")
+    v = ContractValidator(host="localhost:9550")
     v.register_schema("user-service", "./contracts/user-service.json")
     yield v
     v.close()  # Fixture teardown closes gRPC connection
@@ -115,7 +115,7 @@ Instead of manually validating, use the adapter for automatic validation:
 import axios from "axios";
 import { ContractValidator, createAxiosAdapter } from "@cvt/cvt-sdk";
 
-const validator = new ContractValidator("localhost:50052");
+const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("user-service", "./contracts/user-service.json");
 
 const api = axios.create({ baseURL: "http://user-service" });
@@ -146,11 +146,11 @@ jobs:
       cvt: # CVT server runs as a sidecar service
         image: cvt-server:latest
         ports:
-          - 50052:50051
+          - 9550:9550
     steps:
       - uses: actions/checkout@v4
       - run: npm install
-      - run: npm test # Tests connect to localhost:50052
+      - run: npm test # Tests connect to localhost:9550
 ```
 
 ---
@@ -189,7 +189,7 @@ cvt compare --old ./api/openapi-v1.0.0.json --new ./api/openapi-v1.1.0.json
 ```typescript
 import { ContractValidator } from "@cvt/cvt-sdk";
 
-const validator = new ContractValidator("localhost:50052");
+const validator = new ContractValidator("localhost:9550");
 
 // Register multiple versions of the same schema for comparison
 await validator.registerSchemaWithVersion(
@@ -330,7 +330,7 @@ describe("User API Client", () => {
   let validator: ContractValidator;
 
   beforeAll(async () => {
-    validator = new ContractValidator("localhost:50052");
+    validator = new ContractValidator("localhost:9550");
     await validator.registerSchema("user-api", "./contracts/user-api.json");
   });
 
@@ -622,7 +622,7 @@ import { createAxiosAdapter } from "@cvt/cvt-sdk/adapters";
 import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
 
 // Single validator instance handles both consumer and producer validation
-const validator = new ContractValidator("localhost:50052");
+const validator = new ContractValidator("localhost:9550");
 
 // Register schemas for APIs you CONSUME (other teams' APIs)
 await validator.registerSchema("user-service", "./contracts/user-service.json");

@@ -67,10 +67,19 @@ func main() {
 	ctx := context.Background()
 
 	// Initialize the validator (connects to CVT server)
-	validator, err := cvt.NewValidator("")
+	// Use CVT_SERVER_ADDRESS env var, or default to localhost:9550 (local server)
+	serverAddr := os.Getenv("CVT_SERVER_ADDRESS")
+	if serverAddr == "" {
+		serverAddr = "localhost:9550" // Default for local server (make run-server)
+	}
+	fmt.Printf("Connecting to CVT server at %s...\n", serverAddr)
+
+	validator, err := cvt.NewValidator(serverAddr)
 	if err != nil {
 		fmt.Printf("Failed to create validator: %v\n", err)
-		fmt.Println("\nMake sure CVT server is running: make up")
+		fmt.Println("\nMake sure CVT server is running:")
+		fmt.Println("  make run-server  (local, port 50051)")
+		fmt.Println("  make up          (Docker, port 50052)")
 		os.Exit(1)
 	}
 	defer func() { _ = validator.Close() }()
@@ -146,6 +155,92 @@ func main() {
 
 	if result.Valid {
 		fmt.Println("        Valid interaction: GET /users/123")
+	} else {
+		fmt.Printf("        Validation failed: %v\n", result.Errors)
+	}
+
+	// Invalid interaction: missing required fields
+	fmt.Println()
+	fmt.Println("         Testing INVALID response (missing required fields)...")
+	invalidResponse := cvt.ValidationResponse{
+		StatusCode: 200,
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+		},
+		Body: map[string]any{
+			"id": "123",
+			// Missing "name" and "email" which are required
+		},
+	}
+	result, err = validator.Validate(ctx, validRequest, invalidResponse)
+	if err != nil {
+		fmt.Printf("        Validation error: %v\n", err)
+	} else if !result.Valid {
+		fmt.Println("        Correctly detected invalid response:")
+		for _, e := range result.Errors {
+			fmt.Printf("          - %s\n", e)
+		}
+	} else {
+		fmt.Println("        WARNING: Expected validation to fail but it passed!")
+	}
+
+	// POST request with body validation
+	fmt.Println()
+	fmt.Println("         Testing POST /users with request body...")
+	postRequest := cvt.ValidationRequest{
+		Method: "POST",
+		Path:   "/users",
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+			"Accept":       "application/json",
+		},
+		Body: map[string]any{
+			"name":  "Jane Doe",
+			"email": "jane@example.com",
+		},
+	}
+	postResponse := cvt.ValidationResponse{
+		StatusCode: 201,
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+		},
+		Body: map[string]any{
+			"id":    "456",
+			"name":  "Jane Doe",
+			"email": "jane@example.com",
+			"role":  "user",
+		},
+	}
+	result, err = validator.Validate(ctx, postRequest, postResponse)
+	if err != nil {
+		fmt.Printf("        Validation error: %v\n", err)
+	} else if result.Valid {
+		fmt.Println("        Valid interaction: POST /users (201 Created)")
+	} else {
+		fmt.Printf("        Validation failed: %v\n", result.Errors)
+	}
+
+	// 404 error response validation
+	fmt.Println()
+	fmt.Println("         Testing 404 Not Found response...")
+	notFoundRequest := cvt.ValidationRequest{
+		Method: "GET",
+		Path:   "/users/nonexistent",
+		Headers: map[string]string{
+			"Accept": "application/json",
+		},
+	}
+	notFoundResponse := cvt.ValidationResponse{
+		StatusCode: 404,
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+		},
+	}
+	result, err = validator.Validate(ctx, notFoundRequest, notFoundResponse)
+	if err != nil {
+		fmt.Printf("        Validation error: %v\n", err)
+	} else if result.Valid {
+		fmt.Println("        Valid interaction: GET /users/nonexistent (404 Not Found)")
 	} else {
 		fmt.Printf("        Validation failed: %v\n", result.Errors)
 	}

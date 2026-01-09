@@ -99,7 +99,7 @@ cd server && go build -o cvt-server .
 ### Running Locally
 
 ```bash
-# Run server on port 50051 (default)
+# Run server on port 9550 (default)
 make run-server
 
 # Or with custom port
@@ -161,7 +161,7 @@ make prometheus
 
 | Variable              | Default           | Description                               |
 | --------------------- | ----------------- | ----------------------------------------- |
-| `CVT_PORT`            | 50051             | gRPC server port                          |
+| `CVT_PORT`            | 9550             | gRPC server port                          |
 | `CVT_METRICS_PORT`    | 9090              | Prometheus metrics port                   |
 | `LOG_LEVEL`           | info              | Logging level (debug, info, warn, error)  |
 | `CVT_TLS_ENABLED`     | false             | Enable TLS                                |
@@ -479,7 +479,7 @@ import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
 
 const testKit = new ProducerTestKit({
   schemaId: "my-api",
-  serverAddress: "localhost:50051",
+  serverAddress: "localhost:9550",
 });
 
 const result = await testKit.validateResponse({
@@ -520,7 +520,7 @@ go build -o cvt ./cmd/cvt
 cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
 
 # With custom server address
-cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --server localhost:50051
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --server localhost:9550
 ```
 
 ### Key Producer Testing Files
@@ -635,7 +635,7 @@ import { ContractValidator } from "@cvt/cvt-sdk";
 import * as fs from "fs";
 
 const validator = new ContractValidator({
-  serverUrl: "localhost:50051",
+  serverUrl: "localhost:9550",
   tls: {
     rootCerts: fs.readFileSync("./certs/ca.crt"),
     // For mTLS:
@@ -651,7 +651,7 @@ const validator = new ContractValidator({
 from cvt_sdk import ContractValidator
 
 validator = ContractValidator(
-    server_url="localhost:50051",
+    server_url="localhost:9550",
     tls_root_certs=open("./certs/ca.crt", "rb").read(),
     # For mTLS:
     tls_private_key=open("./certs/client.key", "rb").read(),
@@ -682,7 +682,7 @@ creds := credentials.NewTLS(&tls.Config{
 })
 
 validator, _ := cvt.NewValidator(
-    cvt.WithAddress("localhost:50051"),
+    cvt.WithAddress("localhost:9550"),
     cvt.WithTransportCredentials(creds),
 )
 ```
@@ -962,7 +962,7 @@ make clean
 
 ## Troubleshooting
 
-### Server won't start on port 50051
+### Server won't start on port 9550
 
 The port may be in use. The server auto-increments to find an available port, or specify a different one:
 

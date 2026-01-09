@@ -31,7 +31,7 @@ scrape_configs:
 
     # Static targets to scrape
     static_configs:
-      - targets: ['cvt-server:9090']
+      - targets: ['cvt-server:9551']
         labels:
           service: 'cvt'
           component: 'server'

@@ -195,7 +195,7 @@ import { ProducerTestKit } from "cvt-sdk/producer";
 
 const testKit = new ProducerTestKit({
   schemaId: "user-api",
-  serverAddress: "localhost:50051",
+  serverAddress: "localhost:9550",
 });
 
 // In your test
@@ -214,7 +214,7 @@ expect(result.valid).toBe(true);
 ```go
 testKit, err := producer.NewProducerTestKit(producer.TestConfig{
     SchemaID:      "user-api",
-    ServerAddress: "localhost:50051",
+    ServerAddress: "localhost:9550",
 })
 
 result, err := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
@@ -236,7 +236,7 @@ from cvt_sdk.producer import ProducerTestKit, TestConfig, TestResponseData
 
 test_kit = ProducerTestKit(TestConfig(
     schema_id="user-api",
-    server_address="localhost:50051",
+    server_address="localhost:9550",
 ))
 
 result = test_kit.validate_response(
@@ -256,7 +256,7 @@ assert result.valid
 ```java
 ProducerTestKit testKit = ProducerTestKit.builder()
     .schemaId("user-api")
-    .serverAddress("localhost:50051")
+    .serverAddress("localhost:9550")
     .build();
 
 try {

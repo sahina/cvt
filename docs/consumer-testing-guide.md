@@ -46,7 +46,7 @@ validator.RegisterSchemaWithVersion(ctx, "user-api", schemaPath, "1.0.0")
 
 This registers the User API schema v1.0.0 with the CVT server.
 
-### Step 2: Interaction Validation
+### Step 2: Interaction Validation (Manual)
 
 Validate that your API calls match the schema:
 
@@ -67,9 +67,66 @@ result, _ := validator.Validate(ctx, request, response)
 // result.Valid == true
 ```
 
-### Step 3: Consumer Registration
+Test invalid responses to ensure schema violations are caught:
 
-Register your service as a consumer to track dependencies:
+```go
+// Missing required fields - should fail validation
+invalidResponse := cvt.ValidationResponse{
+    StatusCode: 200,
+    Body: map[string]interface{}{"id": "123"}, // missing name, email
+}
+result, _ := validator.Validate(ctx, request, invalidResponse)
+// result.Valid == false
+// result.Errors contains validation messages
+```
+
+### Step 3: Interaction Validation (MockingRoundTripper)
+
+Use the MockingRoundTripper for automatic response generation from schema:
+
+```go
+// Create mock client that auto-generates responses from schema
+mock := adapters.NewMock(validator, adapters.WithCache())
+mockClient := mock.Client()
+
+// Make requests - responses are generated from OpenAPI schema
+req, _ := http.NewRequest("GET", "http://mock.user-api/users/456", nil)
+resp, _ := mockClient.Do(req)
+
+// Check recorded interactions for consumer registration
+interactions := mock.GetInteractions()
+```
+
+Benefits:
+- No real API endpoint needed
+- Responses match schema exactly
+- Interactions captured for auto-registration
+
+### Step 4: Consumer Registration (Auto - Recommended)
+
+Register from captured interactions - endpoints and fields are extracted automatically:
+
+```go
+// Use interactions captured from MockingRoundTripper
+interactions := mock.GetInteractions()
+
+consumerInfo, _ := validator.RegisterConsumerFromInteractions(ctx, interactions, cvt.AutoRegisterConfig{
+    ConsumerID:      "order-service-auto",
+    ConsumerVersion: "2.1.0",
+    Environment:     "dev",
+    SchemaVersion:   "1.0.0",
+    // SchemaID is auto-extracted from URL: http://mock.user-api/... -> "user-api"
+})
+```
+
+Benefits:
+- No manual endpoint specification
+- Fields extracted from actual usage
+- Always in sync with test behavior
+
+### Step 5: Consumer Registration (Manual)
+
+For fine-grained control, specify endpoints explicitly:
 
 ```go
 validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
@@ -94,7 +151,7 @@ This tells CVT:
 - **What you depend on**: `user-api` v1.0.0
 - **What you use**: `GET /users/{id}` endpoint, specifically the `id`, `name`, and `email` fields
 
-### Step 4: List Consumers
+### Step 6: List Consumers
 
 Query all consumers registered for a schema:
 
@@ -103,7 +160,7 @@ consumers, _ := validator.ListConsumers(ctx, "user-api", "dev")
 // consumers = [{ConsumerID: "order-service", ...}]
 ```
 
-### Step 5: Deployment Safety Check
+### Step 7: Deployment Safety Check
 
 Before deploying a new schema version, check if it's safe:
 
@@ -127,7 +184,7 @@ if result.SafeToDeploy {
 }
 ```
 
-### Step 6: Cleanup
+### Step 8: Cleanup
 
 Deregister consumers when no longer needed:
 
@@ -137,52 +194,74 @@ validator.DeregisterConsumer(ctx, "order-service", "user-api", "dev")
 
 ## Expected Output
 
-When you run the example, you should see:
+When you run the example, you should see output similar to:
 
 ```text
 === CVT Consumer Testing Example ===
 
 This example demonstrates the full consumer testing workflow:
   1. Register producer's OpenAPI schema
-  2. Validate API interactions
-  3. Register as a consumer (track dependencies)
-  4. List registered consumers
-  5. Check deployment safety (CanIDeploy)
-  6. Cleanup (deregister consumer)
+  2. Demonstrate version mismatch enforcement
+  3. Validate API interactions (two approaches):
+     a) Manual: Build request/response structs
+     b) MockingRoundTripper: Auto-generate from schema
+  4. Register as a consumer (two approaches):
+     a) AUTO: From captured test interactions (RECOMMENDED)
+     b) MANUAL: Specify endpoints explicitly
+  5. List registered consumers
+  6. Check deployment safety (CanIDeploy)
+  7. Cleanup (deregister consumer)
 
 ============================================================
 
 Step 1: Registering producer's OpenAPI schema (v1.0.0)...
         Schema v1.0.0 registered successfully.
 
-Step 2: Validating API interactions against the schema...
+Step 2: Demonstrating version mismatch enforcement...
+        Expected error received: version mismatch...
+
+Step 3a: Validating API interactions (MANUAL approach)...
         Valid interaction: GET /users/123
+        Testing INVALID response (missing required fields)...
+        Correctly detected invalid response:
+          - property "name" is missing
+          - property "email" is missing
+        Testing POST /users with request body...
+        Valid interaction: POST /users (201 Created)
+        Testing 404 Not Found response...
+        Valid interaction: GET /users/nonexistent (404 Not Found)
 
-Step 3: Registering as a consumer (order-service)...
+Step 3b: Validating API interactions (MOCK CLIENT approach)...
+        Mock response status: 200
+        Recorded interactions: 1
+
+Step 4a: Registering as a consumer (AUTO from test interactions)...
+        Consumer registered: order-service-auto v2.1.0
+        Auto-detected endpoints: 1
+
+Step 4b: Registering as a consumer (MANUAL with explicit endpoints)...
         Consumer registered: order-service v2.1.0
-        Uses schema: user-api v1.0.0
-        Environment: dev
-        Tracked endpoints: 2
 
-Step 4: Listing registered consumers for this schema...
-        Found 1 consumer(s) in dev environment:
-          - order-service v2.1.0 (uses schema v1.0.0)
+Step 5: Listing registered consumers for this schema...
+        Found 2 consumer(s) in dev environment
 
-Step 5: Registering schema v2.0.0 (with breaking changes)...
+Step 6: Registering schema v2.0.0 (with breaking changes)...
         Schema v2.0.0 registered successfully.
 
-Step 6: Checking deployment safety (can-i-deploy v2.0.0 to dev)...
+Step 7: Checking deployment safety (can-i-deploy v2.0.0 to dev)...
 ------------------------------------------------------------
 RESULT: UNSAFE TO DEPLOY
 
-Summary: Deployment may affect 1 consumer(s) - review required
+Breaking changes detected: 2
+  1. [endpoint_removed] DELETE /users/{id}
+  2. [field_removed] User.email
 
-Affected consumers: 1
+Affected consumers: 2
+  - order-service-auto v2.1.0 (impact: BREAKING)
   - order-service v2.1.0 (impact: BREAKING)
 ------------------------------------------------------------
 
-Step 7: Cleaning up (deregistering consumer)...
-        Consumer deregistered successfully.
+Step 8: Cleaning up (deregistering consumers)...
         Remaining consumers in dev: 0
 
 ============================================================
@@ -276,7 +355,7 @@ jobs:
       cvt:
         image: ghcr.io/cvt/cvt-server:latest
         ports:
-          - 50051:50051
+          - 9550:9550
 
     steps:
       - uses: actions/checkout@v4
@@ -344,10 +423,10 @@ ls sdks/shared/openapi-v1.json
 
 ### Connection refused
 
-The default server address is `localhost:50052`. If your server is on a different port:
+The default server address is `localhost:9550`. If your server is on a different port:
 
 ```go
-validator, _ := cvt.NewValidator("localhost:50051")
+validator, _ := cvt.NewValidator("localhost:9550")
 ```
 
 ## Next Steps

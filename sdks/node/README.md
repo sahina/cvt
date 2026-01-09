@@ -257,7 +257,7 @@ import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
 
 const testKit = new ProducerTestKit({
   schemaId: "user-api",
-  serverAddress: "localhost:50051",
+  serverAddress: "localhost:9550",
 });
 
 // Validate handler response
@@ -331,7 +331,7 @@ See [Producer Testing Guide](../../docs/producer-testing.md) for complete docume
 
 ```typescript
 const validator = new ContractValidator({
-  address: "localhost:50051",
+  address: "localhost:9550",
   tls: {
     enabled: true,
     rootCertPath: "./certs/ca.crt", // CA certificate
@@ -345,14 +345,14 @@ const validator = new ContractValidator({
 
 ```typescript
 const validator = new ContractValidator({
-  address: "localhost:50051",
+  address: "localhost:9550",
   apiKey: "your-api-key-here",
 });
 ```
 
 ## Prerequisites
 
-Ensure the CVT gRPC server is running (default: `localhost:50052`).
+Ensure the CVT gRPC server is running (default: `localhost:9550`).
 
 ## Testing
 
@@ -401,7 +401,7 @@ describe("ContractValidator", () => {
   let validator: ContractValidator;
 
   beforeEach(() => {
-    validator = new ContractValidator({ host: "localhost:50052" });
+    validator = new ContractValidator({ host: "localhost:9550" });
   });
 
   afterEach(async () => {

@@ -47,7 +47,7 @@ dependencies {
 ```java
 import com.cvt.ContractValidator;
 
-ContractValidator validator = new ContractValidator("localhost:50052");
+ContractValidator validator = new ContractValidator("localhost:9550");
 
 // Register from local file
 validator.registerSchema("my-schema", "path/to/openapi.json");
@@ -157,7 +157,7 @@ import com.cvt.sdk.ContractValidator;
 import com.cvt.sdk.CompareResult;
 import com.cvt.sdk.BreakingChange;
 
-ContractValidator validator = new ContractValidator("localhost:50052");
+ContractValidator validator = new ContractValidator("localhost:9550");
 
 // Register both schema versions
 validator.registerSchemaWithVersion("my-api", "./openapi-v1.json", "1.0.0");
@@ -202,7 +202,7 @@ import com.cvt.sdk.producer.TestValidationResult;
 
 ProducerTestKit testKit = ProducerTestKit.builder()
     .schemaId("user-api")
-    .serverAddress("localhost:50051")
+    .serverAddress("localhost:9550")
     .build();
 
 try {
@@ -276,7 +276,7 @@ See [Producer Testing Guide](../../docs/producer-testing.md) for complete docume
 
 ## Prerequisites
 
-Ensure the CVT gRPC server is running (default: `localhost:50052`).
+Ensure the CVT gRPC server is running (default: `localhost:9550`).
 
 ## Testing
 
@@ -325,7 +325,7 @@ class ContractValidatorTest {
 
     @BeforeEach
     void setUp() {
-        validator = new ContractValidator("localhost:50052");
+        validator = new ContractValidator("localhost:9550");
     }
 
     @AfterEach

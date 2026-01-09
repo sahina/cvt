@@ -25,7 +25,7 @@ type TestConfig struct {
 	// SchemaVersion is an optional specific version to validate against.
 	SchemaVersion string
 
-	// ServerAddress is the CVT gRPC server address (default: "localhost:50051").
+	// ServerAddress is the CVT gRPC server address (default: "localhost:9550").
 	ServerAddress string
 
 	// TLS configures TLS for secure connections.
@@ -104,7 +104,7 @@ type ValidateResponseParams struct {
 //	func TestUserAPI(t *testing.T) {
 //	    testKit, err := producer.NewProducerTestKit(producer.TestConfig{
 //	        SchemaID:      "user-api",
-//	        ServerAddress: "localhost:50051",
+//	        ServerAddress: "localhost:9550",
 //	    })
 //	    if err != nil {
 //	        t.Fatal(err)
@@ -146,7 +146,7 @@ func NewProducerTestKit(config TestConfig) (*ProducerTestKit, error) {
 
 	address := config.ServerAddress
 	if address == "" {
-		address = "localhost:50051"
+		address = "localhost:9550"
 	}
 
 	// Build dial options

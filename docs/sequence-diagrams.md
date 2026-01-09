@@ -125,7 +125,7 @@ This diagram shows how CVT middleware in your project communicates with the CVT 
 │   │  │  │   (provided by SDK)     │  │  │    │  │                   │  │   │
 │   │  │  └────────────┬────────────┘  │  │    │  └───────────────────┘  │   │
 │   │  │               │               │  │    │                         │   │
-│   │  │  ┌────────────▼────────────┐  │  │    │  Port: 50051 (gRPC)    │   │
+│   │  │  ┌────────────▼────────────┐  │  │    │  Port: 9550 (gRPC)    │   │
 │   │  │  │   Your Route Handlers   │  │  │    │                         │   │
 │   │  │  │   (your business logic) │  │  │    └─────────────────────────┘   │
 │   │  │  └─────────────────────────┘  │  │                                  │

@@ -201,7 +201,7 @@ type TLSOptions struct {
 
 // ValidatorOptions configures the Validator client.
 type ValidatorOptions struct {
-	// Address is the gRPC server address (default: "localhost:50052").
+	// Address is the gRPC server address (default: "localhost:9550").
 	Address string
 
 	// TLS configures TLS for secure connections.
@@ -222,7 +222,7 @@ type Validator struct {
 // NewValidator creates a new Validator instance with an insecure connection.
 //
 // The address parameter specifies the gRPC server address.
-// If empty, defaults to "localhost:50052".
+// If empty, defaults to "localhost:9550".
 //
 // For TLS and API key authentication, use NewValidatorWithOptions instead.
 //
@@ -256,7 +256,7 @@ func NewValidator(address string) (*Validator, error) {
 func NewValidatorWithOptions(opts ValidatorOptions) (*Validator, error) {
 	address := opts.Address
 	if address == "" {
-		address = "localhost:50052"
+		address = "localhost:9550"
 	}
 
 	// Build dial options

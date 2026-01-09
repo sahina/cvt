@@ -34,7 +34,7 @@ cvt/
 make build                 # Build Go server, Node.js SDK, and Python SDK
 make up                    # Start server + observability stack (Docker)
 make down                  # Stop all Docker services
-make run-server            # Run Go server locally on port 50051
+make run-server            # Run Go server locally on port 9550
 make run-example           # Run Node.js SDK example
 ```
 
@@ -142,8 +142,8 @@ Defines the gRPC service contract with messages: `RegisterSchemaRequest`, `Inter
 
 ### Core Settings
 
-- `CVT_PORT`: gRPC server port (default: 50051)
-- `CVT_METRICS_PORT`: Prometheus metrics port (default: 9090)
+- `CVT_PORT`: gRPC server port (default: 9550)
+- `CVT_METRICS_PORT`: Prometheus metrics port (default: 9551)
 - `LOG_LEVEL`: Set to "debug" for development mode logging
 
 ### TLS Configuration
@@ -215,17 +215,17 @@ cvt generate --schema ./openapi.json --endpoint "GET /users" --use-examples  # U
 **can-i-deploy** - Check deployment safety against registered consumers:
 
 ```bash
-cvt can-i-deploy --schema ./openapi.json --server localhost:50051
-cvt can-i-deploy --schema ./openapi.json --server localhost:50051 --json --timeout 30s
+cvt can-i-deploy --schema ./openapi.json --server localhost:9550
+cvt can-i-deploy --schema ./openapi.json --server localhost:9550 --json --timeout 30s
 ```
 
 **serve** - Start the gRPC server:
 
 ```bash
-cvt serve --port 50051
-cvt serve --port 50051 --metrics-port 9090
-cvt serve --port 50051 --tls --cert server.crt --key server.key
-cvt serve --port 50051 --api-key-auth  # Enable API key authentication
+cvt serve --port 9550
+cvt serve --port 9550 --metrics-port 9551
+cvt serve --port 9550 --tls --cert server.crt --key server.key
+cvt serve --port 9550 --api-key-auth  # Enable API key authentication
 ```
 
 **version** - Show version information:
@@ -238,8 +238,8 @@ The CLI uses the embedded library (`pkg/cvt/`) which can also be used directly i
 
 ## Port Configuration
 
-- **50051/50052**: gRPC server (Docker uses 50052 external)
-- **9090**: Prometheus metrics endpoint
+- **9550**: gRPC server (both local and Docker)
+- **9551**: Prometheus metrics endpoint
 - **9091**: Prometheus UI (when running observability stack)
 - **3000**: Grafana UI (admin/admin)
 
