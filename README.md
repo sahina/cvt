@@ -1,10 +1,12 @@
 # Contract Validator Toolkit
 
+## 🚧 WORK IN PROGRESS 🚧
+
 <p align="center">
   <img src="assets/cvt-infographic.jpg" alt="CVT - Contract Validator Toolkit" style="border-radius: 12px;">
 </p>
 
-A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against your API contract. Supports both consumer-side (client) and producer-side (server) validation.
+A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against API contracts. Supports both consumer-side (client) and producer-side (server) validation.
 
 ## Understanding Consumer vs Producer Validation
 
@@ -16,20 +18,30 @@ CVT supports two complementary validation approaches. Understanding when to use 
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  CONSUMER TESTING                                                           │
 │                                                                             │
-│    ┌──────────────┐                              ┌──────────────┐           │
-│    │  Your        │  ──── HTTP Request ────►     │  Downstream  │           │
-│    │  Service     │                              │  API         │           │
-│    │              │  ◄─── HTTP Response ────     │              │           │
-│    └──────────────┘                              └──────────────┘           │
-│          │                                              │                   │
-│          │ Consumer Validation                          │                   │
-│          │ "Am I calling this API correctly?"           │                   │
-│          ▼                                              │                   │
-│    ┌──────────────┐                                     │                   │
-│    │  CVT SDK     │ Validates YOUR outbound calls       │                   │
-│    │  (adapter)   │ against THEIR OpenAPI spec          │                   │
-│    └──────────────┘                                     │                   │
-│                                                         │                   │
+│  Option A: Direct Testing          Option B: Auto-Validating Adapters       │
+│  ┌─────────────────────────────┐   ┌─────────────────────────────┐          │
+│  │                             │   │                             │          │
+│  │  validator.validate(        │   │  HTTP Client (Axios/Fetch)  │          │
+│  │    request, response        │   │         │                   │          │
+│  │  )                          │   │   ┌─────▼─────┐             │          │
+│  │                             │   │   │ CVT       │             │          │
+│  │  Explicit validation in     │   │   │ Adapter   │             │          │
+│  │  unit tests                 │   │   └───────────┘             │          │
+│  │                             │   │                             │          │
+│  │  "Test specific calls"      │   │  Auto-validates ALL calls   │          │
+│  └─────────────────────────────┘   └─────────────────────────────┘          │
+│                                                                             │
+│  Option C: Mock Adapters (Offline Testing)                                  │
+│  ┌──────────────────────────────────────────────────────────────────┐       │
+│  │  Test without the real API:                                      │       │
+│  │                                                                  │       │
+│  │  const mock = createMockAdapter({ validator });                  │       │
+│  │  const response = await mock.fetch('/users/123');                │       │
+│  │                                                                  │       │
+│  │  ✓ Generates schema-compliant responses    ✓ No network needed   │       │
+│  │  ✓ Test before producer API exists         ✓ Fast, deterministic │       │
+│  └──────────────────────────────────────────────────────────────────┘       │
+│                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  PRODUCER TESTING                                                           │
 │                                                                             │
@@ -64,12 +76,14 @@ CVT supports two complementary validation approaches. Understanding when to use 
 
 ### When to Use Each Approach
 
-| Approach                    | You Are...                 | You Want To...                                   | Tool            |
-| --------------------------- | -------------------------- | ------------------------------------------------ | --------------- |
-| **Consumer Validation**     | Calling another team's API | Validate your HTTP client matches their contract | SDK adapters    |
-| **Producer Middleware (A)** | Exposing an API            | Reject invalid requests at runtime               | Middleware      |
-| **Producer Testing (B)**    | Exposing an API            | Verify handlers return spec-compliant responses  | ProducerTestKit |
-| **Deployment Safety (C)**   | Changing your API          | Ensure changes won't break consumers             | can-i-deploy    |
+| Approach                       | You Are...                 | You Want To...                                   | Tool             |
+| ------------------------------ | -------------------------- | ------------------------------------------------ | ---------------- |
+| **Consumer Direct (A)**        | Calling another team's API | Explicitly validate specific calls in tests      | `validator`      |
+| **Consumer Adapters (B)**      | Calling another team's API | Auto-validate ALL HTTP client calls              | SDK adapters     |
+| **Consumer Mock (C)**          | Calling another team's API | Test without access to the real API              | Mock adapters    |
+| **Producer Middleware (A)**    | Exposing an API            | Reject invalid requests at runtime               | Middleware       |
+| **Producer Testing (B)**       | Exposing an API            | Verify handlers return spec-compliant responses  | ProducerTestKit  |
+| **Deployment Safety (C)**      | Changing your API          | Ensure changes won't break consumers             | can-i-deploy     |
 
 ### Consumer Validation (Client-Side)
 
@@ -77,25 +91,69 @@ CVT supports two complementary validation approaches. Understanding when to use 
 
 **What it validates:** Your HTTP client code—the requests you send and how you handle responses—against the downstream API's OpenAPI specification.
 
-**Where it runs:** In your test suite as contract tests, or as an HTTP client interceptor (Axios, Fetch, Requests) that validates every call automatically.
+CVT offers three approaches for consumer-side validation:
 
-**When to use it:**
+#### Option A: Direct Contract Testing
 
-- You're integrating with another team's API
-- You want to catch integration bugs before deployment
-- You need to test without access to the actual API
-- You want to detect when upstream APIs introduce breaking changes
+**What it does:** Explicitly validate request/response pairs in your test suite.
 
-**Key insight:** Consumer validation tests YOUR code against THEIR contract.
+**When to use:** Unit tests where you want full control over what gets validated.
 
 ```typescript
-// Quick example: Validate your API calls match the upstream contract
+// Explicit validation in your test
 const result = await validator.validate(
-  { method: "GET", path: "/users/123" }, // What your code sends
-  { statusCode: 200, body: '{"id": 123}' }, // What the API returns
+  { method: "GET", path: "/users/123" },
+  { statusCode: 200, body: '{"id": 123}' },
 );
-// result.valid === true means your code is contract-compliant
+expect(result.valid).toBe(true);
 ```
+
+#### Option B: Auto-Validating HTTP Adapters
+
+**What it does:** Wraps your HTTP client to automatically validate ALL outgoing calls.
+
+**When to use:** You want zero-touch validation—never miss a contract violation.
+
+```typescript
+// Node.js - Axios adapter validates every call automatically
+const adapter = createAxiosAdapter({ axios: api, validator, schemaId: "user-api" });
+const response = await api.get("/users/123"); // Auto-validated!
+```
+
+```python
+# Python - Drop-in session replacement
+session = ContractValidatingSession(validator, schema_id='user-api')
+response = session.get('http://api/users/123')  # Auto-validated!
+```
+
+```go
+// Go - RoundTripper intercepts all HTTP traffic
+rt := adapters.NewValidatingRoundTripper(adapters.RoundTripperConfig{Validator: v})
+client := &http.Client{Transport: rt}
+```
+
+#### Option C: Mock Adapters (Offline Testing)
+
+**What it does:** Generate schema-compliant mock responses without calling the real API.
+
+**When to use:** Testing consumer code before the producer API is available (see Use Case 4).
+
+```typescript
+// No real HTTP call - response generated from OpenAPI schema!
+const mock = createMockAdapter({ validator, cache: true });
+const response = await mock.fetch("http://mock.user-api/users/123");
+const data = await response.json(); // Schema-compliant mock data
+```
+
+```python
+# Python - MockSession generates responses from schema
+mock = MockSession(validator, schema_id='user-api')
+response = mock.get('http://mock.user-api/users/123')  # No network needed!
+```
+// Go - Mock client generates responses from schema
+client := adapters.NewMockClient(validator)
+resp, _ := client.Get("http://mock.user-api/users/123") // No network needed!
+**Key insight:** Consumer validation tests YOUR code against THEIR contract.
 
 ### Producer Validation (Server-Side)
 
