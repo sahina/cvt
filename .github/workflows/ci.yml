@@ -103,7 +103,7 @@ jobs:
         working-directory: ./sdks/node
         run: pnpm test
         env:
-          CVT_SERVER_ADDRESS: localhost:50052
+          CVT_SERVER_ADDRESS: localhost:9550
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -150,7 +150,7 @@ jobs:
         working-directory: ./sdks/java
         run: ./gradlew test
         env:
-          CVT_SERVER_ADDRESS: localhost:50052
+          CVT_SERVER_ADDRESS: localhost:9550
 
       - name: Show server logs
         if: always()

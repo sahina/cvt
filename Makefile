@@ -54,7 +54,7 @@ help:
 	@echo ""
 	@echo "Health check commands:"
 	@echo "  make install-health-probe - Install grpc-health-probe"
-	@echo "  make health             - Check server health (port 50052)"
+	@echo "  make health             - Check server health (port 9550)"
 	@echo "  make check-health       - Detailed health check with status"
 	@echo "  make watch-health       - Continuously monitor health (Ctrl+C to stop)"
 	@echo ""
@@ -71,7 +71,7 @@ help:
 	@echo "  make update-python-sdk  - Update Python SDK dependencies"
 	@echo ""
 	@echo "Observability commands:"
-	@echo "  make metrics            - View Prometheus metrics (curl localhost:9090/metrics)"
+	@echo "  make metrics            - View Prometheus metrics (curl localhost:9551/metrics)"
 	@echo "  make grafana            - Open Grafana dashboard (http://localhost:3000)"
 	@echo "  make prometheus         - Open Prometheus UI (http://localhost:9091)"
 	@echo "  make observability-status - Check observability stack status"
@@ -191,7 +191,7 @@ test-with-observability:
 	@echo "✅ Tests complete! Observability stack is running:"
 	@echo "  - Grafana:    http://localhost:3000 (admin/admin)"
 	@echo "  - Prometheus: http://localhost:9091"
-	@echo "  - Metrics:    http://localhost:9090/metrics"
+	@echo "  - Metrics:    http://localhost:9551/metrics"
 	@echo ""
 	@echo "💡 Use 'make down' to stop the stack when done"
 
@@ -262,7 +262,7 @@ install-health-probe:
 
 health:
 	@echo "🏥 Checking server health..."
-	@grpc-health-probe -addr=localhost:50052 && echo "✅ Server is healthy!" || echo "❌ Server is not healthy"
+	@grpc-health-probe -addr=localhost:9550 && echo "✅ Server is healthy!" || echo "❌ Server is not healthy"
 
 check-health:
 	@echo "🏥 Detailed health check..."
@@ -274,7 +274,7 @@ check-health:
 	@docker inspect cvt-server --format='Container: {{.Name}}\nStatus: {{.State.Status}}\nHealth: {{.State.Health.Status}}' 2>/dev/null || echo "Container not found"
 	@echo ""
 	@echo "📊 gRPC Health Check:"
-	@grpc-health-probe -addr=localhost:50052 && echo "✅ gRPC service is healthy" || echo "❌ gRPC service is not responding"
+	@grpc-health-probe -addr=localhost:9550 && echo "✅ gRPC service is healthy" || echo "❌ gRPC service is not responding"
 
 watch-health:
 	@echo "👀 Monitoring server health (Ctrl+C to stop)..."
@@ -283,7 +283,7 @@ watch-health:
 		echo "🏥 CVT Server Health Monitor"; \
 		echo "============================"; \
 		echo ""; \
-		grpc-health-probe -addr=localhost:50052 -v && echo "✅ Healthy" || echo "❌ Unhealthy"; \
+		grpc-health-probe -addr=localhost:9550 -v && echo "✅ Healthy" || echo "❌ Unhealthy"; \
 		echo ""; \
 		echo "Last checked: $$(date)"; \
 		sleep 5; \
@@ -292,17 +292,17 @@ watch-health:
 # Development commands
 run-server:
 	@echo "🚀 Running Go server locally..."
-	@echo "💡 Tip: Set CVT_PORT environment variable to use a specific port (e.g., CVT_PORT=50055 make run-server)"
-	@PORT=50051; \
+	@echo "💡 Tip: Set CVT_PORT environment variable to use a specific port (e.g., CVT_PORT=9555 make run-server)"
+	@PORT=9550; \
 	while nc -z localhost $$PORT 2>/dev/null; do \
 		PORT=$$((PORT + 1)); \
-		if [ $$PORT -gt 50060 ]; then \
-			echo "❌ Could not find available port between 50051-50060"; \
+		if [ $$PORT -gt 9560 ]; then \
+			echo "❌ Could not find available port between 9550-9560"; \
 			exit 1; \
 		fi; \
 	done; \
-	if [ $$PORT -ne 50051 ]; then \
-		echo "⚠️  Port 50051 is in use. Using port $$PORT instead..."; \
+	if [ $$PORT -ne 9550 ]; then \
+		echo "⚠️  Port 9550 is in use. Using port $$PORT instead..."; \
 	fi; \
 	cd server && CVT_PORT=$$PORT go run .
 
@@ -342,7 +342,7 @@ update-python-sdk:
 # Observability commands
 metrics:
 	@echo "📊 Fetching Prometheus metrics from CVT server..."
-	@curl -s http://localhost:9090/metrics | grep -E "^cvt_" || echo "⚠️  No metrics available. Is the server running?"
+	@curl -s http://localhost:9551/metrics | grep -E "^cvt_" || echo "⚠️  No metrics available. Is the server running?"
 
 grafana:
 	@echo "🎨 Opening Grafana dashboard..."
@@ -370,7 +370,7 @@ observability-status:
 	@echo "📊 Access URLs:"
 	@echo "  - Grafana:    http://localhost:3000 (admin/admin)"
 	@echo "  - Prometheus: http://localhost:9091"
-	@echo "  - Metrics:    http://localhost:9090/metrics"
+	@echo "  - Metrics:    http://localhost:9551/metrics"
 
 observability-logs:
 	@echo "📋 Viewing observability stack logs (Ctrl+C to stop)..."

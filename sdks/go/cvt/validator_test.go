@@ -108,7 +108,7 @@ func TestNewValidator(t *testing.T) {
 		},
 		{
 			name:    "custom address",
-			address: "localhost:50052",
+			address: "localhost:9550",
 			wantErr: false,
 		},
 	}
@@ -1348,7 +1348,7 @@ func TestNewValidatorWithOptions(t *testing.T) {
 		{
 			name: "with custom address",
 			opts: ValidatorOptions{
-				Address: "localhost:50052",
+				Address: "localhost:9550",
 			},
 			wantErr: false,
 		},

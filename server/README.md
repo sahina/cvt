@@ -96,10 +96,10 @@ go run .
 make run-server
 ```
 
-The server will start on port `50051` by default. You can change it by setting the `CVT_PORT` environment variable:
+The server will start on port `9550` by default. You can change it by setting the `CVT_PORT` environment variable:
 
 ```bash
-CVT_PORT=9090 go run .
+CVT_PORT=9552 go run .
 ```
 
 ### Run in Docker
@@ -250,8 +250,8 @@ make watch-health
 ### Manual Health Check
 
 ```bash
-grpc-health-probe -addr=localhost:50051
-grpc-health-probe -addr=localhost:50051 -service=cvt.ContractValidator
+grpc-health-probe -addr=localhost:9550
+grpc-health-probe -addr=localhost:9550 -service=cvt.ContractValidator
 ```
 
 ## Docker
@@ -279,7 +279,7 @@ grpc-health-probe -addr=localhost:50051 -service=cvt.ContractValidator
 docker build -t cvt-server .
 
 # Run container
-docker run -p 50051:50051 cvt-server
+docker run -p 9550:9550 cvt-server
 
 # Run with Docker Compose
 docker compose up -d
@@ -331,7 +331,7 @@ docker inspect cvt-server --format='{{.State.Health.Status}}'
 
 ```bash
 # Check if port is in use
-lsof -i :50051
+lsof -i :9550
 
 # Check logs
 go run . 2>&1 | grep -i error
@@ -377,7 +377,7 @@ docker build --no-cache -t cvt-server .
 docker logs cvt-server
 
 # Verify health
-docker exec cvt-server /bin/grpc-health-probe -addr=:50051
+docker exec cvt-server /bin/grpc-health-probe -addr=:9550
 ```
 
 ## Migrating from Java

@@ -22,10 +22,10 @@ import (
 
 const (
 	// DefaultPort is the default port the server listens on if CVT_PORT is not set
-	DefaultPort = "50051"
+	DefaultPort = "9550"
 
 	// DefaultMetricsPort is the default port for Prometheus metrics if CVT_METRICS_PORT is not set
-	DefaultMetricsPort = "9090"
+	DefaultMetricsPort = "9551"
 )
 
 // main is the entry point for the CVT server application.

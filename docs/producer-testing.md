@@ -46,7 +46,7 @@ describe('User API', () => {
   beforeAll(async () => {
     testKit = new ProducerTestKit({
       schemaId: 'user-api',
-      serverAddress: 'localhost:50051',
+      serverAddress: 'localhost:9550',
     });
   });
 
@@ -90,7 +90,7 @@ describe('User API', () => {
 func TestUserHandler(t *testing.T) {
     testKit, err := producer.NewProducerTestKit(producer.TestConfig{
         SchemaID:      "user-api",
-        ServerAddress: "localhost:50051",
+        ServerAddress: "localhost:9550",
     })
     require.NoError(t, err)
     defer func() { _ = testKit.Close() }()
@@ -123,7 +123,7 @@ from cvt_sdk.producer import ProducerTestKit, TestConfig
 def test_kit():
     kit = ProducerTestKit(TestConfig(
         schema_id="user-api",
-        server_address="localhost:50051",
+        server_address="localhost:9550",
     ))
     yield kit
     kit.close()
@@ -154,7 +154,7 @@ public class UserHandlerTest {
     void setup() {
         testKit = ProducerTestKit.builder()
             .schemaId("user-api")
-            .serverAddress("localhost:50051")
+            .serverAddress("localhost:9550")
             .build();
     }
 
@@ -196,7 +196,7 @@ Consumers register themselves after successful contract tests:
 
 ```typescript
 // Node.js
-const validator = new ContractValidator('localhost:50051');
+const validator = new ContractValidator('localhost:9550');
 
 await validator.registerConsumer({
   consumerId: 'order-service',
@@ -254,7 +254,7 @@ cvt can-i-deploy --schema user-api --version 2.0.0 --env prod
 cvt can-i-deploy --schema user-api --version 2.0.0 --env prod --json
 
 # Use a specific server
-cvt can-i-deploy --schema user-api --version 2.0.0 --env prod --server cvt.internal:50051
+cvt can-i-deploy --schema user-api --version 2.0.0 --env prod --server cvt.internal:9550
 ```
 
 ### Example Output

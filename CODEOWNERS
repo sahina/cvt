@@ -29,18 +29,27 @@
 # CLI and embedded library
 /cmd/cvt/                   @platform-team
 /pkg/cvt/                   @platform-team
+/internal/                  @platform-team
 
 # CI/CD and infrastructure
 /.github/                   @platform-team @devops-team
+/ci-templates/              @platform-team @devops-team
 /docker-compose*.yml        @platform-team @devops-team
 /Dockerfile                 @platform-team @devops-team
 /Makefile                   @platform-team
+/tools/                     @platform-team @devops-team
 
-# Documentation
+# Configuration and certificates
+/config/                    @platform-team
+/certs/                     @platform-team @devops-team
+
+# Documentation and examples
 /docs/                      @platform-team
+/examples/                  @platform-team
+/assets/                    @platform-team
 README.md                   @platform-team
 CONTRIBUTING.md             @platform-team
+CLAUDE.md                   @platform-team
 
 # Observability configuration
-/grafana/                   @platform-team @observability-team
-/prometheus/                @platform-team @observability-team
+/observability/             @platform-team @observability-team

@@ -24,13 +24,13 @@ services:
       context: ./server
       dockerfile: Dockerfile
     ports:
-      - "50052:50051"  # gRPC port
-      - "9090:9090"     # Metrics port
+      - "9550:9550"   # gRPC port
+      - "9551:9551"   # Metrics port
     container_name: cvt-server
     environment:
       - LOG_LEVEL=debug
-      - CVT_PORT=50051
-      - CVT_METRICS_PORT=9090
+      - CVT_PORT=9550
+      - CVT_METRICS_PORT=9551
       # Persistent storage configuration
       - CVT_STORAGE_ENABLED=true
       - CVT_STORAGE_TYPE=postgres

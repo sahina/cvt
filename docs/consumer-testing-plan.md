@@ -232,7 +232,7 @@ Recommendation: Coordinate with order-service team before deploying.
 import { ContractValidator } from "cvt-sdk";
 
 const validator = new ContractValidator({
-  serverAddress: "localhost:50051",
+  serverAddress: "localhost:9550",
 });
 
 // 1. Register producer's schema
@@ -278,7 +278,7 @@ await validator.registerConsumer({
 import "github.com/cvt/cvt-go-sdk/cvt"
 
 validator, err := cvt.NewContractValidator(cvt.Config{
-    ServerAddress: "localhost:50051",
+    ServerAddress: "localhost:9550",
 })
 
 // 1. Register producer's schema
@@ -319,7 +319,7 @@ err = validator.RegisterConsumer(ctx, cvt.ConsumerInfo{
 ```python
 from cvt_sdk import ContractValidator
 
-validator = ContractValidator(server_address="localhost:50051")
+validator = ContractValidator(server_address="localhost:9550")
 
 # 1. Register producer's schema
 validator.register_schema("user-api", schema_content)
@@ -360,7 +360,7 @@ validator.register_consumer(
 import com.cvt.sdk.ContractValidator;
 
 ContractValidator validator = ContractValidator.builder()
-    .serverAddress("localhost:50051")
+    .serverAddress("localhost:9550")
     .build();
 
 try {
@@ -480,7 +480,7 @@ jobs:
       cvt:
         image: ghcr.io/cvt/cvt-server:latest
         ports:
-          - 50051:50051
+          - 9550:9550
 
     steps:
       - uses: actions/checkout@v4

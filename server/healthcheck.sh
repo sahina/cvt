@@ -13,7 +13,7 @@ set -e
 
 # Default values
 HOST="${GRPC_HOST:-localhost}"
-PORT="${GRPC_PORT:-50051}"
+PORT="${GRPC_PORT:-9550}"
 SERVICE="${GRPC_SERVICE:-cvt.ContractValidator}"
 
 # Check if grpc-health-probe is installed

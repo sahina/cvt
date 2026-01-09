@@ -69,7 +69,7 @@ if [ "$USE_DOCKER" = true ]; then
   fi
 else
   echo ">>> Starting CVT server directly (no Docker)..."
-  # Build and start server in background on port 50052 to match Docker config
+  # Build and start server in background on port 9550 to match Docker config
   echo ">>> Building server..."
   (cd server && go build -o /tmp/cvt-server-test .) || {
     echo "❌ Failed to build server"
@@ -77,13 +77,13 @@ else
   }
 
   # Start server in background
-  CVT_PORT=50052 /tmp/cvt-server-test &
+  CVT_PORT=9550 /tmp/cvt-server-test &
   SERVER_PID=$!
 
   # Wait for server to be ready
   echo ">>> Waiting for server to start (PID: $SERVER_PID)..."
   for i in {1..10}; do
-    if lsof -i :50052 >/dev/null 2>&1; then
+    if lsof -i :9550 >/dev/null 2>&1; then
       break
     fi
     sleep 0.5
@@ -94,7 +94,7 @@ else
     echo "❌ Failed to start server"
     exit 1
   fi
-  echo "✅ Server started and listening on port 50052"
+  echo "✅ Server started and listening on port 9550"
 
   # Ensure server is stopped on exit
   trap "echo ''; echo '>>> Stopping CVT server (PID: $SERVER_PID)...'; kill $SERVER_PID 2>/dev/null || true; rm -f /tmp/cvt-server-test" EXIT

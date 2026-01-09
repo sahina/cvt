@@ -317,7 +317,7 @@ import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
 
 const testKit = new ProducerTestKit({
   schemaId: "user-api",
-  serverAddress: "localhost:50051",
+  serverAddress: "localhost:9550",
 });
 
 // In your test
@@ -335,7 +335,7 @@ expect(result.valid).toBe(true);
 // Go
 testKit, _ := producer.NewProducerTestKit(producer.TestConfig{
     SchemaID:      "user-api",
-    ServerAddress: "localhost:50051",
+    ServerAddress: "localhost:9550",
 })
 
 result, _ := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
@@ -436,7 +436,7 @@ Validate your HTTP client calls against the API contract:
 ```javascript
 const { ContractValidator } = require("@cvt/cvt-sdk");
 
-const validator = new ContractValidator("localhost:50052");
+const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("my-api", "./openapi.json");
 
 // Validate request/response pair against the registered schema
@@ -458,7 +458,7 @@ import express from "express";
 import { ContractValidator } from "@cvt/cvt-sdk";
 import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
 
-const validator = new ContractValidator("localhost:50052");
+const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("my-api", "./openapi.json");
 
 const app = express();
@@ -625,7 +625,7 @@ See [Use Case 5: Producer-Side API Validation](docs/use-cases.md#use-case-5-prod
 ```javascript
 // Enable TLS encryption and API key auth for production deployments
 const validator = new ContractValidator({
-  address: "localhost:50051",
+  address: "localhost:9550",
   tls: { enabled: true, rootCertPath: "./certs/ca.crt" }, // mTLS supported
   apiKey: "your-api-key", // Set via CVT_API_KEYS env var on server
 });
@@ -646,7 +646,7 @@ cvt validate --schema ./openapi.json --request req.json --response resp.json
 cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
 
 # Run standalone gRPC server (alternative to Docker)
-cvt serve --port 50051
+cvt serve --port 9550
 ```
 
 ## Project Structure
@@ -722,7 +722,7 @@ make up
 
 **Server** (Go 1.25): gRPC API with kin-openapi validation, Ristretto caching (1000 schemas/24h), Prometheus metrics, structured logging (Zap)
 
-- **Ports**: 50051 (gRPC), 9090 (metrics)
+- **Ports**: 9550 (gRPC), 9551 (metrics)
 - **Container**: Alpine-based, ~30-40MB, non-root user
 
 **SDKs**: Node.js (production-ready), Python, Go, Java
@@ -756,7 +756,7 @@ go tool cover -html=coverage.out -o coverage.html
 
 ```bash
 # Server won't start
-lsof -i :50052           # Check if port is in use
+lsof -i :9550           # Check if port is in use
 make logs                # View error logs
 
 # Tests failing

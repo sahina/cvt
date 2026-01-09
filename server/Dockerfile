@@ -62,12 +62,12 @@ RUN chown -R cvt:cvt /app
 # Switch to non-root user
 USER cvt
 
-# Expose gRPC port
-EXPOSE 50051
+# Expose gRPC and metrics ports
+EXPOSE 9550 9551
 
 # Health check using grpc_health_probe
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ["/bin/grpc_health_probe", "-addr=:50051", "-service=cvt.ContractValidator"]
+    CMD ["/bin/grpc_health_probe", "-addr=:9550", "-service=cvt.ContractValidator"]
 
 # Run the server
 ENTRYPOINT ["/app/cvt-server"]

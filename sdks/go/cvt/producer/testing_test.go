@@ -23,7 +23,7 @@ func TestNewProducerTestKit_DefaultServerAddress(t *testing.T) {
 	// without a real server running. We're testing the configuration handling.
 	config := TestConfig{
 		SchemaID: "test-api",
-		// ServerAddress left empty - should default to localhost:50051
+		// ServerAddress left empty - should default to localhost:9550
 	}
 
 	testKit, err := NewProducerTestKit(config)

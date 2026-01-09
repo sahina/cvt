@@ -37,7 +37,7 @@ The server exposes the ContractValidator gRPC service which provides:
 - ValidateInteraction: Validate HTTP request/response pairs
 
 Examples:
-  # Start with default settings (port 50051)
+  # Start with default settings (port 9550)
   cvt serve
 
   # Start on a custom port
@@ -129,8 +129,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 50051, "gRPC server port")
-	cmd.Flags().IntVar(&metricsPort, "metrics-port", 9090, "Metrics server port")
+	cmd.Flags().IntVarP(&port, "port", "p", 9550, "gRPC server port")
+	cmd.Flags().IntVar(&metricsPort, "metrics-port", 9551, "Metrics server port")
 	cmd.Flags().BoolVar(&tlsEnabled, "tls", false, "Enable TLS")
 	cmd.Flags().StringVar(&tlsCert, "cert", "", "TLS certificate file")
 	cmd.Flags().StringVar(&tlsKey, "key", "", "TLS private key file")

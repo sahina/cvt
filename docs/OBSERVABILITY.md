@@ -14,7 +14,7 @@ CVT provides comprehensive observability through:
 
 ```mermaid
 flowchart TD
-    CVT["CVT Server<br/>Port 50052: gRPC<br/>Port 9090: Metrics"]
+    CVT["CVT Server<br/>Port 9550: gRPC<br/>Port 9551: Metrics"]
     PROM["Prometheus<br/>Port 9091: UI"]
     GRAF["Grafana<br/>Port 3000: UI"]
 
@@ -27,7 +27,7 @@ flowchart TD
     end
 ```
 
-> **Note**: Internal container port for gRPC is 50051, mapped to host port 50052.
+> **Note**: Internal container port for gRPC is 9550.
 
 ## Quick Start
 
@@ -45,7 +45,7 @@ make observability-status
 
 - **Grafana**: <http://localhost:3000> (admin/admin)
 - **Prometheus**: <http://localhost:9091>
-- **Metrics Endpoint**: <http://localhost:9090/metrics>
+- **Metrics Endpoint**: <http://localhost:9551/metrics>
 
 ### Quick Commands
 
@@ -162,7 +162,7 @@ scrape_configs:
   - job_name: 'cvt-server'
     scrape_interval: 10s
     static_configs:
-      - targets: ['cvt-server:9090']
+      - targets: ['cvt-server:9551']
 ```
 
 ### Useful Prometheus Queries
@@ -197,7 +197,7 @@ sum by (error_category) (rate(cvt_validation_errors_total[5m]))
 The CVT server exposes a Prometheus-compatible `/metrics` endpoint on port 9090:
 
 ```bash
-curl http://localhost:9090/metrics
+curl http://localhost:9551/metrics
 ```
 
 ### Example Output
@@ -258,8 +258,8 @@ services:
   cvt-server:
     environment:
       - LOG_LEVEL=info
-      - CVT_PORT=50051
-      - CVT_METRICS_PORT=9090
+      - CVT_PORT=9550
+      - CVT_METRICS_PORT=9551
 
   prometheus:
     volumes:
@@ -350,7 +350,7 @@ groups:
 2. Verify metrics endpoint is accessible:
 
    ```bash
-   curl http://localhost:9090/metrics
+   curl http://localhost:9551/metrics
    ```
 
 3. Check Prometheus is scraping:

@@ -35,7 +35,7 @@ import (
 
 func main() {
     validator, err := cvt.NewValidator(cvt.Config{
-        Host: "localhost:50052",
+        Host: "localhost:9550",
     })
     if err != nil {
         log.Fatal(err)
@@ -70,7 +70,7 @@ import (
 )
 
 func main() {
-    validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:50052"})
+    validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:9550"})
     defer validator.Close()
 
     request := cvt.Request{
@@ -109,7 +109,7 @@ import (
     "github.com/cvt/cvt-sdk/go/cvt/adapters"
 )
 
-validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:50052"})
+validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:9550"})
 validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
 // Wrap http.Client transport
@@ -218,7 +218,7 @@ import (
 )
 
 func main() {
-    validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:50052"})
+    validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:9550"})
     defer validator.Close()
 
     ctx := context.Background()
@@ -268,7 +268,7 @@ import "github.com/cvt/cvt-sdk/go/cvt/producer"
 
 testKit, err := producer.NewProducerTestKit(producer.TestConfig{
     SchemaID:      "user-api",
-    ServerAddress: "localhost:50051",
+    ServerAddress: "localhost:9550",
 })
 if err != nil {
     log.Fatal(err)
@@ -338,7 +338,7 @@ See [Producer Testing Guide](../../docs/producer-testing.md) for complete docume
 
 ```go
 validator, _ := cvt.NewValidator(cvt.Config{
-    Host: "localhost:50051",
+    Host: "localhost:9550",
     TLS: &cvt.TLSConfig{
         Enabled:        true,
         RootCertPath:   "./certs/ca.crt",
@@ -352,14 +352,14 @@ validator, _ := cvt.NewValidator(cvt.Config{
 
 ```go
 validator, _ := cvt.NewValidator(cvt.Config{
-    Host:   "localhost:50051",
+    Host:   "localhost:9550",
     APIKey: "your-api-key-here",
 })
 ```
 
 ## Prerequisites
 
-Ensure the CVT gRPC server is running (default: `localhost:50052`).
+Ensure the CVT gRPC server is running (default: `localhost:9550`).
 
 ## Testing
 
@@ -417,7 +417,7 @@ import (
 
 func TestValidateCorrectInteraction(t *testing.T) {
     validator, err := cvt.NewValidator(cvt.Config{
-        Host: "localhost:50052",
+        Host: "localhost:9550",
     })
     require.NoError(t, err)
     defer validator.Close()
@@ -438,7 +438,7 @@ func TestValidateCorrectInteraction(t *testing.T) {
 
 func TestValidateIncorrectInteraction(t *testing.T) {
     validator, err := cvt.NewValidator(cvt.Config{
-        Host: "localhost:50052",
+        Host: "localhost:9550",
     })
     require.NoError(t, err)
     defer validator.Close()
