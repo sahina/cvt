@@ -115,7 +115,7 @@ func TestMockingRoundTripper_RecordsInteractions(t *testing.T) {
 	require.Len(t, interactions, 1)
 
 	assert.Equal(t, "GET", interactions[0].Request.Method)
-	assert.Equal(t, "/users/123", interactions[0].Request.Path)
+	assert.Equal(t, "http://mock.api/users/123", interactions[0].Request.Path)
 	assert.Equal(t, 200, interactions[0].Response.StatusCode)
 }
 
