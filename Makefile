@@ -1,4 +1,4 @@
-.PHONY: all build test test-server test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability clean generate generate-python generate-go-sdk generate-java-sdk help
+.PHONY: all build test test-docker test-server test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability clean generate generate-python generate-go-sdk generate-java-sdk help
 .PHONY: up down restart logs status
 .PHONY: install-health-probe health check-health watch-health
 .PHONY: run-server run-example
@@ -22,8 +22,9 @@ help:
 	@echo "  make generate-java-sdk  - Generate protobuf code for Java SDK"
 	@echo ""
 	@echo "Test commands:"
-	@echo "  make test               - Run all tests (server + all 4 SDKs)"
-	@echo "  make test-all           - Run all tests (same as 'make test')"
+	@echo "  make test               - Run all tests with direct server (fast, no Docker)"
+	@echo "  make test-docker        - Run all tests with Docker + PostgreSQL (CI/CD)"
+	@echo "  make test-all           - Run all tests with Docker (same as 'make test-docker')"
 	@echo "  make test-with-observability - Run all tests, keep Docker Compose up"
 	@echo "  make test-server        - Run Go server unit tests only"
 	@echo "  make test-node-sdk      - Run Node.js SDK tests"
@@ -120,7 +121,11 @@ build:
 
 # Test targets
 test:
-	@echo "🧪 Running all tests (server + all 4 SDKs)..."
+	@echo "🧪 Running all tests with direct server (fast, no Docker)..."
+	./tools/run-all-tests.sh --no-docker
+
+test-docker:
+	@echo "🧪 Running all tests with Docker + PostgreSQL (CI/CD)..."
 	./tools/run-all-tests.sh
 
 test-server:
@@ -176,9 +181,7 @@ test-cache:
 	cd server && go test -v -run TestCache ./...
 	@echo "✅ Cache tests passed!"
 
-test-all:
-	@echo "🧪 Running all tests (server + all 4 SDKs)..."
-	./tools/run-all-tests.sh
+test-all: test-docker
 
 test-with-observability:
 	@echo "🧪 Running all tests (server + all 4 SDKs) with observability stack..."
