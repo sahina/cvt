@@ -44,7 +44,7 @@ Examples:
   cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
 
   # Check against a specific server
-  cvt can-i-deploy --schema user-api --version 1.1.0 --env staging --server localhost:50051
+  cvt can-i-deploy --schema user-api --version 1.1.0 --env staging --server localhost:9550
 
   # Output as JSON for CI/CD integration
   cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --json`,
@@ -96,7 +96,7 @@ Examples:
 	cmd.Flags().StringVar(&schemaID, "schema", "", "Schema ID to check (required)")
 	cmd.Flags().StringVar(&newVersion, "version", "", "New version to deploy (required)")
 	cmd.Flags().StringVar(&environment, "env", "", "Target environment: dev, staging, prod (required)")
-	cmd.Flags().StringVar(&serverAddr, "server", "localhost:50051", "CVT server address")
+	cmd.Flags().StringVar(&serverAddr, "server", "localhost:9550", "CVT server address")
 	cmd.Flags().BoolVar(&outputJSON, "json", false, "Output result as JSON")
 	cmd.Flags().IntVar(&timeout, "timeout", 30, "Connection timeout in seconds")
 
