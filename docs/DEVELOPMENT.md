@@ -162,7 +162,7 @@ make prometheus
 | Variable              | Default           | Description                               |
 | --------------------- | ----------------- | ----------------------------------------- |
 | `CVT_PORT`            | 9550             | gRPC server port                          |
-| `CVT_METRICS_PORT`    | 9090              | Prometheus metrics port                   |
+| `CVT_METRICS_PORT`    | 9551              | Prometheus metrics port                   |
 | `LOG_LEVEL`           | info              | Logging level (debug, info, warn, error)  |
 | `CVT_TLS_ENABLED`     | false             | Enable TLS                                |
 | `CVT_TLS_CERT_FILE`   | /certs/server.crt | Server certificate path                   |
