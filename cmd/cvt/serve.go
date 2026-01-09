@@ -8,14 +8,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/cvt/cvt/server/cvtservice"
+	"github.com/cvt/cvt/server/pb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	// Import server package - this would need to be refactored for standalone use
-	// For now, we'll provide a stub that shows the interface
 )
 
 func serveCmd() *cobra.Command {
@@ -69,13 +68,22 @@ Examples:
 				fmt.Println("TLS enabled")
 			}
 
-			// Note: Full server implementation would import the server package
-			// This is a simplified version for the CLI
 			grpcServer := grpc.NewServer(serverOpts...)
 
+			// Create and register the validator service
+			validatorService, err := cvtservice.NewValidatorService()
+			if err != nil {
+				return fmt.Errorf("failed to create validator service: %w", err)
+			}
+			defer validatorService.Close()
+
+			pb.RegisterContractValidatorServer(grpcServer, validatorService)
+			fmt.Println("Registered ContractValidator service")
+
 			// Register health service
-			healthServer := health.NewServer()
-			healthpb.RegisterHealthServer(grpcServer, healthServer)
+			healthService := cvtservice.NewHealthService()
+			healthService.SetAllServingStatus(grpc_health_v1.HealthCheckResponse_SERVING)
+			grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
 
 			// Enable reflection for debugging
 			reflection.Register(grpcServer)
@@ -112,8 +120,6 @@ Examples:
 			}()
 
 			fmt.Printf("gRPC server listening on :%d\n", port)
-			fmt.Println("\nNote: For full server functionality, use 'make run-server' from the project root.")
-			fmt.Println("This CLI provides a basic server shell. The complete server is in the 'server' directory.")
 
 			if err := grpcServer.Serve(listener); err != nil {
 				return fmt.Errorf("server error: %w", err)

@@ -252,15 +252,12 @@ func (m *MockingRoundTripper) extractRequest(req *http.Request, body []byte) cvt
 		_ = json.Unmarshal(body, &bodyData)
 	}
 
-	// Build path with query string (matching the format used elsewhere)
-	path := req.URL.Path
-	if req.URL.RawQuery != "" {
-		path += "?" + req.URL.RawQuery
-	}
+	// Store full URL for request extraction (used for captured interactions)
+	fullURL := req.URL.String()
 
 	return cvt.ValidationRequest{
 		Method:  req.Method,
-		Path:    path,
+		Path:    fullURL,
 		Headers: headers,
 		Body:    bodyData,
 	}

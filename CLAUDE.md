@@ -54,12 +54,17 @@ make metrics               # View Prometheus metrics
 
 ### Core Components
 
-**gRPC Server** (`server/`): Go 1.25-based service with two main RPC methods:
+**gRPC Server** (`server/`): Go 1.25-based service with main RPC methods:
 
 - `RegisterSchema`: Registers OpenAPI v2/v3 schemas (auto-converts v2 to v3)
 - `ValidateInteraction`: Validates HTTP request/response pairs against registered schemas
+- `CanIDeploy`: Checks if schema changes will break registered consumers
 
-**Schema Cache** (`server/cache.go`): Ristretto-based cache storing up to 1000 schemas with 24-hour TTL.
+**Service Library** (`server/cvtservice/`): Core service implementation as an importable package.
+
+**Schema Cache** (`server/cvtservice/cache.go`): Ristretto-based cache storing up to 1000 schemas with 24-hour TTL.
+
+**Persistent Storage** (`server/storage/`): Optional SQLite or PostgreSQL backend for schema and consumer persistence.
 
 **Key Libraries**:
 
@@ -110,6 +115,20 @@ Defines the gRPC service contract with messages: `RegisterSchemaRequest`, `Inter
 - `CVT_API_KEYS`: Comma-separated list of valid API keys
 - `CVT_API_KEYS_FILE`: Path to JSON file with API key configuration
 
+### Persistent Storage
+
+- `CVT_STORAGE_ENABLED`: Enable persistent storage (default: false, uses in-memory)
+- `CVT_STORAGE_TYPE`: Storage backend: sqlite, postgres, or memory (default: sqlite when enabled)
+- `CVT_STORAGE_DSN`: Data source name for SQLite (default: cvt.db)
+- `CVT_POSTGRES_HOST`: PostgreSQL host (default: localhost)
+- `CVT_POSTGRES_PORT`: PostgreSQL port (default: 5432)
+- `CVT_POSTGRES_USER`: PostgreSQL user (default: cvt)
+- `CVT_POSTGRES_PASSWORD`: PostgreSQL password
+- `CVT_POSTGRES_DB`: PostgreSQL database name (default: cvt)
+- `CVT_POSTGRES_SSLMODE`: PostgreSQL SSL mode (default: disable)
+- `CVT_STORAGE_CACHE_ENABLED`: Enable in-memory cache with persistent storage (default: true)
+- `CVT_VALIDATION_RETENTION_DAYS`: Days to retain validation records (default: 90)
+
 ## CLI (Local Lite Mode)
 
 The CVT CLI allows local validation without Docker:
@@ -142,9 +161,12 @@ The CLI uses the embedded library (`pkg/cvt/`) which can also be used directly i
 Server tests use testify/assert and table-driven tests. Integration tests require Docker (`-tags=integration`). Coverage target is 70%+.
 
 ```bash
+# Run all server tests
+go test ./server/cvtservice/... -v
+
 # Verbose single test
-cd server && go test -v -run TestValidateInteraction ./...
+go test ./server/cvtservice/... -v -run TestValidateInteraction
 
 # Test with race detection
-cd server && go test -v -race ./...
+go test ./server/cvtservice/... -v -race
 ```

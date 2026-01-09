@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cvt-postgres
+    environment:
+      - POSTGRES_USER=cvt
+      - POSTGRES_PASSWORD=cvt_password
+      - POSTGRES_DB=cvt
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - cvt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cvt"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   cvt-server:
     build:
       context: ./server
@@ -11,6 +31,14 @@ services:
       - LOG_LEVEL=debug
       - CVT_PORT=50051
       - CVT_METRICS_PORT=9090
+      # Persistent storage configuration
+      - CVT_STORAGE_ENABLED=true
+      - CVT_STORAGE_TYPE=postgres
+      - CVT_POSTGRES_HOST=postgres
+      - CVT_POSTGRES_PORT=5432
+      - CVT_POSTGRES_USER=cvt
+      - CVT_POSTGRES_PASSWORD=cvt_password
+      - CVT_POSTGRES_DB=cvt
       # TLS configuration (uncomment to enable)
       # - CVT_TLS_ENABLED=true
       # - CVT_TLS_CERT_FILE=/certs/server.crt
@@ -26,6 +54,9 @@ services:
       # Uncomment to mount API keys configuration
       # - ./config:/config:ro
       []
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - cvt-network
 
@@ -74,5 +105,6 @@ networks:
     driver: bridge
 
 volumes:
+  postgres-data:
   prometheus-data:
   grafana-data:
