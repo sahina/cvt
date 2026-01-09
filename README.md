@@ -1,10 +1,12 @@
 # Contract Validator Toolkit
 
+## 🚧 WORK IN PROGRESS 🚧
+
 <p align="center">
   <img src="assets/cvt-infographic.jpg" alt="CVT - Contract Validator Toolkit" style="border-radius: 12px;">
 </p>
 
-A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against your API contract. Supports both consumer-side (client) and producer-side (server) validation.
+A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against API contracts. Supports both consumer-side (client) and producer-side (server) validation.
 
 ## Understanding Consumer vs Producer Validation
 
