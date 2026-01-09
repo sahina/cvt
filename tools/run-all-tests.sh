@@ -1,7 +1,25 @@
 #!/bin/bash
 set -e
 
-echo "🧪 Running all tests (server + all 4 SDKs)..."
+# Parse arguments
+USE_DOCKER=true
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --no-docker)
+      USE_DOCKER=false
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+if [ "$USE_DOCKER" = true ]; then
+  echo "🧪 Running all tests with Docker (server + all 4 SDKs)..."
+else
+  echo "🧪 Running all tests with direct server (no Docker)..."
+fi
 echo ""
 
 # Track test results
@@ -21,13 +39,15 @@ else
 fi
 echo ""
 
-echo ">>> Testing Go Server (Integration Tests)..."
-if (cd server && go test -v -tags=integration ./...); then
-    echo "✅ Server integration tests passed"
-else
-    echo "⚠️  Server integration tests skipped or failed (may require Docker)"
+if [ "$USE_DOCKER" = true ]; then
+  echo ">>> Testing Go Server (Integration Tests)..."
+  if (cd server && go test -v -tags=integration ./...); then
+      echo "✅ Server integration tests passed"
+  else
+      echo "⚠️  Server integration tests skipped or failed (may require Docker)"
+  fi
+  echo ""
 fi
-echo ""
 
 # Start server for SDK tests
 echo "============================================================"
@@ -35,16 +55,49 @@ echo "STARTING CVT SERVER FOR SDK INTEGRATION TESTS"
 echo "============================================================"
 echo ""
 
-docker compose up -d --wait || {
-  echo "⚠️  Failed to start server, skipping SDK integration tests"
-  echo "   Unit tests for SDKs will still run"
-}
+if [ "$USE_DOCKER" = true ]; then
+  docker compose up -d --wait || {
+    echo "⚠️  Failed to start server, skipping SDK integration tests"
+    echo "   Unit tests for SDKs will still run"
+  }
 
-# Ensure server is stopped on exit (unless KEEP_DOCKER_UP is set)
-if [ -z "$KEEP_DOCKER_UP" ]; then
-  trap "echo ''; echo '>>> Stopping CVT server...'; docker compose down" EXIT
+  # Ensure server is stopped on exit (unless KEEP_DOCKER_UP is set)
+  if [ -z "$KEEP_DOCKER_UP" ]; then
+    trap "echo ''; echo '>>> Stopping CVT server...'; docker compose down" EXIT
+  else
+    echo "ℹ️  KEEP_DOCKER_UP is set - Docker Compose will remain running after tests"
+  fi
 else
-  echo "ℹ️  KEEP_DOCKER_UP is set - Docker Compose will remain running after tests"
+  echo ">>> Starting CVT server directly (no Docker)..."
+  # Build and start server in background on port 50052 to match Docker config
+  echo ">>> Building server..."
+  (cd server && go build -o /tmp/cvt-server-test .) || {
+    echo "❌ Failed to build server"
+    exit 1
+  }
+
+  # Start server in background
+  CVT_PORT=50052 /tmp/cvt-server-test &
+  SERVER_PID=$!
+
+  # Wait for server to be ready
+  echo ">>> Waiting for server to start (PID: $SERVER_PID)..."
+  for i in {1..10}; do
+    if lsof -i :50052 >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  # Check if server is running
+  if ! kill -0 $SERVER_PID 2>/dev/null; then
+    echo "❌ Failed to start server"
+    exit 1
+  fi
+  echo "✅ Server started and listening on port 50052"
+
+  # Ensure server is stopped on exit
+  trap "echo ''; echo '>>> Stopping CVT server (PID: $SERVER_PID)...'; kill $SERVER_PID 2>/dev/null || true; rm -f /tmp/cvt-server-test" EXIT
 fi
 
 echo ""

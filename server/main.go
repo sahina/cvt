@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/cvt/cvt/server/cvtservice"
 	"github.com/cvt/cvt/server/pb"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -40,11 +41,11 @@ func main() {
 	// Initialize logger (development mode if LOG_LEVEL=debug)
 	// Development mode provides colorized output and more verbose logging
 	development := os.Getenv("LOG_LEVEL") == "debug"
-	if err := InitLogger(development); err != nil {
+	if err := cvtservice.InitLogger(development); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
-	defer func() { _ = Sync() }()
+	defer func() { _ = cvtservice.Sync() }()
 
 	// Get port from environment or use default
 	// The CVT_PORT environment variable allows configuring the server port
@@ -59,7 +60,7 @@ func main() {
 		metricsPort = DefaultMetricsPort
 	}
 
-	Info("Starting CVT Server",
+	cvtservice.Info("Starting CVT Server",
 		zap.String("grpc_port", port),
 		zap.String("metrics_port", metricsPort))
 
@@ -71,9 +72,9 @@ func main() {
 	}
 
 	go func() {
-		Info("Metrics server listening", zap.String("address", metricsServer.Addr))
+		cvtservice.Info("Metrics server listening", zap.String("address", metricsServer.Addr))
 		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			Error("Metrics server failed", zap.Error(err))
+			cvtservice.Error("Metrics server failed", zap.Error(err))
 		}
 	}()
 
@@ -81,49 +82,49 @@ func main() {
 	// This listener will accept incoming gRPC connections
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
-		Fatal("Failed to listen", zap.String("port", port), zap.Error(err))
+		cvtservice.Fatal("Failed to listen", zap.String("port", port), zap.Error(err))
 	}
 
 	// Build gRPC server options
 	var serverOpts []grpc.ServerOption
 
 	// Load TLS configuration
-	tlsConfig, err := LoadTLSConfigFromEnv()
+	tlsConfig, err := cvtservice.LoadTLSConfigFromEnv()
 	if err != nil {
-		Fatal("Failed to load TLS config", zap.Error(err))
+		cvtservice.Fatal("Failed to load TLS config", zap.Error(err))
 	}
 
 	if tlsConfig.Enabled {
-		creds, err := LoadTLSCredentials(tlsConfig)
+		creds, err := cvtservice.LoadTLSCredentials(tlsConfig)
 		if err != nil {
-			Fatal("Failed to load TLS credentials", zap.Error(err))
+			cvtservice.Fatal("Failed to load TLS credentials", zap.Error(err))
 		}
 		serverOpts = append(serverOpts, grpc.Creds(creds))
-		Info("TLS enabled",
+		cvtservice.Info("TLS enabled",
 			zap.String("certFile", tlsConfig.CertFile),
 			zap.String("keyFile", tlsConfig.KeyFile))
 	} else {
-		Warn("TLS disabled - using insecure connection")
+		cvtservice.Warn("TLS disabled - using insecure connection")
 	}
 
 	// Load authentication configuration
-	authConfig, err := LoadAuthConfigFromEnv()
+	authConfig, err := cvtservice.LoadAuthConfigFromEnv()
 	if err != nil {
-		Fatal("Failed to load auth config", zap.Error(err))
+		cvtservice.Fatal("Failed to load auth config", zap.Error(err))
 	}
 
 	if authConfig.Enabled {
-		apiKeyStore, err := LoadAPIKeys(authConfig)
+		apiKeyStore, err := cvtservice.LoadAPIKeys(authConfig)
 		if err != nil {
-			Fatal("Failed to load API keys", zap.Error(err))
+			cvtservice.Fatal("Failed to load API keys", zap.Error(err))
 		}
 		serverOpts = append(serverOpts,
-			grpc.ChainUnaryInterceptor(UnaryAuthInterceptor(apiKeyStore)),
-			grpc.ChainStreamInterceptor(StreamAuthInterceptor(apiKeyStore)),
+			grpc.ChainUnaryInterceptor(cvtservice.UnaryAuthInterceptor(apiKeyStore)),
+			grpc.ChainStreamInterceptor(cvtservice.StreamAuthInterceptor(apiKeyStore)),
 		)
-		Info("API key authentication enabled", zap.Int("keyCount", apiKeyStore.Count()))
+		cvtservice.Info("API key authentication enabled", zap.Int("keyCount", apiKeyStore.Count()))
 	} else {
-		Warn("API key authentication disabled")
+		cvtservice.Warn("API key authentication disabled")
 	}
 
 	// Create gRPC server with configured options
@@ -131,26 +132,26 @@ func main() {
 
 	// Create and register the validator service
 	// This service handles OpenAPI schema registration and HTTP interaction validation
-	validatorService, err := NewValidatorService()
+	validatorService, err := cvtservice.NewValidatorService()
 	if err != nil {
-		Fatal("Failed to create validator service", zap.Error(err))
+		cvtservice.Fatal("Failed to create validator service", zap.Error(err))
 	}
 	defer validatorService.Close()
 
 	pb.RegisterContractValidatorServer(grpcServer, validatorService)
-	Info("Registered ValidatorService")
+	cvtservice.Info("Registered ValidatorService")
 
 	// Create and register the health check service
 	// This implements the standard gRPC health checking protocol
-	healthService := NewHealthService()
+	healthService := cvtservice.NewHealthService()
 	healthService.SetAllServingStatus(grpc_health_v1.HealthCheckResponse_SERVING)
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
-	Info("Registered HealthService")
+	cvtservice.Info("Registered HealthService")
 
 	// Register reflection service for debugging
 	// This allows tools like grpcurl to introspect the service
 	reflection.Register(grpcServer)
-	Info("Registered ProtoReflectionService")
+	cvtservice.Info("Registered ProtoReflectionService")
 
 	// Set up graceful shutdown handling
 	// The server will shut down cleanly when receiving SIGINT or SIGTERM
@@ -160,31 +161,31 @@ func main() {
 	// Start server in a goroutine to allow concurrent shutdown signal handling
 	// The server will block on grpcServer.Serve() until shutdown
 	go func() {
-		Info("Server listening", zap.String("address", lis.Addr().String()))
+		cvtservice.Info("Server listening", zap.String("address", lis.Addr().String()))
 		if err := grpcServer.Serve(lis); err != nil {
-			Fatal("Failed to serve", zap.Error(err))
+			cvtservice.Fatal("Failed to serve", zap.Error(err))
 		}
 	}()
 
 	// Wait for shutdown signal (blocks until signal is received)
 	sig := <-sigChan
-	Info("Received shutdown signal", zap.String("signal", sig.String()))
+	cvtservice.Info("Received shutdown signal", zap.String("signal", sig.String()))
 
 	// Set health status to NOT_SERVING to inform clients the server is shutting down
 	// This allows load balancers and clients to stop sending new requests
 	healthService.SetAllServingStatus(grpc_health_v1.HealthCheckResponse_NOT_SERVING)
-	Info("Health status set to NOT_SERVING")
+	cvtservice.Info("Health status set to NOT_SERVING")
 
 	// Shutdown metrics server
 	if err := metricsServer.Close(); err != nil {
-		Error("Failed to shutdown metrics server", zap.Error(err))
+		cvtservice.Error("Failed to shutdown metrics server", zap.Error(err))
 	} else {
-		Info("Metrics server stopped")
+		cvtservice.Info("Metrics server stopped")
 	}
 
 	// Perform graceful shutdown
 	// GracefulStop waits for all active RPCs to complete before stopping
-	Info("Shutting down server gracefully...")
+	cvtservice.Info("Shutting down server gracefully...")
 	grpcServer.GracefulStop()
-	Info("Server stopped")
+	cvtservice.Info("Server stopped")
 }

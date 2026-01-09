@@ -23,20 +23,41 @@ The CVT server is a Go-based gRPC service that validates HTTP interactions again
 
 ```shell
 server/
-├── main.go                    # Server entry point
-├── validator_service.go       # Core validation service (RegisterSchema, ValidateInteraction)
-├── validation_utils.go        # Input validation utilities
-├── cache.go                   # Ristretto cache for schemas
-├── health.go                  # gRPC health check service
-├── logger.go                  # Structured logging with Zap
+├── main.go                    # Server entry point (thin wrapper)
+├── cvtservice/                # Core service implementation (importable package)
+│   ├── validator_service.go   # Core validation service (RegisterSchema, ValidateInteraction, CanIDeploy)
+│   ├── compatibility_engine.go # Breaking change detection between schema versions
+│   ├── validation_utils.go    # Input validation utilities
+│   ├── cache.go               # Ristretto cache for schemas and consumers
+│   ├── health.go              # gRPC health check service
+│   ├── logger.go              # Structured logging with Zap
+│   ├── metrics.go             # Prometheus metrics
+│   ├── auth.go                # API key authentication
+│   ├── tls.go                 # TLS/mTLS configuration
+│   ├── audit_logger.go        # Audit logging for compliance
+│   └── *_test.go              # Comprehensive test suite
+├── storage/                   # Persistent storage layer
+│   ├── storage.go             # Storage interface
+│   ├── config.go              # Storage configuration
+│   ├── sqlite/                # SQLite backend
+│   └── postgres/              # PostgreSQL backend
 ├── pb/                        # Generated protobuf code
 │   ├── cvt.pb.go
 │   └── cvt_grpc.pb.go
+├── testdata/                  # Test fixtures
 ├── go.mod                     # Go module dependencies
 ├── go.sum                     # Dependency checksums
 ├── Dockerfile                 # Multi-stage Docker build
 └── README.md                  # This file
 ```
+
+### Package Structure
+
+The server is organized as an importable library (`cvtservice`) with a thin main wrapper:
+
+- **`server/main.go`**: Entry point that imports and configures the service
+- **`server/cvtservice/`**: Core service logic (can be imported by CLI and other tools)
+- **`server/storage/`**: Pluggable persistence backends (SQLite, PostgreSQL, in-memory)
 
 ## Building
 
@@ -103,17 +124,20 @@ make down
 
 ```bash
 # Run all unit tests
-go test -v ./...
+go test -v ./server/cvtservice/...
 
 # Or use Make
 make test-server
 
 # Run specific test
-go test -v -run TestValidateSchemaID
+go test -v -run TestValidateSchemaID ./server/cvtservice/...
 
 # Run tests with coverage
-go test -v -coverprofile=coverage.out ./...
+go test -v -coverprofile=coverage.out ./server/cvtservice/...
 go tool cover -html=coverage.out
+
+# Run storage tests
+go test -v ./server/storage/...
 ```
 
 ### Integration Tests

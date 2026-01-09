@@ -76,14 +76,14 @@ CVT supports two complementary validation approaches. Understanding when to use 
 
 ### When to Use Each Approach
 
-| Approach                       | You Are...                 | You Want To...                                   | Tool             |
-| ------------------------------ | -------------------------- | ------------------------------------------------ | ---------------- |
-| **Consumer Direct (A)**        | Calling another team's API | Explicitly validate specific calls in tests      | `validator`      |
-| **Consumer Adapters (B)**      | Calling another team's API | Auto-validate ALL HTTP client calls              | SDK adapters     |
-| **Consumer Mock (C)**          | Calling another team's API | Test without access to the real API              | Mock adapters    |
-| **Producer Middleware (A)**    | Exposing an API            | Reject invalid requests at runtime               | Middleware       |
-| **Producer Testing (B)**       | Exposing an API            | Verify handlers return spec-compliant responses  | ProducerTestKit  |
-| **Deployment Safety (C)**      | Changing your API          | Ensure changes won't break consumers             | can-i-deploy     |
+| Approach                    | You Are...                 | You Want To...                                  | Tool            |
+| --------------------------- | -------------------------- | ----------------------------------------------- | --------------- |
+| **Consumer Direct (A)**     | Calling another team's API | Explicitly validate specific calls in tests     | `validator`     |
+| **Consumer Adapters (B)**   | Calling another team's API | Auto-validate ALL HTTP client calls             | SDK adapters    |
+| **Consumer Mock (C)**       | Calling another team's API | Test without access to the real API             | Mock adapters   |
+| **Producer Middleware (A)** | Exposing an API            | Reject invalid requests at runtime              | Middleware      |
+| **Producer Testing (B)**    | Exposing an API            | Verify handlers return spec-compliant responses | ProducerTestKit |
+| **Deployment Safety (C)**   | Changing your API          | Ensure changes won't break consumers            | can-i-deploy    |
 
 ### Consumer Validation (Client-Side)
 
@@ -116,7 +116,11 @@ expect(result.valid).toBe(true);
 
 ```typescript
 // Node.js - Axios adapter validates every call automatically
-const adapter = createAxiosAdapter({ axios: api, validator, schemaId: "user-api" });
+const adapter = createAxiosAdapter({
+  axios: api,
+  validator,
+  schemaId: "user-api",
+});
 const response = await api.get("/users/123"); // Auto-validated!
 ```
 
@@ -150,9 +154,13 @@ const data = await response.json(); // Schema-compliant mock data
 mock = MockSession(validator, schema_id='user-api')
 response = mock.get('http://mock.user-api/users/123')  # No network needed!
 ```
+
+```go
 // Go - Mock client generates responses from schema
 client := adapters.NewMockClient(validator)
 resp, _ := client.Get("http://mock.user-api/users/123") // No network needed!
+```
+
 **Key insight:** Consumer validation tests YOUR code against THEIR contract.
 
 ### Producer Validation (Server-Side)
@@ -406,7 +414,7 @@ if (!result.safeToDeploy) {
 ## Quick Start
 
 ```bash
-# 1. Start CVT server + Prometheus + Grafana
+# 1. Start CVT server + PostgreSQL + Prometheus + Grafana
 make up
 
 # 2. Verify gRPC server is accepting connections
@@ -418,6 +426,8 @@ make run-example
 # 4. Stop all containers
 make down
 ```
+
+> **Note**: The Docker setup includes PostgreSQL for persistent storage. Schemas and consumer registrations survive server restarts.
 
 ### Consumer Validation (Client SDK)
 
@@ -643,16 +653,19 @@ cvt serve --port 50051
 
 ```shell
 /
-├── api/          # Protobuf definitions
-├── cmd/cvt/      # CLI commands (validate, compare, serve)
-├── pkg/cvt/      # Embedded validation library
-├── server/       # Go gRPC server (~1200 lines of tests)
-├── sdks/         # Client SDKs (Node.js, Python, Go, Java)
-│   ├── shared/   # Test schemas (openapi.json, swagger.json)
-│   └── */        # Language-specific SDKs with examples
-├── observability/  # Prometheus & Grafana configs
-├── docs/         # Documentation
-└── tools/        # Build scripts
+├── api/              # Protobuf definitions
+├── cmd/cvt/          # CLI commands (validate, compare, serve, can-i-deploy)
+├── pkg/cvt/          # Embedded validation library
+├── server/           # Go gRPC server
+│   ├── cvtservice/   # Core service implementation (importable package)
+│   ├── storage/      # Persistence layer (SQLite, PostgreSQL)
+│   └── pb/           # Generated protobuf code
+├── sdks/             # Client SDKs (Node.js, Python, Go, Java)
+│   ├── shared/       # Test schemas (openapi.json, swagger.json)
+│   └── */            # Language-specific SDKs with examples
+├── observability/    # Prometheus & Grafana configs
+├── docs/             # Documentation
+└── tools/            # Build scripts
 ```
 
 ## Prerequisites
