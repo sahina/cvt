@@ -150,9 +150,13 @@ const data = await response.json(); // Schema-compliant mock data
 mock = MockSession(validator, schema_id='user-api')
 response = mock.get('http://mock.user-api/users/123')  # No network needed!
 ```
+
+```go
 // Go - Mock client generates responses from schema
 client := adapters.NewMockClient(validator)
 resp, _ := client.Get("http://mock.user-api/users/123") // No network needed!
+```
+
 **Key insight:** Consumer validation tests YOUR code against THEIR contract.
 
 ### Producer Validation (Server-Side)
