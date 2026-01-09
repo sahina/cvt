@@ -6,6 +6,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CVT (Contract Validator Toolkit) is a consumer-based contract validation platform for OpenAPI v2/v3 specifications. It consists of a Go gRPC server that validates HTTP request/response interactions against registered OpenAPI schemas, with SDKs for Node.js, Python, Go, and Java.
 
+## Project Structure
+
+```shell
+cvt/
+├── api/protos/         # gRPC proto definitions
+├── cmd/cvt/            # CLI entry point
+├── server/             # gRPC server implementation
+│   ├── cvtservice/     # Core service logic
+│   └── storage/        # Persistence backends (sqlite, postgres, memory)
+├── pkg/cvt/            # Embeddable Go library
+├── sdks/               # Client SDKs (node, python, go, java, shared)
+├── docs/               # Detailed documentation
+├── examples/           # Example code and schemas
+├── observability/      # Prometheus/Grafana configuration
+├── config/             # Configuration files
+├── ci-templates/       # CI/CD templates
+├── certs/              # TLS certificates
+└── tools/              # Build and test scripts
+```
+
 ## Common Commands
 
 ### Building and Running
@@ -21,7 +41,8 @@ make run-example           # Run Node.js SDK example
 ### Testing
 
 ```bash
-make test                  # Run all tests (server + all 4 SDKs) via tools/run-all-tests.sh
+make test                  # Fast tests with direct server (no Docker)
+make test-docker           # Full tests with Docker + PostgreSQL
 make test-server           # Go server unit tests only
 make test-coverage         # Server tests with HTML coverage report
 make test-node-sdk         # Node.js SDK tests (pnpm test)
@@ -54,17 +75,41 @@ make metrics               # View Prometheus metrics
 
 ### Core Components
 
-**gRPC Server** (`server/`): Go 1.25-based service with main RPC methods:
+**gRPC Server** (`server/`): Go 1.25-based service with RPC methods organized by phase:
+
+_Phase 1 - Schema & Validation:_
 
 - `RegisterSchema`: Registers OpenAPI v2/v3 schemas (auto-converts v2 to v3)
 - `ValidateInteraction`: Validates HTTP request/response pairs against registered schemas
-- `CanIDeploy`: Checks if schema changes will break registered consumers
+- `ValidateProducerResponse`: Producer-side response validation
+- `CompareSchemas`: Compare two schema versions for breaking changes
+- `GenerateFixture`: Generate test fixtures from schemas
+- `ListEndpoints`: List all endpoints in a registered schema
 
-**Service Library** (`server/cvtservice/`): Core service implementation as an importable package.
+_Phase 2 - Consumer Registry:_
 
-**Schema Cache** (`server/cvtservice/cache.go`): Ristretto-based cache storing up to 1000 schemas with 24-hour TTL.
+- `RegisterConsumer`: Register a consumer with expected interactions
+- `ListConsumers`: List all registered consumers for a schema
+- `DeregisterConsumer`: Remove a consumer registration
 
-**Persistent Storage** (`server/storage/`): Optional SQLite or PostgreSQL backend for schema and consumer persistence.
+_Phase 3 - Deployment Safety:_
+
+- `CanIDeploy`: Check if schema changes will break registered consumers
+
+**Service Library** (`server/cvtservice/`): Core service implementation as an importable package. Key components:
+
+- `service.go`: Main service implementation
+- `cache.go`: Ristretto-based schema cache (1000 schemas, 24-hour TTL)
+- `interceptors.go`: gRPC interceptors for logging, metrics, auth
+- `metrics.go`: Prometheus metrics collection
+- `audit_logger.go`: Audit logging for compliance
+- `schema_metadata.go`: Schema metadata management
+
+**Persistent Storage** (`server/storage/`): Pluggable storage backends:
+
+- `memory.go`: In-memory storage (default, no persistence)
+- `sqlite/`: SQLite storage backend
+- `postgres/`: PostgreSQL storage backend
 
 **Key Libraries**:
 
@@ -127,7 +172,10 @@ Defines the gRPC service contract with messages: `RegisterSchemaRequest`, `Inter
 - `CVT_POSTGRES_DB`: PostgreSQL database name (default: cvt)
 - `CVT_POSTGRES_SSLMODE`: PostgreSQL SSL mode (default: disable)
 - `CVT_STORAGE_CACHE_ENABLED`: Enable in-memory cache with persistent storage (default: true)
+- `CVT_STORAGE_CACHE_MAX_SCHEMAS`: Maximum schemas in cache (default: 1000)
 - `CVT_VALIDATION_RETENTION_DAYS`: Days to retain validation records (default: 90)
+- `CVT_POSTGRES_DSN`: Full PostgreSQL DSN (alternative to individual host/port/user/password/db)
+- `CVT_POSTGRES_MAX_CONNS`: Maximum PostgreSQL connections (default: 25)
 
 ## CLI (Local Lite Mode)
 
@@ -136,15 +184,54 @@ The CVT CLI allows local validation without Docker:
 ```bash
 # Build the CLI
 go build -o cvt ./cmd/cvt
+```
 
-# Validate an interaction locally
+### CLI Commands
+
+**validate** - Validate an interaction against a schema:
+
+```bash
 cvt validate --schema ./openapi.json --request req.json --response resp.json
+cvt validate --schema ./openapi.json --interaction interaction.json  # Combined file
+cvt validate --schema ./openapi.json --request req.json --response resp.json --json  # JSON output
+```
 
-# Compare schemas for breaking changes
+**compare** - Compare schemas for breaking changes:
+
+```bash
 cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json --json  # JSON output
+```
 
-# Start gRPC server
+**generate** - Generate test fixtures from schemas:
+
+```bash
+cvt generate --schema ./openapi.json --endpoint "GET /users/{id}"
+cvt generate --schema ./openapi.json --endpoint "POST /users" --output-type request
+cvt generate --schema ./openapi.json --list  # List all endpoints
+cvt generate --schema ./openapi.json --endpoint "GET /users" --use-examples  # Use schema examples
+```
+
+**can-i-deploy** - Check deployment safety against registered consumers:
+
+```bash
+cvt can-i-deploy --schema ./openapi.json --server localhost:50051
+cvt can-i-deploy --schema ./openapi.json --server localhost:50051 --json --timeout 30s
+```
+
+**serve** - Start the gRPC server:
+
+```bash
 cvt serve --port 50051
+cvt serve --port 50051 --metrics-port 9090
+cvt serve --port 50051 --tls --cert server.crt --key server.key
+cvt serve --port 50051 --api-key-auth  # Enable API key authentication
+```
+
+**version** - Show version information:
+
+```bash
+cvt version
 ```
 
 The CLI uses the embedded library (`pkg/cvt/`) which can also be used directly in Go code.

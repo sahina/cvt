@@ -118,7 +118,7 @@ cd sdks/java
 
 ## Project Structure
 
-```
+```shell
 cvt/
 ├── api/protos/          # gRPC protocol definitions
 ├── cmd/cvt/             # CLI application
@@ -173,11 +173,11 @@ The Node SDK uses `ts-proto` and regenerates automatically during build.
 
 ### Test Categories
 
-| Type | Location | Command |
-|------|----------|---------|
-| Unit tests | `*_test.go`, `*.test.ts`, etc. | `make test-<component>` |
+| Type              | Location                           | Command                 |
+| ----------------- | ---------------------------------- | ----------------------- |
+| Unit tests        | `*_test.go`, `*.test.ts`, etc.     | `make test-<component>` |
 | Integration tests | `server/` with `-tags=integration` | `make test-integration` |
-| End-to-end | Via Docker Compose | `make up && make test` |
+| End-to-end        | Via Docker Compose                 | `make up && make test`  |
 
 ### Writing Good Tests
 
@@ -196,14 +196,14 @@ The Node SDK uses `ts-proto` and regenerates automatically during build.
 
 ### Documentation Locations
 
-| Content | Location |
-|---------|----------|
-| Getting started | `README.md` |
-| SDK usage | `sdks/<sdk>/README.md` |
-| Architecture | `docs/prd.md` |
-| Observability | `docs/OBSERVABILITY.md` |
+| Content           | Location                    |
+| ----------------- | --------------------------- |
+| Getting started   | `README.md`                 |
+| SDK usage         | `sdks/<sdk>/README.md`      |
+| Architecture      | `docs/prd.md`               |
+| Observability     | `docs/OBSERVABILITY.md`     |
 | Adoption strategy | `docs/adoption-strategy.md` |
-| Roadmap | `ROADMAP.md` |
+| Roadmap           | `ROADMAP.md`                |
 
 ## Getting Help
 
