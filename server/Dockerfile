@@ -17,6 +17,8 @@ RUN go mod download
 # Copy source code
 COPY *.go ./
 COPY pb/ ./pb/
+COPY cvtservice/ ./cvtservice/
+COPY storage/ ./storage/
 
 # Build the binary with optimizations
 # - CGO_ENABLED=0: Build a static binary
