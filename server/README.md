@@ -99,7 +99,7 @@ make run-server
 The server will start on port `9550` by default. You can change it by setting the `CVT_PORT` environment variable:
 
 ```bash
-CVT_PORT=9090 go run .
+CVT_PORT=9552 go run .
 ```
 
 ### Run in Docker

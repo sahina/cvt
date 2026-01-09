@@ -242,7 +242,7 @@ func NewValidator(address string) (*Validator, error) {
 // Example with TLS and API key:
 //
 //	validator, err := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
-//	    Address: "localhost:50051",
+//	    Address: "localhost:9550",
 //	    TLS: &cvt.TLSOptions{
 //	        Enabled:      true,
 //	        RootCertPath: "./certs/ca.crt",

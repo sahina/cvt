@@ -62,8 +62,8 @@ RUN chown -R cvt:cvt /app
 # Switch to non-root user
 USER cvt
 
-# Expose gRPC port
-EXPOSE 9550
+# Expose gRPC and metrics ports
+EXPOSE 9550 9551
 
 # Health check using grpc_health_probe
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

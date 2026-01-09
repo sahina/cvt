@@ -11,8 +11,8 @@
 //   - Deregister consumer (cleanup)
 //
 // Prerequisites:
-//   - CVT server running on localhost:50052
-//   - Run: make up (from project root)
+//   - CVT server running on localhost:9550
+//   - Run: make run-server (from project root)
 //
 // Usage:
 //
@@ -78,8 +78,8 @@ func main() {
 	if err != nil {
 		fmt.Printf("Failed to create validator: %v\n", err)
 		fmt.Println("\nMake sure CVT server is running:")
-		fmt.Println("  make run-server  (local, port 50051)")
-		fmt.Println("  make up          (Docker, port 50052)")
+		fmt.Println("  make run-server  (local, port 9550)")
+		fmt.Println("  make up          (Docker, port 9550)")
 		os.Exit(1)
 	}
 	defer func() { _ = validator.Close() }()

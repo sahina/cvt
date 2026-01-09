@@ -259,7 +259,7 @@ services:
     environment:
       - LOG_LEVEL=info
       - CVT_PORT=9550
-      - CVT_METRICS_PORT=9090
+      - CVT_METRICS_PORT=9551
 
   prometheus:
     volumes:
