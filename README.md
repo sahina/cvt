@@ -802,7 +802,6 @@ cd server && go test -v ./...  # Verbose test output
 **Getting Started:**
 
 - [User Guide](#user-guide) - End-to-end use cases and adoption checklist
-- [ROADMAP.md](ROADMAP.md) - Technical roadmap and planned features
 - [docs/adoption-strategy.md](docs/adoption-strategy.md) - Organizational adoption guide
 
 **Guides:**
