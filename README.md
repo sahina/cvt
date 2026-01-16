@@ -788,7 +788,7 @@ If you're working behind a corporate proxy, configure the following environment 
 # Set proxy for container builds (in docker-compose.yml or shell)
 export HTTP_PROXY=http://proxy.corp.example.com:8080
 export HTTPS_PROXY=http://proxy.corp.example.com:8080
-export NO_PROXY=localhost,127.0.0.1,cvt-server,postgres
+export NO_PROXY=localhost,127.0.0.1,cvt-server,postgres,prometheus,grafana
 
 # Go modules (for building from source)
 export GOPROXY=https://proxy.golang.org,direct
