@@ -773,8 +773,10 @@ cd server && go test -v ./...  # Verbose test output
 
 If you're working behind a corporate proxy, configure the following environment variables:
 
-# Add the following to ~/.docker/config.json.
-# You will need to restart the Docker daemon for this to take effect.
+```bash
+# Set proxy for Docker daemon (add to ~/.docker/config.json or daemon.json)
+# You will need to restart the Docker daemon for this to take effect
+cat <<'EOF' > ~/.docker/config.json
 {
   "proxies": {
     "default": {
@@ -784,6 +786,7 @@ If you're working behind a corporate proxy, configure the following environment 
     }
   }
 }
+EOF
 
 # Set proxy for container builds (in docker-compose.yml or shell)
 export HTTP_PROXY=http://proxy.corp.example.com:8080
