@@ -55,7 +55,11 @@ validator.close()
 ```go
 package main
 
-import "github.com/cvt/cvt/pkg/cvt"
+import (
+    "fmt"
+
+    "github.com/cvt/cvt/pkg/cvt"
+)
 
 func main() {
     validator := cvt.NewValidator()
