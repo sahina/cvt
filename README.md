@@ -769,6 +769,80 @@ cd server && go test -v ./...  # Verbose test output
 # - Verify network connectivity
 ```
 
+### Corporate Proxy Configuration
+
+If you're working behind a corporate proxy, configure the following environment variables:
+
+```bash
+# Set proxy for Docker daemon (add to ~/.docker/config.json or daemon.json)
+{
+  "proxies": {
+    "default": {
+      "httpProxy": "http://proxy.corp.example.com:8080",
+      "httpsProxy": "http://proxy.corp.example.com:8080",
+      "noProxy": "localhost,127.0.0.1,.corp.example.com"
+    }
+  }
+}
+
+# Set proxy for container builds (in docker-compose.yml or shell)
+export HTTP_PROXY=http://proxy.corp.example.com:8080
+export HTTPS_PROXY=http://proxy.corp.example.com:8080
+export NO_PROXY=localhost,127.0.0.1,cvt-server,postgres
+
+# Go modules (for building from source)
+export GOPROXY=https://proxy.golang.org,direct
+# Or use corporate Artifactory/Nexus:
+export GOPROXY=https://artifactory.corp.example.com/artifactory/go-remote,direct
+
+# npm (Node.js SDK)
+npm config set proxy http://proxy.corp.example.com:8080
+npm config set https-proxy http://proxy.corp.example.com:8080
+# Or in .npmrc:
+# proxy=http://proxy.corp.example.com:8080
+# https-proxy=http://proxy.corp.example.com:8080
+# registry=https://artifactory.corp.example.com/artifactory/api/npm/npm-remote/
+
+# pip (Python SDK)
+export PIP_INDEX_URL=https://artifactory.corp.example.com/artifactory/api/pypi/pypi-remote/simple
+# Or in pip.conf:
+# [global]
+# index-url = https://artifactory.corp.example.com/artifactory/api/pypi/pypi-remote/simple
+# trusted-host = artifactory.corp.example.com
+
+# Git (for cloning dependencies)
+git config --global http.proxy http://proxy.corp.example.com:8080
+git config --global https.proxy http://proxy.corp.example.com:8080
+```
+
+**Common Corporate Environment Issues:**
+
+| Issue | Solution |
+|-------|----------|
+| Docker pull fails | Configure Docker daemon proxy settings and restart Docker |
+| `go mod download` hangs | Set `GOPROXY` to corporate Artifactory or use `GOPRIVATE` for internal repos |
+| npm install fails | Set npm proxy and registry to corporate Artifactory |
+| SSL certificate errors | Add corporate CA cert to system trust store and set `NODE_EXTRA_CA_CERTS` |
+| gRPC connection fails | Ensure `NO_PROXY` includes `localhost` and internal service names |
+
+**SSL Certificate Configuration:**
+
+```bash
+# Add corporate CA certificate (Linux)
+sudo cp corp-ca.crt /usr/local/share/ca-certificates/
+sudo update-ca-certificates
+
+# For Node.js
+export NODE_EXTRA_CA_CERTS=/path/to/corp-ca.crt
+
+# For Python
+export REQUESTS_CA_BUNDLE=/path/to/corp-ca.crt
+export SSL_CERT_FILE=/path/to/corp-ca.crt
+
+# For Go
+export SSL_CERT_FILE=/path/to/corp-ca.crt
+```
+
 ## CI/CD & Quality
 
 **GitHub Actions**: Automated testing, building, security scanning (Trivy), linting (golangci-lint, ESLint)
@@ -798,6 +872,11 @@ cd server && go test -v ./...  # Verbose test output
 **Optimization**: Reuse schemas, batch validations, monitor cache hit rates via Grafana.
 
 ## Documentation
+
+**For AI Agents / LLMs:**
+
+- [llms.txt](llms.txt) - Index file with links to documentation (follows [llms.txt standard](https://llmstxt.org/))
+- [llms-full.txt](llms-full.txt) - Complete API reference with code examples for all SDKs (Node.js, Python, Go, CLI)
 
 **Getting Started:**
 
