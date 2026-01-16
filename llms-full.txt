@@ -164,6 +164,15 @@ interface RegisterConsumerOptions {
   usedEndpoints?: EndpointUsage[];
 }
 
+interface ConsumerImpact {
+  consumerId: string;
+  consumerVersion: string;
+  currentSchemaVersion: string;  // Version consumer was tested against
+  environment: string;
+  willBreak: boolean;            // True if consumer will be affected
+  relevantChanges: BreakingChange[];  // Breaking changes affecting this consumer
+}
+
 interface CanIDeployResult {
   safeToDeploy: boolean;
   summary: string;
