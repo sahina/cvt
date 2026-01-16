@@ -1,0 +1,39 @@
+# CVT (Contract Validator Toolkit)
+
+> Consumer-based contract validation platform for OpenAPI v2/v3 specifications. Validates HTTP request/response interactions against registered schemas via gRPC server with SDKs for Node.js, Python, Go, and Java.
+
+CVT enables API contract testing by validating that HTTP interactions conform to OpenAPI schemas. It supports consumer registry for tracking API dependencies and deployment safety checks to prevent breaking changes.
+
+## Documentation
+
+- [llms-full.txt](/llms-full.txt): Complete API reference with code examples for all SDKs
+- [README.md](/README.md): Project overview and getting started guide
+- [CLAUDE.md](/CLAUDE.md): Development instructions and architecture
+
+## SDK Documentation
+
+- [Node.js SDK](/sdks/node/src/index.ts): TypeScript SDK with full type definitions
+- [Python SDK](/sdks/python/cvt_sdk/__init__.py): Python SDK with dataclasses
+- [Go SDK](/sdks/go/cvt/client.go): Go gRPC client SDK
+- [Embedded Go Library](/pkg/cvt/validator.go): Local validation without gRPC
+
+## API Reference
+
+- [gRPC Proto](/api/protos/cvt.proto): Service definition with all RPC methods and message types
+
+## Guides
+
+- [Consumer Testing Guide](/docs/consumer-testing-guide.md): Complete workflow for consumer contract testing
+- [Producer Testing](/docs/producer-testing.md): Server-side validation patterns
+- [Validation Modes](/docs/modes.md): Shadow, warn, and strict modes for production rollout
+- [Observability](/docs/OBSERVABILITY.md): Prometheus metrics and Grafana dashboards
+
+## Examples
+
+- [Go Consumer Example](/examples/go/consumer/main.go): Complete consumer testing workflow
+- [Test Schemas](/sdks/shared/): OpenAPI v2 and v3 example schemas
+
+## Optional
+
+- [CI Templates](/ci-templates/): GitHub Actions, GitLab CI, and Jenkins templates
+- [Docker Compose](/docker-compose.yml): Full stack with PostgreSQL and observability
