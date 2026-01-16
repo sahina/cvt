@@ -820,13 +820,13 @@ git config --global https.proxy http://proxy.corp.example.com:8080
 
 **Common Corporate Environment Issues:**
 
-| Issue | Solution |
-|-------|----------|
-| Docker pull fails | Configure Docker daemon proxy settings and restart Docker |
+| Issue                   | Solution                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| Docker pull fails       | Configure Docker daemon proxy settings and restart Docker                    |
 | `go mod download` hangs | Set `GOPROXY` to corporate Artifactory or use `GOPRIVATE` for internal repos |
-| npm install fails | Set npm proxy and registry to corporate Artifactory |
-| SSL certificate errors | Add corporate CA cert to system trust store and set `NODE_EXTRA_CA_CERTS` |
-| gRPC connection fails | Ensure `NO_PROXY` includes `localhost` and internal service names |
+| npm install fails       | Set npm proxy and registry to corporate Artifactory                          |
+| SSL certificate errors  | Add corporate CA cert to system trust store and set `NODE_EXTRA_CA_CERTS`    |
+| gRPC connection fails   | Ensure `NO_PROXY` includes `localhost` and internal service names            |
 
 **SSL Certificate Configuration:**
 
