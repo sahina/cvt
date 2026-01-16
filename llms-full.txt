@@ -652,6 +652,13 @@ service ContractValidator {
 ### Key Message Types
 
 ```protobuf
+message SchemaOwnership {
+  string owner = 1;              // Owner name or identifier
+  string team = 2;               // Team responsible for the schema
+  string contact_email = 3;      // Contact email for schema issues
+  bool read_only = 4;            // If true, schema cannot be updated
+}
+
 message RegisterSchemaRequest {
   string schema_id = 1;
   string schema_content = 2;       // OpenAPI YAML or JSON
@@ -732,6 +739,15 @@ message CanIDeployResponse {
   string summary = 2;
   repeated BreakingChange breaking_changes = 3;
   repeated ConsumerImpact affected_consumers = 4;
+}
+
+message ConsumerImpact {
+  string consumer_id = 1;
+  string consumer_version = 2;
+  string current_schema_version = 3;   // Version consumer was tested against
+  string environment = 4;
+  bool will_break = 5;                 // True if consumer will be affected
+  repeated BreakingChange relevant_changes = 6;  // Breaking changes affecting this consumer
 }
 ```
 
