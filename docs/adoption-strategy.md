@@ -2,8 +2,6 @@
 
 This document outlines the challenges and strategies for driving internal adoption of CVT as the standard contract testing tool.
 
-> **Related document:** See [Roadmap](../ROADMAP.md) for technical delivery phases and feature timelines. This document focuses on organizational change management; the roadmap covers what we're building.
-
 ## Context
 
 - CVT is a greenfield internal tool (not replacing Pact)

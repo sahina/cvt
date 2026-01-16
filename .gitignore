@@ -116,3 +116,6 @@ vendor/
 .terraform/
 *.tfstate
 *.tfstate.backup
+
+# Auto Claude data directory
+.auto-claude/

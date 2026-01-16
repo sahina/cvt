@@ -1,0 +1,930 @@
+# CVT (Contract Validator Toolkit)
+
+> Consumer-based contract validation platform for OpenAPI v2/v3 specifications. Validates HTTP request/response interactions against registered schemas via gRPC server with SDKs for Node.js, Python, Go, and a CLI for local validation.
+
+CVT enables API contract testing by:
+- Validating HTTP interactions against OpenAPI schemas (v2/v3)
+- Detecting breaking changes between schema versions
+- Tracking consumer dependencies via consumer registry
+- Checking deployment safety with `can-i-deploy`
+- Generating test fixtures from schemas
+
+## Quick Start
+
+### Node.js
+
+```typescript
+import { ContractValidator } from "@cvt/sdk";
+
+const validator = new ContractValidator("localhost:9550");
+await validator.registerSchema("user-api", "./openapi.json");
+
+const result = await validator.validate(
+  { method: "GET", path: "/users/123", headers: {} },
+  { statusCode: 200, body: { id: "123", name: "John" } }
+);
+
+if (!result.valid) {
+  console.log("Validation errors:", result.errors);
+}
+
+validator.close();
+```
+
+### Python
+
+```python
+from cvt_sdk import ContractValidator
+
+validator = ContractValidator("localhost:9550")
+validator.register_schema("user-api", "./openapi.json")
+
+result = validator.validate(
+    request={"method": "GET", "path": "/users/123", "headers": {}},
+    response={"status_code": 200, "body": {"id": "123", "name": "John"}}
+)
+
+if not result["valid"]:
+    print("Validation errors:", result["errors"])
+
+validator.close()
+```
+
+### Go (Embedded Library)
+
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/cvt/cvt/pkg/cvt"
+)
+
+func main() {
+    validator := cvt.NewValidator()
+
+    err := validator.RegisterSchemaFromFile("user-api", "./openapi.json")
+    if err != nil {
+        panic(err)
+    }
+
+    result, err := validator.Validate("user-api", &cvt.Interaction{
+        Method:       "GET",
+        Path:         "/users/123",
+        StatusCode:   200,
+        ResponseBody: `{"id":"123","name":"John"}`,
+    })
+
+    if !result.Valid {
+        fmt.Println("Errors:", result.Errors)
+    }
+}
+```
+
+### CLI
+
+```bash
+# Validate interaction
+cvt validate --schema ./openapi.json --request req.json --response resp.json
+
+# Compare schemas for breaking changes
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
+
+# Generate test fixtures
+cvt generate --schema ./openapi.json --method POST --path /users
+
+# Check deployment safety
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --server localhost:9550
+```
+
+## Node.js SDK
+
+### Installation
+
+```bash
+pnpm add @cvt/sdk
+```
+
+### Initialization
+
+```typescript
+import { ContractValidator, ContractValidatorOptions, TLSOptions } from "@cvt/sdk";
+
+// Simple connection
+const validator = new ContractValidator("localhost:9550");
+
+// With TLS and API key
+const validator = new ContractValidator({
+  address: "localhost:9550",
+  tls: { enabled: true, rootCertPath: "./certs/ca.crt" },
+  apiKey: "cvt-dev-key-12345"
+});
+```
+
+### Types
+
+```typescript
+interface ValidationRequest<TBody = any> {
+  method: string;      // GET, POST, PUT, DELETE, etc.
+  path: string;        // /users/123
+  headers?: Record<string, any>;
+  body?: TBody;
+}
+
+interface ValidationResponse<TBody = any> {
+  statusCode?: number;
+  status_code?: number;  // Alternative naming
+  headers?: Record<string, any>;
+  body?: TBody;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors?: string[];
+}
+
+interface BreakingChange {
+  type: string;        // ENDPOINT_REMOVED, REQUIRED_FIELD_ADDED, TYPE_CHANGED, etc.
+  path: string;        // /users/{id}
+  method: string;      // DELETE
+  description: string;
+  oldValue?: string;
+  newValue?: string;
+}
+
+interface EndpointUsage {
+  method: string;
+  path: string;
+  usedFields?: string[];  // ["email", "name"]
+}
+
+interface RegisterConsumerOptions {
+  consumerId: string;
+  consumerVersion: string;
+  schemaId: string;
+  schemaVersion: string;
+  environment: string;     // dev, staging, prod
+  usedEndpoints?: EndpointUsage[];
+}
+
+interface ConsumerImpact {
+  consumerId: string;
+  consumerVersion: string;
+  currentSchemaVersion: string;  // Version consumer was tested against
+  environment: string;
+  willBreak: boolean;            // True if consumer will be affected
+  relevantChanges: BreakingChange[];  // Breaking changes affecting this consumer
+}
+
+interface CanIDeployResult {
+  safeToDeploy: boolean;
+  summary: string;
+  breakingChanges: BreakingChange[];
+  affectedConsumers: ConsumerImpact[];
+}
+```
+
+### Methods
+
+#### registerSchema(schemaId, schemaPath)
+Registers an OpenAPI schema from file path or URL.
+
+```typescript
+await validator.registerSchema("user-api", "./openapi.json");
+await validator.registerSchema("user-api", "https://api.example.com/openapi.json");
+```
+
+#### registerSchemaWithVersion(schemaId, schemaPath, version)
+Registers schema with semantic version for comparison.
+
+```typescript
+await validator.registerSchemaWithVersion("user-api", "./openapi.json", "1.0.0");
+```
+
+#### validate(request, response)
+Validates HTTP interaction against registered schema.
+
+```typescript
+const result = await validator.validate(
+  { method: "POST", path: "/users", headers: {"Content-Type": "application/json"}, body: { name: "John" } },
+  { statusCode: 201, body: { id: "1", name: "John" } }
+);
+// result: { valid: true, errors: [] }
+```
+
+#### compareSchemas(schemaId, oldVersion?, newVersion?)
+Compares two schema versions for breaking changes.
+
+```typescript
+const result = await validator.compareSchemas("user-api", "1.0.0", "2.0.0");
+if (!result.compatible) {
+  result.breakingChanges.forEach(change => {
+    console.log(`${change.type}: ${change.description}`);
+  });
+}
+```
+
+#### generateFixture(method, path, options?)
+Generates test fixture from schema.
+
+```typescript
+const fixture = await validator.generateFixture("POST", "/users", { useExamples: true });
+// fixture: { request: { method, path, headers, body }, response: { statusCode, headers, body } }
+```
+
+#### generateResponse(method, path, options?)
+Generates response fixture only.
+
+```typescript
+const response = await validator.generateResponse("GET", "/users/123");
+// response: { statusCode: 200, headers: {}, body: { id: "123", name: "..." } }
+```
+
+#### generateRequestBody(method, path, options?)
+Generates request body only.
+
+```typescript
+const body = await validator.generateRequestBody("POST", "/users");
+// body: { name: "string", email: "string" }
+```
+
+#### listEndpoints()
+Lists all endpoints in registered schema.
+
+```typescript
+const endpoints = await validator.listEndpoints();
+// endpoints: [{ method: "GET", path: "/users", operationId: "getUsers", summary: "List users" }, ...]
+```
+
+#### registerConsumer(options)
+Registers consumer dependency on schema.
+
+```typescript
+const consumer = await validator.registerConsumer({
+  consumerId: "order-service",
+  consumerVersion: "2.1.0",
+  schemaId: "user-api",
+  schemaVersion: "1.0.0",
+  environment: "prod",
+  usedEndpoints: [
+    { method: "GET", path: "/users/{id}", usedFields: ["email", "name"] }
+  ]
+});
+```
+
+#### listConsumers(schemaId, environment?)
+Lists consumers depending on a schema.
+
+```typescript
+const consumers = await validator.listConsumers("user-api", "prod");
+```
+
+#### deregisterConsumer(consumerId, schemaId, environment)
+Removes consumer registration.
+
+```typescript
+await validator.deregisterConsumer("order-service", "user-api", "prod");
+```
+
+#### canIDeploy(schemaId, newVersion, environment)
+Checks if schema can be safely deployed.
+
+```typescript
+const result = await validator.canIDeploy("user-api", "2.0.0", "prod");
+if (!result.safeToDeploy) {
+  console.log(result.summary);
+  result.affectedConsumers.forEach(c => {
+    if (c.willBreak) console.log(`${c.consumerId} will break!`);
+  });
+}
+```
+
+#### close()
+Closes gRPC connection.
+
+```typescript
+validator.close();
+```
+
+## Python SDK
+
+### Installation
+
+```bash
+pip install cvt-sdk
+```
+
+### Initialization
+
+```python
+from cvt_sdk import ContractValidator, ContractValidatorOptions, TLSOptions
+
+# Simple connection
+validator = ContractValidator("localhost:9550")
+
+# With TLS and API key
+validator = ContractValidator(ContractValidatorOptions(
+    address="localhost:9550",
+    tls=TLSOptions(enabled=True, root_cert_path="./certs/ca.crt"),
+    api_key="cvt-dev-key-12345"
+))
+```
+
+### Types
+
+```python
+from cvt_sdk import (
+    ValidationRequest,      # TypedDict: method, path, headers, body
+    ValidationResponse,     # TypedDict: status_code, headers, body
+    ValidationResult,       # TypedDict: valid, errors
+    BreakingChange,         # TypedDict: type, path, method, description
+    GenerateOptions,        # dataclass: status_code, use_examples, content_type
+    EndpointUsage,          # dataclass: method, path, used_fields
+    RegisterConsumerOptions,# dataclass: consumer_id, consumer_version, schema_id, etc.
+    CanIDeployResult,       # TypedDict: safe_to_deploy, summary, breaking_changes, affected_consumers
+)
+```
+
+### Methods
+
+#### register_schema(schema_id, schema_path)
+
+```python
+validator.register_schema("user-api", "./openapi.json")
+validator.register_schema("user-api", "https://api.example.com/openapi.json")
+```
+
+#### register_schema_with_version(schema_id, schema_path, version)
+
+```python
+validator.register_schema_with_version("user-api", "./openapi.json", "1.0.0")
+```
+
+#### validate(request, response)
+
+```python
+result = validator.validate(
+    request={"method": "POST", "path": "/users", "body": {"name": "John"}},
+    response={"status_code": 201, "body": {"id": "1", "name": "John"}}
+)
+# result: {"valid": True, "errors": []}
+```
+
+#### compare_schemas(schema_id, old_version="", new_version="")
+
+```python
+result = validator.compare_schemas("user-api", "1.0.0", "2.0.0")
+if not result["compatible"]:
+    for change in result["breaking_changes"]:
+        print(f"{change['type']}: {change['description']}")
+```
+
+#### generate_fixture(method, path, options=None)
+
+```python
+from cvt_sdk import GenerateOptions
+
+fixture = validator.generate_fixture("POST", "/users", GenerateOptions(use_examples=True))
+# fixture: {"request": {...}, "response": {...}}
+```
+
+#### generate_response(method, path, options=None)
+
+```python
+response = validator.generate_response("GET", "/users/123")
+# response: {"status_code": 200, "headers": {}, "body": {...}}
+```
+
+#### generate_request_body(method, path, options=None)
+
+```python
+body = validator.generate_request_body("POST", "/users")
+# body: {"name": "string", "email": "string"}
+```
+
+#### list_endpoints()
+
+```python
+endpoints = validator.list_endpoints()
+# endpoints: [{"method": "GET", "path": "/users", ...}, ...]
+```
+
+#### register_consumer(options)
+
+```python
+from cvt_sdk import RegisterConsumerOptions, EndpointUsage
+
+consumer = validator.register_consumer(RegisterConsumerOptions(
+    consumer_id="order-service",
+    consumer_version="2.1.0",
+    schema_id="user-api",
+    schema_version="1.0.0",
+    environment="prod",
+    used_endpoints=[
+        EndpointUsage(method="GET", path="/users/{id}", used_fields=["email", "name"])
+    ]
+))
+```
+
+#### list_consumers(schema_id, environment=None)
+
+```python
+consumers = validator.list_consumers("user-api", "prod")
+```
+
+#### deregister_consumer(consumer_id, schema_id, environment)
+
+```python
+validator.deregister_consumer("order-service", "user-api", "prod")
+```
+
+#### can_i_deploy(schema_id, new_version, environment)
+
+```python
+result = validator.can_i_deploy("user-api", "2.0.0", "prod")
+if not result["safe_to_deploy"]:
+    print(result["summary"])
+```
+
+#### close()
+
+```python
+validator.close()
+```
+
+## Go Embedded Library
+
+The embedded library allows local validation without a gRPC server.
+
+### Installation
+
+```go
+import "github.com/cvt/cvt/pkg/cvt"
+```
+
+### Types
+
+```go
+type Interaction struct {
+    Method          string            `json:"method"`           // GET, POST, etc.
+    Path            string            `json:"path"`             // /users/123
+    Headers         map[string]string `json:"headers,omitempty"`
+    Body            string            `json:"body,omitempty"`   // JSON string
+    StatusCode      int               `json:"status_code"`
+    ResponseHeaders map[string]string `json:"response_headers,omitempty"`
+    ResponseBody    string            `json:"response_body"`    // JSON string
+}
+
+type ValidationResult struct {
+    Valid  bool     `json:"valid"`
+    Errors []string `json:"errors,omitempty"`
+}
+```
+
+### Methods
+
+#### NewValidator()
+
+```go
+validator := cvt.NewValidator()
+```
+
+#### RegisterSchema(schemaID string, content []byte) error
+
+```go
+content, _ := os.ReadFile("./openapi.json")
+err := validator.RegisterSchema("user-api", content)
+```
+
+#### RegisterSchemaFromFile(schemaID, filePath string) error
+
+```go
+err := validator.RegisterSchemaFromFile("user-api", "./openapi.json")
+```
+
+#### Validate(schemaID string, interaction *Interaction) (*ValidationResult, error)
+
+```go
+result, err := validator.Validate("user-api", &cvt.Interaction{
+    Method:       "GET",
+    Path:         "/users/123",
+    Headers:      map[string]string{"Accept": "application/json"},
+    StatusCode:   200,
+    ResponseBody: `{"id":"123","name":"John","email":"john@example.com"}`,
+})
+
+if !result.Valid {
+    fmt.Println("Errors:", result.Errors)
+}
+```
+
+#### ValidateWithSchema(schemaContent []byte, interaction *Interaction) (*ValidationResult, error)
+
+```go
+schemaContent, _ := os.ReadFile("./openapi.json")
+result, err := validator.ValidateWithSchema(schemaContent, interaction)
+```
+
+#### ListSchemas() []string
+
+```go
+schemas := validator.ListSchemas()
+```
+
+#### RemoveSchema(schemaID string)
+
+```go
+validator.RemoveSchema("user-api")
+```
+
+#### GetSchema(schemaID string) (*openapi3.T, bool)
+
+```go
+doc, found := validator.GetSchema("user-api")
+```
+
+## CLI Reference
+
+### validate
+Validate HTTP interaction against OpenAPI schema.
+
+```bash
+# From separate request/response files
+cvt validate --schema ./openapi.json --request req.json --response resp.json
+
+# From combined interaction file
+cvt validate --schema ./openapi.json --interaction interaction.json
+
+# Inline with flags
+cvt validate --schema ./openapi.json \
+  --method GET --path /users/123 \
+  --status-code 200 --response-body '{"id":"123","name":"John"}'
+
+# JSON output
+cvt validate --schema ./openapi.json --interaction interaction.json --json
+```
+
+### compare
+Compare schemas for breaking changes.
+
+```bash
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json --json
+```
+
+Breaking change types detected:
+- ENDPOINT_REMOVED: Endpoint path+method was removed
+- REQUIRED_FIELD_ADDED: Required field added to request body
+- TYPE_CHANGED: Field type changed incompatibly
+- REQUIRED_PARAMETER_ADDED: Required query/path/header param added
+- RESPONSE_SCHEMA_CHANGED: Response schema changed incompatibly
+- ENUM_VALUE_REMOVED: Enum value was removed
+
+### generate
+Generate test fixtures from schema.
+
+```bash
+# List all endpoints
+cvt generate --schema ./openapi.json --list
+
+# Generate fixture (request + response)
+cvt generate --schema ./openapi.json --method POST --path /users
+
+# Generate response only
+cvt generate --schema ./openapi.json --method GET --path /users/{id} --output-type response
+
+# Generate request only
+cvt generate --schema ./openapi.json --method POST --path /users --output-type request
+
+# Use schema examples
+cvt generate --schema ./openapi.json --method GET --path /users/{id} --use-examples
+
+# Save to file
+cvt generate --schema ./openapi.json --method POST --path /users -o fixture.json
+```
+
+### serve
+Start gRPC server.
+
+```bash
+cvt serve --port 9550
+cvt serve --port 9550 --metrics-port 9551
+cvt serve --port 9550 --tls --cert server.crt --key server.key
+cvt serve --port 9550 --api-key-auth
+```
+
+### can-i-deploy
+Check deployment safety.
+
+```bash
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --server localhost:9550
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --json
+```
+
+### version
+Show version information.
+
+```bash
+cvt version
+```
+
+## gRPC API
+
+### Service: ContractValidator
+
+```protobuf
+service ContractValidator {
+  // Schema Management
+  rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaResponse);
+  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
+  rpc ListSchemas(ListSchemasRequest) returns (ListSchemasResponse);
+
+  // Validation
+  rpc ValidateInteraction(InteractionRequest) returns (ValidationResult);
+  rpc ValidateProducerResponse(ValidateProducerRequest) returns (ValidationResult);
+
+  // Schema Comparison
+  rpc CompareSchemas(CompareSchemasRequest) returns (CompareSchemasResponse);
+
+  // Fixtures
+  rpc GenerateFixture(GenerateFixtureRequest) returns (GenerateFixtureResponse);
+  rpc ListEndpoints(ListEndpointsRequest) returns (ListEndpointsResponse);
+
+  // Consumer Registry
+  rpc RegisterConsumer(RegisterConsumerRequest) returns (RegisterConsumerResponse);
+  rpc ListConsumers(ListConsumersRequest) returns (ListConsumersResponse);
+  rpc DeregisterConsumer(DeregisterConsumerRequest) returns (DeregisterConsumerResponse);
+
+  // Deployment Safety
+  rpc CanIDeploy(CanIDeployRequest) returns (CanIDeployResponse);
+}
+```
+
+### Key Message Types
+
+```protobuf
+message SchemaOwnership {
+  string owner = 1;              // Owner name or identifier
+  string team = 2;               // Team responsible for the schema
+  string contact_email = 3;      // Contact email for schema issues
+  bool read_only = 4;            // If true, schema cannot be updated
+}
+
+message RegisterSchemaRequest {
+  string schema_id = 1;
+  string schema_content = 2;       // OpenAPI YAML or JSON
+  string schema_version = 3;       // Semantic version
+  SchemaOwnership ownership = 4;
+  bool check_compatibility = 5;
+}
+
+message InteractionRequest {
+  string schema_id = 1;
+  RequestData request = 2;
+  ResponseData response = 3;
+  string schema_version = 4;
+}
+
+message RequestData {
+  string method = 1;               // GET, POST, etc.
+  string path = 2;                 // /users/123
+  map<string, string> headers = 3;
+  string body = 4;                 // JSON string
+}
+
+message ResponseData {
+  int32 status_code = 1;
+  map<string, string> headers = 2;
+  string body = 3;                 // JSON string
+}
+
+message ValidationResult {
+  bool valid = 1;
+  repeated string errors = 2;
+  string validated_against_version = 3;
+  string validated_against_hash = 4;
+}
+
+message BreakingChange {
+  BreakingChangeType type = 1;
+  string path = 2;
+  string method = 3;
+  string description = 4;
+  string old_value = 5;
+  string new_value = 6;
+}
+
+enum BreakingChangeType {
+  BREAKING_CHANGE_UNSPECIFIED = 0;
+  ENDPOINT_REMOVED = 1;
+  REQUIRED_FIELD_ADDED = 2;
+  TYPE_CHANGED = 3;
+  REQUIRED_PARAMETER_ADDED = 4;
+  RESPONSE_SCHEMA_CHANGED = 5;
+  ENUM_VALUE_REMOVED = 6;
+}
+
+message RegisterConsumerRequest {
+  string consumer_id = 1;
+  string consumer_version = 2;
+  string schema_id = 3;
+  string schema_version = 4;
+  string environment = 5;          // dev, staging, prod
+  repeated EndpointUsage used_endpoints = 6;
+}
+
+message EndpointUsage {
+  string method = 1;
+  string path = 2;
+  repeated string used_fields = 3; // Fields used in response
+}
+
+message CanIDeployRequest {
+  string schema_id = 1;
+  string new_version = 2;
+  string environment = 3;
+}
+
+message CanIDeployResponse {
+  bool safe_to_deploy = 1;
+  string summary = 2;
+  repeated BreakingChange breaking_changes = 3;
+  repeated ConsumerImpact affected_consumers = 4;
+}
+
+message ConsumerImpact {
+  string consumer_id = 1;
+  string consumer_version = 2;
+  string current_schema_version = 3;   // Version consumer was tested against
+  string environment = 4;
+  bool will_break = 5;                 // True if consumer will be affected
+  repeated BreakingChange relevant_changes = 6;  // Breaking changes affecting this consumer
+}
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| CVT_PORT | 9550 | gRPC server port |
+| CVT_METRICS_PORT | 9551 | Prometheus metrics port |
+| LOG_LEVEL | info | Logging level (debug, info, warn, error) |
+
+#### TLS
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| CVT_TLS_ENABLED | false | Enable TLS |
+| CVT_TLS_CERT_FILE | /certs/server.crt | Server certificate |
+| CVT_TLS_KEY_FILE | /certs/server.key | Server private key |
+| CVT_TLS_CA_FILE | | CA certificate for mTLS |
+| CVT_TLS_CLIENT_AUTH | none | Client auth: none, request, require |
+
+#### API Key Authentication
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| CVT_API_KEY_ENABLED | false | Enable API key auth |
+| CVT_API_KEYS | | Comma-separated API keys |
+| CVT_API_KEYS_FILE | | Path to JSON config |
+
+#### Storage
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| CVT_STORAGE_ENABLED | false | Enable persistent storage |
+| CVT_STORAGE_TYPE | sqlite | Storage backend: sqlite, postgres, memory |
+| CVT_STORAGE_DSN | cvt.db | SQLite database path |
+| CVT_POSTGRES_HOST | localhost | PostgreSQL host |
+| CVT_POSTGRES_PORT | 5432 | PostgreSQL port |
+| CVT_POSTGRES_USER | cvt | PostgreSQL user |
+| CVT_POSTGRES_PASSWORD | | PostgreSQL password |
+| CVT_POSTGRES_DB | cvt | PostgreSQL database |
+| CVT_POSTGRES_SSLMODE | disable | PostgreSQL SSL mode |
+| CVT_POSTGRES_DSN | | Full PostgreSQL DSN (alternative to individual host/port/user/password/db) |
+| CVT_POSTGRES_MAX_CONNS | 25 | Maximum open PostgreSQL connections |
+| CVT_STORAGE_CACHE_ENABLED | true | Enable in-memory cache |
+| CVT_STORAGE_CACHE_MAX_SCHEMAS | 1000 | Max schemas in cache |
+| CVT_VALIDATION_RETENTION_DAYS | 90 | Days to retain validation records |
+
+### API Keys JSON Format
+
+```json
+{
+  "keys": [
+    {
+      "key": "cvt-dev-key-12345",
+      "name": "development",
+      "scopes": ["*"]
+    },
+    {
+      "key": "cvt-prod-key-abcde",
+      "name": "production",
+      "scopes": ["*"],
+      "expires_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+## Common Workflows
+
+### Consumer Contract Testing
+
+```typescript
+// 1. Register schema
+await validator.registerSchemaWithVersion("user-api", "./openapi.json", "1.0.0");
+
+// 2. Validate interactions during tests
+const result = await validator.validate(
+  { method: "GET", path: "/users/123", headers: {} },
+  { statusCode: 200, body: { id: "123", name: "John", email: "john@example.com" } }
+);
+assert(result.valid);
+
+// 3. Register as consumer
+await validator.registerConsumer({
+  consumerId: "order-service",
+  consumerVersion: "2.1.0",
+  schemaId: "user-api",
+  schemaVersion: "1.0.0",
+  environment: "dev",
+  usedEndpoints: [
+    { method: "GET", path: "/users/{id}", usedFields: ["id", "name", "email"] }
+  ]
+});
+```
+
+### Deployment Safety Check
+
+```typescript
+// Before deploying new API version
+const result = await validator.canIDeploy("user-api", "2.0.0", "prod");
+
+if (!result.safeToDeploy) {
+  console.error("UNSAFE TO DEPLOY");
+  console.error(result.summary);
+
+  for (const consumer of result.affectedConsumers) {
+    if (consumer.willBreak) {
+      console.error(`${consumer.consumerId} v${consumer.consumerVersion} will break:`);
+      for (const change of consumer.relevantChanges) {
+        console.error(`  - ${change.type}: ${change.description}`);
+      }
+    }
+  }
+
+  process.exit(1);
+}
+```
+
+### CI/CD Integration
+
+```bash
+#!/bin/bash
+# Validate schema changes in CI
+
+# Check for breaking changes against main branch
+git show origin/main:openapi.json > /tmp/old-schema.json
+cvt compare --old /tmp/old-schema.json --new ./openapi.json --json
+
+# Validate test fixtures
+for fixture in tests/fixtures/*.json; do
+  cvt validate --schema ./openapi.json --interaction "$fixture"
+done
+
+# Check deployment safety
+cvt can-i-deploy --schema my-api --version $VERSION --env staging --server $CVT_SERVER
+```
+
+### Test Fixture Generation
+
+```typescript
+// Generate fixtures for all endpoints
+const endpoints = await validator.listEndpoints();
+
+for (const ep of endpoints) {
+  if (ep.method === "GET") {
+    const response = await validator.generateResponse(ep.method, ep.path);
+    console.log(`${ep.method} ${ep.path} -> ${response.statusCode}`);
+  } else {
+    const fixture = await validator.generateFixture(ep.method, ep.path);
+    console.log(`${ep.method} ${ep.path} request:`, fixture.request.body);
+    console.log(`${ep.method} ${ep.path} response:`, fixture.response.body);
+  }
+}
+```
+
+## Ports
+
+| Port | Service |
+|------|---------|
+| 9550 | gRPC server |
+| 9551 | Prometheus metrics |
+| 9091 | Prometheus UI (Docker) |
+| 3000 | Grafana UI (Docker) |
+| 5432 | PostgreSQL (Docker) |
