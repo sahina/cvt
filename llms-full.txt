@@ -776,8 +776,11 @@ message CanIDeployResponse {
 | CVT_POSTGRES_PASSWORD | | PostgreSQL password |
 | CVT_POSTGRES_DB | cvt | PostgreSQL database |
 | CVT_POSTGRES_SSLMODE | disable | PostgreSQL SSL mode |
+| CVT_POSTGRES_DSN | | Full PostgreSQL DSN (alternative to individual host/port/user/password/db) |
+| CVT_POSTGRES_MAX_CONNS | 25 | Maximum open PostgreSQL connections |
 | CVT_STORAGE_CACHE_ENABLED | true | Enable in-memory cache |
 | CVT_STORAGE_CACHE_MAX_SCHEMAS | 1000 | Max schemas in cache |
+| CVT_VALIDATION_RETENTION_DAYS | 90 | Days to retain validation records |
 
 ### API Keys JSON Format
 
