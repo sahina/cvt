@@ -1,3 +1,10 @@
+---
+title: How CVT Works
+sidebar_label: Sequence Diagrams
+sidebar_position: 1
+description: Sequence diagrams showing runtime flow during consumer and producer testing
+---
+
 # How CVT Works
 
 This document contains sequence diagrams showing the runtime flow during consumer and producer testing.

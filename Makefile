@@ -5,6 +5,7 @@
 .PHONY: update update-server update-go-sdk update-java-sdk update-node-sdk update-python-sdk
 .PHONY: metrics grafana prometheus observability-status observability-logs
 .PHONY: lint lint-go lint-node lint-python lint-java ci check-coverage ci-full
+.PHONY: docs-dev docs-build docs-serve docs-deploy docs-install
 
 # Default target
 all: build
@@ -76,6 +77,12 @@ help:
 	@echo "  make prometheus         - Open Prometheus UI (http://localhost:9091)"
 	@echo "  make observability-status - Check observability stack status"
 	@echo "  make observability-logs  - View observability stack logs"
+	@echo ""
+	@echo "Documentation commands:"
+	@echo "  make docs-dev           - Start documentation development server"
+	@echo "  make docs-build         - Build documentation site for production"
+	@echo "  make docs-serve         - Serve built documentation locally"
+	@echo "  make docs-deploy        - Deploy documentation to GitHub Pages"
 
 # Code generation
 generate:
@@ -467,3 +474,29 @@ check-coverage:
 ci-full: ci check-coverage
 	@echo ""
 	@echo "✅ Full CI (lint + format + coverage) passed!"
+
+# Documentation commands
+docs-install:
+	@echo "📦 Installing documentation dependencies..."
+	cd docs-site && pnpm install
+	@echo "✅ Documentation dependencies installed!"
+
+docs-dev: docs-install
+	@echo "🚀 Starting documentation development server..."
+	@echo "📖 Open http://localhost:4100/cvt/ in your browser"
+	cd docs-site && pnpm start
+
+docs-build: docs-install
+	@echo "🏗️  Building documentation site..."
+	cd docs-site && pnpm build
+	@echo "✅ Documentation built in docs-site/build/"
+
+docs-serve: docs-build
+	@echo "🌐 Serving built documentation..."
+	@echo "📖 Open http://localhost:4100/cvt/ in your browser"
+	cd docs-site && pnpm serve
+
+docs-deploy:
+	@echo "🚀 Deploying documentation to GitHub Pages..."
+	cd docs-site && pnpm deploy
+	@echo "✅ Documentation deployed!"

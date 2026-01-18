@@ -1,3 +1,10 @@
+---
+title: Consumer Testing Implementation Plan
+sidebar_label: Implementation Plan
+sidebar_position: 2
+description: Technical implementation plan for CVT consumer testing features
+---
+
 # Consumer Testing Implementation Plan
 
 ## Overview

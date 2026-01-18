@@ -1,3 +1,10 @@
+---
+title: Consumer Testing Guide
+sidebar_label: Testing Guide
+sidebar_position: 1
+description: Step-by-step guide to testing CVT's consumer testing capabilities
+---
+
 # Consumer Testing Guide
 
 This guide walks you through testing CVT's consumer testing capabilities using the example application.
@@ -433,4 +440,4 @@ validator, _ := cvt.NewValidator("localhost:9550")
 
 - Review the [Producer Testing Guide](./producer-testing.md) for producer-side testing
 - Check the [Consumer Testing Plan](./consumer-testing-plan.md) for implementation details
-- Explore the [SDK documentation](../sdks/) for language-specific features
+- Explore the [API Reference](./api-reference.md) for SDK usage examples

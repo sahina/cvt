@@ -1,3 +1,10 @@
+---
+title: Producer Testing Implementation Plan
+sidebar_label: Implementation Plan
+sidebar_position: 2
+description: Technical implementation plan for CVT producer testing features
+---
+
 # Producer Testing Implementation Plan
 
 ## Overview

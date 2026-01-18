@@ -1,3 +1,10 @@
+---
+title: Observability Guide
+sidebar_label: Observability
+sidebar_position: 2
+description: Metrics, monitoring, and dashboards for CVT
+---
+
 # CVT Observability Guide
 
 This document describes the observability features available in the Contract Validator Toolkit (CVT), including metrics, monitoring, and dashboards.

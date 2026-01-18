@@ -1,3 +1,10 @@
+---
+title: Adoption Strategy
+sidebar_label: Adoption Strategy
+sidebar_position: 1
+description: Challenges and strategies for driving internal CVT adoption
+---
+
 # CVT Adoption Strategy
 
 This document outlines the challenges and strategies for driving internal adoption of CVT as the standard contract testing tool.

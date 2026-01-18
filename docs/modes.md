@@ -1,3 +1,10 @@
+---
+title: Validation Modes
+sidebar_label: Validation Modes
+sidebar_position: 3
+description: CVT producer middleware validation modes - strict, warn, and shadow
+---
+
 # Validation Modes
 
 CVT producer middleware supports three validation modes that control how contract violations are handled. Choose based on your deployment stage and risk tolerance.
