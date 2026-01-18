@@ -1,3 +1,10 @@
+---
+title: Use Cases
+sidebar_label: Use Cases
+sidebar_position: 3
+description: Common CVT use cases with step-by-step guides
+---
+
 # CVT Use Cases
 
 This guide walks you through common use cases from start to finish.

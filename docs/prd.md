@@ -1,3 +1,10 @@
+---
+title: Product Requirements Document
+sidebar_label: Product Overview
+sidebar_position: 2
+description: Complete product, architectural, and implementation requirements for CVT
+---
+
 # Contract Validator Toolkit (CVT)
 
 ## 1. Overview

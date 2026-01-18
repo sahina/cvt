@@ -1,3 +1,10 @@
+---
+title: Producer Testing Guide
+sidebar_label: Testing Guide
+sidebar_position: 1
+description: How to use CVT for producer-side contract testing
+---
+
 # Producer Testing Guide
 
 This guide covers how to use CVT for producer-side contract testing, including schema compliance testing, consumer registry, and deployment safety checks.

@@ -1,3 +1,10 @@
+---
+title: Development Guide
+sidebar_label: Development Guide
+sidebar_position: 1
+description: Local development setup for CVT server and SDKs
+---
+
 # Local Development Guide
 
 This guide covers local development for CVT (Contract Validator Toolkit), including server development, SDK development, local testing without publishing packages, and SDK publishing.
@@ -161,7 +168,7 @@ make prometheus
 
 | Variable              | Default           | Description                               |
 | --------------------- | ----------------- | ----------------------------------------- |
-| `CVT_PORT`            | 9550             | gRPC server port                          |
+| `CVT_PORT`            | 9550              | gRPC server port                          |
 | `CVT_METRICS_PORT`    | 9551              | Prometheus metrics port                   |
 | `LOG_LEVEL`           | info              | Logging level (debug, info, warn, error)  |
 | `CVT_TLS_ENABLED`     | false             | Enable TLS                                |
