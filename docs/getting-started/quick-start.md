@@ -1,0 +1,346 @@
+---
+title: Quick Start
+sidebar_label: Quick Start
+sidebar_position: 2
+description: Your first contract test in 5 minutes
+---
+
+# Quick Start
+
+This guide walks you through your first contract test in under 5 minutes.
+
+## Prerequisites
+
+- CVT server running (see [Installation](./installation.md))
+- An OpenAPI schema to test against
+
+## Step 1: Start the Server
+
+```bash
+# Using Docker
+make up
+
+# Or run locally
+make run-server
+```
+
+Verify it's running:
+
+```bash
+curl http://localhost:9551/metrics
+# Should return Prometheus metrics
+```
+
+## Step 2: Create a Simple Test
+
+### Node.js
+
+Create a test file `contract.test.ts`:
+
+```typescript
+import { ContractValidator } from '@cvt/cvt-sdk';
+
+describe('User API Contract', () => {
+  let validator: ContractValidator;
+
+  beforeAll(async () => {
+    validator = new ContractValidator('localhost:9550');
+
+    // Register an OpenAPI schema
+    await validator.registerSchema('user-api', JSON.stringify({
+      openapi: '3.0.0',
+      info: { title: 'User API', version: '1.0.0' },
+      paths: {
+        '/users/{id}': {
+          get: {
+            parameters: [
+              { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+            ],
+            responses: {
+              '200': {
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      required: ['id', 'name'],
+                      properties: {
+                        id: { type: 'string' },
+                        name: { type: 'string' },
+                        email: { type: 'string' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }));
+  });
+
+  afterAll(() => validator.close());
+
+  it('validates a correct response', async () => {
+    const result = await validator.validate(
+      { method: 'GET', path: '/users/123' },
+      {
+        statusCode: 200,
+        body: JSON.stringify({ id: '123', name: 'John Doe', email: 'john@example.com' })
+      }
+    );
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('catches invalid responses', async () => {
+    const result = await validator.validate(
+      { method: 'GET', path: '/users/123' },
+      {
+        statusCode: 200,
+        body: JSON.stringify({ id: '123' })  // missing required 'name' field
+      }
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+});
+```
+
+Run the test:
+
+```bash
+npm test
+```
+
+### Python
+
+Create a test file `test_contract.py`:
+
+```python
+import pytest
+from cvt_sdk import ContractValidator
+
+@pytest.fixture(scope="module")
+def validator():
+    v = ContractValidator('localhost:9550')
+
+    # Register an OpenAPI schema
+    v.register_schema('user-api', '''
+    {
+      "openapi": "3.0.0",
+      "info": {"title": "User API", "version": "1.0.0"},
+      "paths": {
+        "/users/{id}": {
+          "get": {
+            "parameters": [
+              {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "required": ["id", "name"],
+                      "properties": {
+                        "id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "email": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    ''')
+
+    yield v
+    v.close()
+
+
+def test_validates_correct_response(validator):
+    result = validator.validate(
+        request={'method': 'GET', 'path': '/users/123'},
+        response={
+            'status_code': 200,
+            'body': '{"id": "123", "name": "John Doe", "email": "john@example.com"}'
+        }
+    )
+    assert result.valid is True
+
+
+def test_catches_invalid_responses(validator):
+    result = validator.validate(
+        request={'method': 'GET', 'path': '/users/123'},
+        response={
+            'status_code': 200,
+            'body': '{"id": "123"}'  # missing required 'name' field
+        }
+    )
+    assert result.valid is False
+    assert len(result.errors) > 0
+```
+
+Run the test:
+
+```bash
+pytest test_contract.py -v
+```
+
+### Go
+
+Create a test file `contract_test.go`:
+
+```go
+package main
+
+import (
+    "context"
+    "testing"
+
+    "github.com/sahina/cvt/sdks/go/cvt"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+)
+
+func TestUserAPIContract(t *testing.T) {
+    ctx := context.Background()
+    validator, err := cvt.NewValidator("localhost:9550")
+    require.NoError(t, err)
+    defer validator.Close()
+
+    // Register schema
+    schema := `{
+        "openapi": "3.0.0",
+        "info": {"title": "User API", "version": "1.0.0"},
+        "paths": {
+            "/users/{id}": {
+                "get": {
+                    "responses": {
+                        "200": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["id", "name"],
+                                        "properties": {
+                                            "id": {"type": "string"},
+                                            "name": {"type": "string"}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }`
+    err = validator.RegisterSchema(ctx, "user-api", schema)
+    require.NoError(t, err)
+
+    t.Run("validates correct response", func(t *testing.T) {
+        result, err := validator.Validate(ctx,
+            cvt.Request{Method: "GET", Path: "/users/123"},
+            cvt.Response{
+                StatusCode: 200,
+                Body:       `{"id": "123", "name": "John Doe"}`,
+            },
+        )
+        require.NoError(t, err)
+        assert.True(t, result.Valid)
+    })
+
+    t.Run("catches invalid responses", func(t *testing.T) {
+        result, err := validator.Validate(ctx,
+            cvt.Request{Method: "GET", Path: "/users/123"},
+            cvt.Response{
+                StatusCode: 200,
+                Body:       `{"id": "123"}`, // missing required 'name'
+            },
+        )
+        require.NoError(t, err)
+        assert.False(t, result.Valid)
+        assert.Greater(t, len(result.Errors), 0)
+    })
+}
+```
+
+Run the test:
+
+```bash
+go test -v
+```
+
+## Step 3: Use the CLI
+
+For quick validations without code:
+
+```bash
+# Build the CLI
+go build -o cvt ./cmd/cvt
+
+# Validate an interaction
+echo '{"method": "GET", "path": "/users/123"}' > request.json
+echo '{"status_code": 200, "body": "{\"id\": \"123\", \"name\": \"John\"}"}' > response.json
+
+cvt validate --schema openapi.json --request request.json --response response.json
+```
+
+## What's Next?
+
+Now that you've validated your first interaction, explore:
+
+- **[Consumer Testing Guide](../guides/consumer-testing.md)** - Test your API integrations
+- **[Producer Testing Guide](../guides/producer-testing.md)** - Validate your API implementations
+- **[Breaking Changes Guide](../guides/breaking-changes.md)** - Detect schema incompatibilities
+- **[SDK Reference](../reference/sdk/)** - Language-specific features
+
+## Common Patterns
+
+### Loading Schema from File
+
+```typescript
+import * as fs from 'fs';
+
+const schema = fs.readFileSync('./openapi.json', 'utf-8');
+await validator.registerSchema('my-api', schema);
+```
+
+### Using HTTP Adapters
+
+Automatically validate all HTTP traffic:
+
+```typescript
+import axios from 'axios';
+import { createAxiosAdapter } from '@cvt/cvt-sdk';
+
+const api = axios.create({ baseURL: 'http://api.example.com' });
+createAxiosAdapter({ axios: api, validator, schemaId: 'my-api', autoValidate: true });
+
+// All requests/responses are now validated automatically
+const user = await api.get('/users/123');
+```
+
+### Registering as a Consumer
+
+Enable deployment safety checks:
+
+```typescript
+await validator.registerConsumer({
+  consumerId: 'my-service',
+  consumerVersion: '1.0.0',
+  schemaId: 'user-api',
+  schemaVersion: '1.0.0',
+  environment: 'dev',
+  usedEndpoints: [
+    { method: 'GET', path: '/users/{id}', usedFields: ['id', 'name'] }
+  ]
+});
+```

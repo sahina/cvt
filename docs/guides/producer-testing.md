@@ -1,29 +1,43 @@
 ---
 title: Producer Testing Guide
-sidebar_label: Testing Guide
-sidebar_position: 1
-description: How to use CVT for producer-side contract testing
+sidebar_label: Producer Testing
+sidebar_position: 2
+description: Validate your API implementation matches your OpenAPI specification
 ---
 
 # Producer Testing Guide
 
-This guide covers how to use CVT for producer-side contract testing, including schema compliance testing, consumer registry, and deployment safety checks.
+This guide covers how to use CVT for producer-side contract testing. Producer testing ensures your API implementation matches your OpenAPI specification before deployment.
 
 ## Overview
 
-CVT supports two complementary testing approaches:
+Producer testing answers the question: **"Does my API match my spec?"**
 
 | Approach | Who Uses It | What It Tests |
 |----------|-------------|---------------|
 | **Consumer Testing** | API consumers | "Can I call this API correctly?" |
 | **Producer Testing** | API producers | "Does my API match my spec?" |
 
-Producer testing ensures your API implementation matches your OpenAPI specification before deployment, without needing real consumers.
+```
+┌─────────────────────┐     HTTP      ┌─────────────────────┐
+│   Client Requests   │ ────────────► │   Your API Server   │
+└─────────────────────┘               │   + CVT Middleware  │
+                                      └─────────────────────┘
+                                               │
+                                               │ Validate
+                                               ▼
+                                      ┌─────────────────────┐
+                                      │    CVT Server       │
+                                      │    + Your Schema    │
+                                      └─────────────────────┘
+```
+
+---
 
 ## Capabilities
 
-| Capability | Needs Server? | What It Answers |
-|------------|---------------|-----------------|
+| Capability | Server Required? | What It Answers |
+|------------|-----------------|-----------------|
 | **Schema compliance tests** | Yes | "Does my handler return spec-compliant responses?" |
 | **Breaking change detection** | No (CLI) | "What changed between v1 and v2 of my spec?" |
 | **Consumer registry** | Yes | "Which services depend on my API?" |
@@ -36,6 +50,21 @@ Producer testing ensures your API implementation matches your OpenAPI specificat
 Schema compliance testing validates that your API handlers return responses matching your OpenAPI specification.
 
 ### How It Works
+
+```mermaid
+sequenceDiagram
+    participant Test as Your Test
+    participant Handler as API Handler
+    participant TestKit as ProducerTestKit
+    participant CVT as CVT Server
+
+    Test->>Handler: Call handler
+    Handler-->>Test: Response
+    Test->>TestKit: validateResponse(response)
+    TestKit->>CVT: ValidateProducerResponse
+    CVT-->>TestKit: ValidationResult
+    TestKit-->>Test: Result (valid/errors)
+```
 
 1. Register your OpenAPI schema with CVT server
 2. Call your handler with test data
@@ -193,37 +222,146 @@ public class UserHandlerTest {
 
 ---
 
-## Consumer Registry
+## Producer Middleware
 
-The consumer registry tracks which services depend on your API and which endpoints/fields they use.
+For runtime validation, add CVT middleware to your HTTP server.
 
-### Registering Consumers
+### How Middleware Works
 
-Consumers register themselves after successful contract tests:
+```mermaid
+sequenceDiagram
+    participant Client as Client Request
+    participant MW as CVT Middleware
+    participant CVT as CVT Server
+    participant Handler as Your API Handler
+
+    Client->>MW: HTTP Request
+    MW->>CVT: Validate request
+    CVT-->>MW: ValidationResult
+    alt Request Valid
+        MW->>Handler: Forward request
+        Handler-->>MW: Response
+        MW->>CVT: Validate response
+        CVT-->>MW: ValidationResult
+        alt Response Valid
+            MW-->>Client: Return response
+        else Response Invalid
+            Note over MW: Log error (response already sent)
+            MW-->>Client: Return response
+        end
+    else Request Invalid
+        MW-->>Client: 400 Bad Request
+    end
+```
+
+### Node.js (Express)
 
 ```typescript
-// Node.js
-const validator = new ContractValidator('localhost:9550');
+import { createExpressMiddleware } from '@cvt/cvt-sdk/producer';
 
-await validator.registerConsumer({
-  consumerId: 'order-service',
-  consumerVersion: '2.1.0',
-  schemaId: 'user-api',
-  schemaVersion: '1.0.0',
-  environment: 'prod',
-  usedEndpoints: [
-    {
-      method: 'GET',
-      path: '/users/{id}',
-      usedFields: ['id', 'email', 'name'],
-    },
-  ],
+app.use(createExpressMiddleware({
+  schemaId: 'my-api',
+  validator,
+  mode: 'strict',  // or 'warn' or 'shadow'
+}));
+```
+
+### Node.js (Fastify)
+
+```typescript
+import { createFastifyPlugin } from '@cvt/cvt-sdk/producer';
+
+fastify.register(createFastifyPlugin({ schemaId: 'my-api', validator }));
+```
+
+### Go (net/http)
+
+```go
+import "github.com/cvt/cvt-sdk/go/cvt/producer/adapters"
+
+config := producer.Config{
+    SchemaID:  "my-api",
+    Validator: validator,
+    Mode:      producer.ModeStrict,
+}
+http.Handle("/", adapters.NetHTTPMiddleware(config)(myHandler))
+```
+
+### Go (Gin)
+
+```go
+router := gin.Default()
+router.Use(adapters.GinMiddleware(config))
+```
+
+### Python (FastAPI)
+
+```python
+from cvt_sdk.producer import ProducerConfig, ValidationMode
+from cvt_sdk.producer.adapters import ASGIMiddleware
+
+config = ProducerConfig(
+    schema_id="my-api",
+    validator=validator,
+    mode=ValidationMode.STRICT,
+)
+app.add_middleware(ASGIMiddleware, config=config)
+```
+
+### Python (Flask)
+
+```python
+from cvt_sdk.producer.adapters import WSGIMiddleware
+
+app.wsgi_app = WSGIMiddleware(app.wsgi_app, config=config)
+```
+
+### Java (Spring)
+
+```java
+registry.addInterceptor(new SpringInterceptor(config))
+    .addPathPatterns("/api/**");
+```
+
+### Path Filtering
+
+Exclude health checks, metrics, or other paths from validation:
+
+```typescript
+createExpressMiddleware({
+  schemaId: 'my-api',
+  validator,
+  mode: 'strict',
+  excludePaths: ['/health', '/metrics', '/ready'],
+  includePaths: ['/api/**'],
 });
 ```
 
-### Listing Consumers
+---
 
-Producers can see who depends on their API:
+## Validation Modes
+
+See [Validation Modes](./validation-modes.md) for detailed information.
+
+| Mode | Request Violation | Response Violation | Use Case |
+|------|-------------------|-------------------|----------|
+| **strict** | Reject with 400 | Log error | Production enforcement |
+| **warn** | Log, continue | Log, continue | Gradual rollout |
+| **shadow** | Silent | Silent | Initial deployment |
+
+### Recommended Rollout
+
+```
+Deploy with SHADOW → Analyze metrics → Switch to WARN → Fix issues → Switch to STRICT
+```
+
+---
+
+## Consumer Registry
+
+Track which services depend on your API.
+
+### Listing Your Consumers
 
 ```typescript
 const consumers = await validator.listConsumers({
@@ -237,13 +375,32 @@ for (const consumer of consumers) {
 }
 ```
 
-### Deregistering Consumers
+### Understanding Consumer Registrations
 
-When a service stops using an API:
+Consumers register after their contract tests pass:
 
 ```typescript
-await validator.deregisterConsumer('order-service', 'user-api', 'prod');
+// A consumer (not you) registers like this:
+await validator.registerConsumer({
+  consumerId: 'order-service',
+  consumerVersion: '2.1.0',
+  schemaId: 'user-api',        // Your API
+  schemaVersion: '1.0.0',
+  environment: 'prod',
+  usedEndpoints: [
+    {
+      method: 'GET',
+      path: '/users/{id}',
+      usedFields: ['id', 'email', 'name'],
+    },
+  ],
+});
 ```
+
+This tells you:
+- `order-service` depends on your API
+- They use `GET /users/{id}`
+- They specifically need the `id`, `email`, and `name` fields
 
 ---
 
@@ -257,16 +414,31 @@ Before deploying a new schema version, check if it will break any consumers.
 # Check if v2.0.0 can be deployed to production
 cvt can-i-deploy --schema user-api --version 2.0.0 --env prod
 
-# Output as JSON for CI/CD
+# JSON output for CI/CD
 cvt can-i-deploy --schema user-api --version 2.0.0 --env prod --json
-
-# Use a specific server
-cvt can-i-deploy --schema user-api --version 2.0.0 --env prod --server cvt.internal:9550
 ```
 
-### Example Output
+### SDK Usage
 
-When deployment is safe:
+```typescript
+const result = await validator.canIDeploy({
+  schemaId: 'user-api',
+  newVersion: '2.0.0',
+  environment: 'prod',
+});
+
+if (!result.safeToDeploy) {
+  console.error('Cannot deploy:', result.summary);
+  for (const consumer of result.affectedConsumers) {
+    if (consumer.willBreak) {
+      console.error(`- ${consumer.consumerId} will break`);
+    }
+  }
+  process.exit(1);
+}
+```
+
+### Example Output (Unsafe)
 
 ```
 Deployment Safety Check
@@ -275,21 +447,7 @@ Schema:      user-api
 Version:     2.0.0
 Environment: prod
 
-✅ SAFE TO DEPLOY
-
-No breaking changes detected that would affect registered consumers.
-```
-
-When deployment is unsafe:
-
-```
-Deployment Safety Check
-=======================
-Schema:      user-api
-Version:     2.0.0
-Environment: prod
-
-❌ UNSAFE TO DEPLOY
+UNSAFE TO DEPLOY
 
 Breaking changes in v2.0.0:
   - FIELD_REMOVED: GET /users/{id} response removed 'email'
@@ -311,32 +469,11 @@ Affected consumers: 1/2
 Recommendation: Coordinate with order-service team before deploying.
 ```
 
-### SDK Usage
-
-```typescript
-// Node.js
-const result = await validator.canIDeploy({
-  schemaId: 'user-api',
-  newVersion: '2.0.0',
-  environment: 'prod',
-});
-
-if (!result.safeToDeploy) {
-  console.error('Cannot deploy:', result.summary);
-  for (const consumer of result.affectedConsumers) {
-    if (consumer.willBreak) {
-      console.error(`- ${consumer.consumerId} will break`);
-    }
-  }
-  process.exit(1);
-}
-```
-
 ---
 
 ## CI/CD Integration
 
-### GitHub Actions Example
+### GitHub Actions
 
 ```yaml
 name: Deploy API
@@ -367,7 +504,7 @@ jobs:
         run: ./deploy.sh
 ```
 
-### GitLab CI Example
+### GitLab CI
 
 ```yaml
 stages:
@@ -424,34 +561,15 @@ it('validates 400 response for bad request', async () => {
 });
 ```
 
-### 2. Register Endpoint Usage Accurately
-
-Track which fields consumers actually use:
-
-```typescript
-await validator.registerConsumer({
-  consumerId: 'order-service',
-  schemaId: 'user-api',
-  usedEndpoints: [
-    {
-      method: 'GET',
-      path: '/users/{id}',
-      usedFields: ['id', 'email'],  // Only fields you actually use
-    },
-  ],
-});
-```
-
-### 3. Run can-i-deploy in CI
+### 2. Run can-i-deploy in CI
 
 Make deployment safety checks a required gate:
 
 ```bash
-# In your CI pipeline
 cvt can-i-deploy --schema my-api --version $NEW_VERSION --env prod || exit 1
 ```
 
-### 4. Use Environment-Specific Checks
+### 3. Use Environment-Specific Checks
 
 Check each environment before promoting:
 
@@ -463,19 +581,20 @@ cvt can-i-deploy --schema my-api --version 2.0.0 --env staging
 cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
 ```
 
----
+### 4. Gradual Middleware Rollout
 
-## Comparison with Pact
+Start with `shadow` mode, progress to `strict`:
 
-| Aspect | CVT Producer Testing | Pact |
-|--------|---------------------|------|
-| **Schema format** | OpenAPI (existing specs) | Pact-specific contracts |
-| **Contract generation** | Use existing OpenAPI | Generated from consumer tests |
-| **Breaking change detection** | Schema diff analysis | Consumer re-verification |
-| **Deployment safety** | can-i-deploy with registry | Pact broker can-i-deploy |
-| **Setup complexity** | Single CVT server | Pact broker + per-language setup |
+```typescript
+// Week 1: Shadow mode - metrics only
+mode: 'shadow'
 
-CVT is ideal when you already have OpenAPI specifications and want schema-first contract testing. Pact is better for consumer-driven contract testing where contracts are generated from consumer tests.
+// Week 2: Warn mode - log violations
+mode: 'warn'
+
+// Week 3: Strict mode - full enforcement
+mode: 'strict'
+```
 
 ---
 
@@ -486,37 +605,37 @@ CVT is ideal when you already have OpenAPI specifications and want schema-first 
 Ensure the schema is registered before running producer tests:
 
 ```typescript
-// Register schema first
 await validator.registerSchema({
   schemaId: 'user-api',
   schemaVersion: '1.0.0',
-  format: 'openapi_v3',
   content: fs.readFileSync('./openapi.yaml', 'utf-8'),
 });
 ```
 
 ### "Path not found" Error
 
-Check that the path in your test matches the OpenAPI spec exactly:
+Check that the path in your test matches the OpenAPI spec:
 
 ```typescript
 // If spec has: /users/{userId}
-// Use path params, not the literal path
-const result = await testKit.validateResponse({
-  method: 'GET',
-  path: '/users/123',  // Actual path with ID
-  // ...
-});
+// Use actual path values:
+path: '/users/123',  // NOT '/users/{userId}'
 ```
 
 ### "No consumers registered" Warning
 
 This is normal if you're the first to deploy or if no consumers have registered:
 
-```bash
-cvt can-i-deploy --schema new-api --version 1.0.0 --env prod
-
-# Output:
-# ✅ SAFE TO DEPLOY
-# No consumers registered for this schema in prod.
 ```
+SAFE TO DEPLOY
+No consumers registered for this schema in prod.
+```
+
+---
+
+## Next Steps
+
+- **[Consumer Testing Guide](./consumer-testing.md)** - Test your API integrations
+- **[Validation Modes](./validation-modes.md)** - Configure validation behavior
+- **[Breaking Changes Guide](./breaking-changes.md)** - Understand schema compatibility
+- **[API Reference](../reference/api.md)** - Full API documentation

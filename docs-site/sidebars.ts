@@ -2,32 +2,47 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
   docs: [
+    'intro',
     {
       type: 'category',
       label: 'Getting Started',
       collapsed: false,
       items: [
-        'intro',
-        'prd',
-        'use-cases',
+        'getting-started/installation',
+        'getting-started/quick-start',
       ],
     },
     {
       type: 'category',
-      label: 'Consumer Testing',
+      label: 'Guides',
       collapsed: false,
       items: [
-        'consumer-testing-guide',
-        'consumer-testing-plan',
+        'guides/consumer-testing',
+        'guides/producer-testing',
+        'guides/breaking-changes',
+        'guides/validation-modes',
       ],
     },
     {
       type: 'category',
-      label: 'Producer Testing',
+      label: 'Reference',
       collapsed: false,
       items: [
-        'producer-testing',
-        'producer-testing-plan',
+        'reference/api',
+        'reference/cli',
+        'reference/configuration',
+        {
+          type: 'category',
+          label: 'SDKs',
+          collapsed: true,
+          items: [
+            'reference/sdk/index',
+            'reference/sdk/nodejs',
+            'reference/sdk/python',
+            'reference/sdk/go',
+            'reference/sdk/java',
+          ],
+        },
       ],
     },
     {
@@ -35,28 +50,28 @@ const sidebars: SidebarsConfig = {
       label: 'Operations',
       collapsed: false,
       items: [
-        'DEVELOPMENT',
-        'OBSERVABILITY',
-        'modes',
+        'operations/observability',
       ],
     },
     {
       type: 'category',
-      label: 'Architecture',
+      label: 'Development',
       collapsed: true,
       items: [
-        'sequence-diagrams',
+        'development/contributing',
       ],
     },
     {
       type: 'category',
-      label: 'Strategy',
+      label: 'Internal',
       collapsed: true,
       items: [
-        'adoption-strategy',
+        'internal/prd',
+        'internal/consumer-testing-plan',
+        'internal/producer-testing-plan',
+        'internal/adoption-strategy',
       ],
     },
-    'api-reference',
   ],
 };
 

@@ -1,7 +1,7 @@
 ---
 title: Observability Guide
 sidebar_label: Observability
-sidebar_position: 2
+sidebar_position: 1
 description: Metrics, monitoring, and dashboards for CVT
 ---
 
@@ -33,8 +33,6 @@ flowchart TD
         GRAF
     end
 ```
-
-> **Note**: Internal container port for gRPC is 9550.
 
 ## Quick Start
 
@@ -115,6 +113,16 @@ make observability-logs
 
 - `RegisterSchema`
 - `ValidateInteraction`
+- `GetSchema`
+- `ListSchemas`
+- `ValidateProducerResponse`
+- `CompareSchemas`
+- `GenerateFixture`
+- `ListEndpoints`
+- `RegisterConsumer`
+- `ListConsumers`
+- `DeregisterConsumer`
+- `CanIDeploy`
 
 ## Grafana Dashboard
 
@@ -158,7 +166,7 @@ The CVT Grafana dashboard provides real-time visualization of:
 
 1. Open Grafana: <http://localhost:3000>
 2. Login with `admin` / `admin`
-3. Navigate to Dashboards → CVT - Contract Validator Toolkit
+3. Navigate to Dashboards > CVT - Contract Validator Toolkit
 
 ## Prometheus Configuration
 
@@ -201,7 +209,7 @@ sum by (error_category) (rate(cvt_validation_errors_total[5m]))
 
 ## Custom Metrics Endpoint
 
-The CVT server exposes a Prometheus-compatible `/metrics` endpoint on port 9090:
+The CVT server exposes a Prometheus-compatible `/metrics` endpoint on port 9551:
 
 ```bash
 curl http://localhost:9551/metrics
@@ -239,7 +247,7 @@ Set via `LOG_LEVEL` environment variable:
 {
   "level": "info",
   "ts": 1638360000.123,
-  "caller": "server/validator_service.go:110",
+  "caller": "server/cvtservice/service.go:110",
   "msg": "Schema registered successfully",
   "schemaId": "petstore-v3"
 }
@@ -247,7 +255,7 @@ Set via `LOG_LEVEL` environment variable:
 {
   "level": "info",
   "ts": 1638360001.456,
-  "caller": "server/validator_service.go:237",
+  "caller": "server/cvtservice/service.go:237",
   "msg": "Interaction validated successfully",
   "schemaId": "petstore-v3",
   "method": "POST",
@@ -362,7 +370,7 @@ groups:
 
 3. Check Prometheus is scraping:
    - Open <http://localhost:9091>
-   - Go to Status → Targets
+   - Go to Status > Targets
    - Verify `cvt-server` target is UP
 
 ### Grafana Dashboard Not Loading
@@ -375,7 +383,7 @@ groups:
 
 2. Verify datasource configuration:
    - Open <http://localhost:3000>
-   - Go to Configuration → Data Sources
+   - Go to Configuration > Data Sources
    - Verify Prometheus is configured and working
 
 3. Check logs:
@@ -386,7 +394,7 @@ groups:
 
 ### High Memory Usage
 
-Monitor cache size and adjust configuration in `server/cache.go`:
+Monitor cache size and adjust configuration:
 
 ```go
 const (
@@ -401,3 +409,10 @@ const (
 - [Grafana Dashboards](https://grafana.com/docs/grafana/latest/dashboards/)
 - [OpenTelemetry](https://opentelemetry.io/) (future enhancement)
 - [Zap Logging](https://github.com/uber-go/zap)
+
+---
+
+## Related Documentation
+
+- **[Configuration Reference](../reference/configuration.md)** - Environment variables
+- **[Development Guide](../development/contributing.md)** - Local development setup

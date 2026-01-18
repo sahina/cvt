@@ -182,3 +182,11 @@ Client Request
 This is by design: by the time we validate the response, it's already been sent to the client. Response validation helps you detect implementation drift (where your code diverges from your spec) but can't prevent invalid responses from reaching clients.
 
 **To prevent invalid responses:** Validate your response data before sending it, or use typed response builders that enforce the schema at compile time.
+
+---
+
+## Related Documentation
+
+- **[Producer Testing Guide](./producer-testing.md)** - Full producer testing workflow
+- **[Observability Guide](../operations/observability.md)** - Metrics and monitoring
+- **[Configuration Reference](../reference/configuration.md)** - Environment variables

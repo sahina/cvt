@@ -101,9 +101,41 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
                                   └─────────────────┘
 ```
 
+## Documentation Structure
+
+### Getting Started
+
+- **[Installation](./getting-started/installation.md)** - Install the server and SDKs
+- **[Quick Start](./getting-started/quick-start.md)** - Your first contract test
+
+### Guides
+
+- **[Consumer Testing](./guides/consumer-testing.md)** - Test your API integrations
+- **[Producer Testing](./guides/producer-testing.md)** - Validate your APIs
+- **[Breaking Changes](./guides/breaking-changes.md)** - Detect schema incompatibilities
+- **[Validation Modes](./guides/validation-modes.md)** - Configure validation behavior
+
+### Reference
+
+- **[API Reference](./reference/api.md)** - gRPC API documentation
+- **[CLI Reference](./reference/cli.md)** - Command-line interface
+- **[Configuration](./reference/configuration.md)** - Environment variables
+- **[SDK Documentation](./reference/sdk/)** - Language-specific guides
+
+### Operations
+
+- **[Observability](./operations/observability.md)** - Metrics, logging, and dashboards
+
+### Development
+
+- **[Contributing](./development/contributing.md)** - Local development setup
+
 ## Next Steps
 
-- **[Use Cases](./use-cases)** - Common scenarios with step-by-step guides
-- **[Consumer Testing Guide](./consumer-testing-guide)** - Test your API consumers
-- **[Producer Testing Guide](./producer-testing)** - Validate your API producers
-- **[Development Guide](./DEVELOPMENT)** - Set up your local development environment
+Choose your path based on your role:
+
+**API Consumer?** Start with the [Consumer Testing Guide](./guides/consumer-testing.md) to learn how to validate your API integrations.
+
+**API Producer?** Check out the [Producer Testing Guide](./guides/producer-testing.md) to ensure your API matches its specification.
+
+**Setting up CVT?** Follow the [Installation Guide](./getting-started/installation.md) for server setup and configuration.

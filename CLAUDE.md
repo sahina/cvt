@@ -81,6 +81,8 @@ _Phase 1 - Schema & Validation:_
 
 - `RegisterSchema`: Registers OpenAPI v2/v3 schemas (auto-converts v2 to v3)
 - `ValidateInteraction`: Validates HTTP request/response pairs against registered schemas
+- `GetSchema`: Get metadata and content for a registered schema
+- `ListSchemas`: List all registered schemas with optional filtering
 - `ValidateProducerResponse`: Producer-side response validation
 - `CompareSchemas`: Compare two schema versions for breaking changes
 - `GenerateFixture`: Generate test fixtures from schemas
