@@ -26,6 +26,7 @@ When using AI coding agents with CVT, watch out for these common pitfalls. Share
 ## Server Setup
 
 - **Don't mock the CVT server** - Run the real CVT server. Mocking bypasses actual validation logic and gives false confidence. The server is lightweight and easy to run:
+
   ```bash
   docker run -d -p 9550:9550 ghcr.io/cvt/cvt-server:latest
   ```
@@ -33,6 +34,7 @@ When using AI coding agents with CVT, watch out for these common pitfalls. Share
 - **Don't hardcode server addresses in tests** - Use environment variables or configuration files so tests work in different environments (local, CI, staging).
 
 - **Don't forget to wait for server startup** - In CI/CD, ensure the CVT server is healthy before running tests:
+
   ```bash
   grpc-health-probe -addr=localhost:9550
   ```
@@ -57,6 +59,7 @@ When using AI coding agents with CVT, watch out for these common pitfalls. Share
 - **Don't validate only happy paths** - Test error responses (4xx, 5xx) too. Your OpenAPI spec should define error response schemas, and CVT validates those as well.
 
 - **Don't ignore validation errors** - Validation errors indicate contract violations. Log them, fail tests, or alert—never silently swallow them:
+
   ```typescript
   if (!result.valid) {
     console.error('Contract violation:', result.errors);
@@ -71,6 +74,7 @@ When using AI coding agents with CVT, watch out for these common pitfalls. Share
 ## Fixture Generation
 
 - **Don't hand-craft test data** - Use CVT's `generateFixture()` to create schema-compliant test data. Hand-crafted fixtures drift from the schema over time:
+
   ```typescript
   // Generate a valid response from the schema
   const fixture = await validator.generateFixture('user-api', 'GET', '/users/{id}', 'response');
@@ -89,6 +93,7 @@ When using AI coding agents with CVT, watch out for these common pitfalls. Share
 - **Don't ignore gRPC version conflicts** - The SDKs depend on specific gRPC library versions. Check for conflicts with other gRPC-using dependencies in your project.
 
 - **Don't forget to close connections** - SDKs maintain gRPC connections. Close them when done to avoid resource leaks:
+
   ```typescript
   afterAll(() => {
     validator.close();

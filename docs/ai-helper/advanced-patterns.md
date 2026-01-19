@@ -104,6 +104,10 @@ AI agents can help set up contract testing in your CI/CD pipelines.
 
 ### GitHub Actions
 
+:::note
+The health check in the example below uses `grpc-health-probe`. Ensure the CVT server image includes this binary, or use an alternative health check method like checking the metrics endpoint.
+:::
+
 ```yaml
 name: Contract Tests
 
@@ -211,6 +215,7 @@ If you already have tests, add contract validation:
 
 ```typescript
 // jest.setup.ts
+import fs from 'fs';
 import { ContractValidator } from '@cvt/cvt-sdk';
 
 let validator: ContractValidator;

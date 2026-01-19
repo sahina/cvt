@@ -180,7 +180,7 @@ See local files:
 
 For highly restricted environments, embed the essential information directly:
 
-```markdown
+````markdown
 ## CVT Quick Reference
 
 ### Server
@@ -189,6 +189,7 @@ For highly restricted environments, embed the essential information directly:
 - Start: `docker run -d -p 9550:9550 ghcr.io/cvt/cvt-server:latest`
 
 ### Node.js SDK
+
 ```typescript
 import { ContractValidator } from '@cvt/cvt-sdk';
 
@@ -202,6 +203,7 @@ const result = await validator.validate(
 ```
 
 ### Python SDK
+
 ```python
 from cvt_sdk import ContractValidator
 
@@ -213,7 +215,7 @@ result = validator.validate(
     response={'status_code': 200, 'body': '{"id": "123"}'}
 )
 ```
-```
+````
 
 ---
 

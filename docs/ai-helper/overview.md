@@ -98,8 +98,8 @@ AI: I'll help you set up CVT. Based on the CVT documentation, here's what we nee
 1. Start the CVT server:
    docker run -d -p 9550:9550 ghcr.io/cvt/cvt-server:latest
 
-2. Install the Node.js SDK:
-   npm install ../cvt/sdks/node
+2. Install the Node.js SDK (see installation guide for details):
+   npm install @cvt/cvt-sdk
 
 3. Create your first contract test...
 ```
