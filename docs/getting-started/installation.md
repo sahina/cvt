@@ -200,7 +200,7 @@ fmt.Println("Connected!")
 
 ## Next Steps
 
-- **[Quick Start](./quick-start.md)** - Your first contract test
+- **[Quick Start](./quick-start.mdx)** - Your first contract test
 - **[Consumer Testing Guide](../guides/consumer-testing.md)** - Test API integrations
 - **[Producer Testing Guide](../guides/producer-testing.md)** - Validate your APIs
 - **[Configuration Reference](../reference/configuration.md)** - Server settings
