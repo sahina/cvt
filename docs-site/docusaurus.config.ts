@@ -21,7 +21,7 @@ const config: Config = {
 
   // Development server configuration
   customFields: {
-    devServerPort: 5000,
+    devServerPort: 4100,
   },
 
   i18n: {
