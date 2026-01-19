@@ -14,6 +14,17 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'AI Helper',
+      collapsed: true,
+      items: [
+        'ai-helper/overview',
+        'ai-helper/context-templates',
+        'ai-helper/common-mistakes',
+        'ai-helper/advanced-patterns',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Guides',
       collapsed: true,
       items: [
