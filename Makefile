@@ -496,7 +496,7 @@ docs-serve: docs-build
 	@echo "📖 Open http://localhost:4100/cvt/ in your browser"
 	cd docs-site && pnpm serve
 
-docs-deploy:
+docs-deploy: docs-build
 	@echo "🚀 Deploying documentation to GitHub Pages..."
 	cd docs-site && pnpm deploy
 	@echo "✅ Documentation deployed!"

@@ -50,7 +50,7 @@ pnpm add @cvt/cvt-sdk
 pip install cvt-sdk
 
 # Go
-go get github.com/cvt/cvt-sdk/go/cvt
+go get github.com/sahina/cvt/sdks/go/cvt
 ```
 
 ### 3. Validate an Interaction

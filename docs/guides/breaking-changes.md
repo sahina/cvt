@@ -53,7 +53,7 @@ cvt compare --old ./v1/openapi.json --new ./v2/openapi.json --json
 
 ### Output Example
 
-```
+```text
 Schema Comparison
 =================
 Old: ./v1/openapi.json

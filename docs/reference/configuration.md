@@ -35,7 +35,7 @@ Basic server configuration.
 ### Example
 
 ```bash
-CVT_PORT=50051 CVT_METRICS_PORT=50052 LOG_LEVEL=debug cvt serve
+CVT_PORT=9550 CVT_METRICS_PORT=9551 LOG_LEVEL=debug cvt serve
 ```
 
 ---
@@ -134,13 +134,13 @@ Clients must include the API key in the `x-api-key` metadata header:
 ```typescript
 // Node.js SDK
 const client = new CVTClient('localhost:9550', {
-  metadata: { 'x-api-key': 'sk_live_abc123' }
+  metadata: { 'x-api-key': 'your-api-key-here' }
 });
 ```
 
 ```python
 # Python SDK
-client = CVTClient('localhost:9550', api_key='sk_live_abc123')
+client = CVTClient('localhost:9550', api_key='your-api-key-here')
 ```
 
 ---

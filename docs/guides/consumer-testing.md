@@ -18,7 +18,7 @@ When your service depends on external APIs, you need confidence that:
 - You handle responses correctly
 - You won't break when upstream APIs change
 
-```
+```text
 ┌─────────────────────┐     HTTP      ┌─────────────────────┐
 │   Your Service      │ ────────────► │   Upstream API      │
 │   (Consumer)        │               │   (Producer)        │

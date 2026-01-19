@@ -18,7 +18,7 @@ Producer testing answers the question: **"Does my API match my spec?"**
 | **Consumer Testing** | API consumers | "Can I call this API correctly?" |
 | **Producer Testing** | API producers | "Does my API match my spec?" |
 
-```
+```text
 ┌─────────────────────┐     HTTP      ┌─────────────────────┐
 │   Client Requests   │ ────────────► │   Your API Server   │
 └─────────────────────┘               │   + CVT Middleware  │
