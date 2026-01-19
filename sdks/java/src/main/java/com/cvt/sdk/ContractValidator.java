@@ -76,7 +76,7 @@ import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
  * }</pre>
  */
 public class ContractValidator implements AutoCloseable {
-    private static final String DEFAULT_ADDRESS = "localhost:50052";
+    private static final String DEFAULT_ADDRESS = "localhost:9550";
     private static final Metadata.Key<String> API_KEY_HEADER = Metadata.Key.of("x-api-key",
             Metadata.ASCII_STRING_MARSHALLER);
     private static final Gson GSON = new Gson();
@@ -87,7 +87,7 @@ public class ContractValidator implements AutoCloseable {
 
     /**
      * Creates a new ContractValidator instance connecting to the default address
-     * (localhost:50052).
+     * (localhost:9550).
      */
     public ContractValidator() {
         this(DEFAULT_ADDRESS);
@@ -96,7 +96,7 @@ public class ContractValidator implements AutoCloseable {
     /**
      * Creates a new ContractValidator instance.
      *
-     * @param address The address of the CVT gRPC server (e.g., "localhost:50052")
+     * @param address The address of the CVT gRPC server (e.g., "localhost:9550")
      */
     public ContractValidator(String address) {
         this(builder().address(address));

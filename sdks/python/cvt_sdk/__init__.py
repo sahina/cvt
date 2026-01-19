@@ -62,7 +62,7 @@ class TLSOptions:
 class ContractValidatorOptions:
     """Configuration options for the ContractValidator."""
 
-    address: str = "localhost:50052"
+    address: str = "localhost:9550"
     """The address of the CVT gRPC server."""
 
     tls: Optional[TLSOptions] = None
@@ -308,7 +308,7 @@ class ContractValidator:
     """
 
     def __init__(
-        self, address_or_options: str | ContractValidatorOptions = "localhost:50052"
+        self, address_or_options: str | ContractValidatorOptions = "localhost:9550"
     ):
         """
         Creates a new ContractValidator instance.

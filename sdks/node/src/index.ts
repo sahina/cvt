@@ -40,7 +40,7 @@ export interface TLSOptions {
  * Configuration options for the ContractValidator.
  */
 export interface ContractValidatorOptions {
-  /** The address of the CVT gRPC server (default: "localhost:50052"). */
+  /** The address of the CVT gRPC server (default: "localhost:9550"). */
   address?: string;
   /** TLS configuration for secure connections. */
   tls?: TLSOptions;
@@ -259,7 +259,7 @@ export class ContractValidator {
    *
    * @example
    * // Simple usage (insecure connection)
-   * const validator = new ContractValidator("localhost:50052");
+   * const validator = new ContractValidator("localhost:9550");
    *
    * @example
    * // With TLS and API key
@@ -270,7 +270,7 @@ export class ContractValidator {
    * });
    */
   constructor(
-    addressOrOptions: string | ContractValidatorOptions = "localhost:50052",
+    addressOrOptions: string | ContractValidatorOptions = "localhost:9550",
   ) {
     let address: string;
     let credentials: grpc.ChannelCredentials;
@@ -282,7 +282,7 @@ export class ContractValidator {
       credentials = grpc.credentials.createInsecure();
     } else {
       // New options mode
-      address = addressOrOptions.address || "localhost:50052";
+      address = addressOrOptions.address || "localhost:9550";
       this.apiKey = addressOrOptions.apiKey;
 
       if (addressOrOptions.tls?.enabled) {

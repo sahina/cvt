@@ -50,38 +50,27 @@ pnpm add @cvt/cvt-sdk
 pip install cvt-sdk
 
 # Go
-go get github.com/sahina/cvt/sdks/go
+go get github.com/cvt/cvt-sdk/go/cvt
 ```
 
 ### 3. Validate an Interaction
 
 ```typescript
-import { CVTClient } from '@cvt/cvt-sdk';
+import { ContractValidator } from '@cvt/cvt-sdk';
 
-const client = new CVTClient('localhost:9550');
+const validator = new ContractValidator('localhost:9550');
 
 // Register your schema
-await client.registerSchema({
-  schemaId: 'user-api',
-  content: openApiSpec,
-});
+await validator.registerSchema('user-api', './openapi.json');
 
 // Validate an interaction
-const result = await client.validateInteraction({
-  schemaId: 'user-api',
-  request: {
-    method: 'GET',
-    path: '/users/123',
-    headers: { 'Content-Type': 'application/json' },
-  },
-  response: {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: '123', name: 'John' }),
-  },
-});
+const result = await validator.validate(
+  { method: 'GET', path: '/users/123', headers: { 'Content-Type': 'application/json' } },
+  { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: { id: '123', name: 'John' } }
+);
 
 console.log(result.valid); // true or false
+validator.close();
 ```
 
 ## Architecture
@@ -106,7 +95,7 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
 ### Getting Started
 
 - **[Installation](./getting-started/installation.md)** - Install the server and SDKs
-- **[Quick Start](./getting-started/quick-start.md)** - Your first contract test
+- **[Quick Start](./getting-started/quick-start.mdx)** - Your first contract test
 
 ### Guides
 
