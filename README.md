@@ -243,7 +243,7 @@ CVT validates API contracts through two mechanisms:
 - **Consumer testing**: CVT adapters intercept your HTTP client calls and validate them against upstream API contracts
 - **Producer testing**: CVT middleware intercepts incoming requests to your API and validates them against your contract
 
-**See [docs/sequence-diagrams.md](docs/sequence-diagrams.md) for detailed sequence diagrams and architecture.**
+**See the Architecture section below for system overview.**
 
 **Middleware support:** Express, Fastify (Node.js), FastAPI, Flask (Python), net/http, Gin, Chi (Go), Spring, Servlet (Java).
 
@@ -259,7 +259,7 @@ CVT producer middleware supports three validation modes for gradual rollout:
 
 **Recommended rollout:** Start with `shadow` to measure baseline, switch to `warn` to identify issues, then `strict` for full enforcement.
 
-**See [docs/modes.md](docs/modes.md) for detailed mode behavior, SDK configuration examples, and production rollout strategy.**
+**See [docs/guides/validation-modes.md](docs/guides/validation-modes.md) for detailed mode behavior, SDK configuration examples, and production rollout strategy.**
 
 ## Producer Testing & Deployment Safety
 
@@ -409,7 +409,7 @@ if (!result.safeToDeploy) {
 }
 ```
 
-**See [docs/producer-testing.md](docs/producer-testing.md) for complete producer testing documentation.**
+**See [docs/guides/producer-testing.md](docs/guides/producer-testing.md) for complete producer testing documentation.**
 
 ## Quick Start
 
@@ -480,15 +480,15 @@ This section walks you through common use cases from start to finish.
 
 **Use Cases:**
 
-| Use Case                          | Description                                                | Link                                                                                                      |
-| --------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **1. Adding Contract Tests**      | Validate your HTTP calls match upstream API contracts      | [docs/use-cases.md#use-case-1](docs/use-cases.md#use-case-1-adding-contract-tests-to-your-service)        |
-| **2. Detecting Breaking Changes** | Ensure API updates don't break existing consumers          | [docs/use-cases.md#use-case-2](docs/use-cases.md#use-case-2-detecting-breaking-changes-before-deployment) |
-| **3. Local Development**          | Fast feedback without Docker using CLI or embedded library | [docs/use-cases.md#use-case-3](docs/use-cases.md#use-case-3-validating-during-development-local-workflow) |
-| **4. Testing Without API Access** | Validate integration code before you have API access       | [docs/use-cases.md#use-case-4](docs/use-cases.md#use-case-4-testing-without-api-access)                   |
-| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [docs/use-cases.md#use-case-5](docs/use-cases.md#use-case-5-producer-side-api-validation)                 |
+| Use Case                          | Description                                                | Link                                                                                     |
+| --------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **1. Adding Contract Tests**      | Validate your HTTP calls match upstream API contracts      | [Consumer Testing Guide](docs/guides/consumer-testing.md)                                |
+| **2. Detecting Breaking Changes** | Ensure API updates don't break existing consumers          | [Breaking Changes Guide](docs/guides/breaking-changes.md)                                |
+| **3. Local Development**          | Fast feedback without Docker using CLI or embedded library | [CLI Reference](docs/reference/cli.md)                                                   |
+| **4. Testing Without API Access** | Validate integration code before you have API access       | [Consumer Testing Guide](docs/guides/consumer-testing.md#mock-adapters-offline-testing)  |
+| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [Producer Testing Guide](docs/guides/producer-testing.md)                                |
 
-**See [docs/use-cases.md](docs/use-cases.md) for complete step-by-step guides with code examples.**
+**See the guides above for complete step-by-step instructions with code examples.**
 
 ---
 
@@ -618,7 +618,7 @@ http.Handle("/", adapters.NetHTTPMiddleware(config)(handler))
 registry.addInterceptor(new SpringInterceptor(config)).addPathPatterns("/api/**");
 ```
 
-See [Use Case 5: Producer-Side API Validation](docs/use-cases.md#use-case-5-producer-side-api-validation) for complete producer validation documentation.
+See [Producer Testing Guide](docs/guides/producer-testing.md) for complete producer validation documentation.
 
 ### Security Configuration
 
@@ -716,7 +716,7 @@ make up
 
 **Metrics**: Validation counts/latency, cache hit rates, schema registrations, gRPC request patterns
 
-**See [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) for detailed metrics reference and dashboard configuration.**
+**See [docs/operations/observability.md](docs/operations/observability.md) for detailed metrics reference and dashboard configuration.**
 
 ## Architecture
 
@@ -884,19 +884,19 @@ export SSL_CERT_FILE=/path/to/corp-ca.crt
 **Getting Started:**
 
 - [User Guide](#user-guide) - End-to-end use cases and adoption checklist
-- [docs/adoption-strategy.md](docs/adoption-strategy.md) - Organizational adoption guide
+- [docs/internal/adoption-strategy.md](docs/internal/adoption-strategy.md) - Organizational adoption guide
 
 **Guides:**
 
-- [docs/use-cases.md](docs/use-cases.md) - Step-by-step guides for common scenarios
-- [docs/producer-testing.md](docs/producer-testing.md) - Producer testing and deployment safety
-- [docs/modes.md](docs/modes.md) - Validation modes (strict/warn/shadow) and rollout strategy
-- [docs/sequence-diagrams.md](docs/sequence-diagrams.md) - Architecture and flow diagrams
+- [docs/guides/consumer-testing.md](docs/guides/consumer-testing.md) - Consumer contract testing guide
+- [docs/guides/producer-testing.md](docs/guides/producer-testing.md) - Producer testing and deployment safety
+- [docs/guides/breaking-changes.md](docs/guides/breaking-changes.md) - Detecting and handling breaking changes
+- [docs/guides/validation-modes.md](docs/guides/validation-modes.md) - Validation modes (strict/warn/shadow) and rollout strategy
 
 **Technical References:**
 
-- [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) - Metrics and monitoring guide
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development setup and guidelines
+- [docs/operations/observability.md](docs/operations/observability.md) - Metrics and monitoring guide
+- [docs/development/contributing.md](docs/development/contributing.md) - Development setup and guidelines
 - [server/README.md](server/README.md) - Server architecture and development
 - [sdks/node/README.md](sdks/node/README.md) - Node.js SDK guide
 - [sdks/python/README.md](sdks/python/README.md) - Python SDK guide

@@ -21,7 +21,7 @@ const config: Config = {
 
   // Development server configuration
   customFields: {
-    devServerPort: 5000,
+    devServerPort: 4100,
   },
 
   i18n: {
@@ -44,7 +44,7 @@ const config: Config = {
           path: '../docs',
           routeBasePath: 'docs',
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/sahina/cvt/tree/main/docs-site/',
+          editUrl: 'https://github.com/sahina/cvt/tree/main/',
         },
         blog: false,
         theme: {
@@ -71,7 +71,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          to: '/docs/api-reference',
+          to: '/docs/reference/api',
           label: 'API Reference',
           position: 'left',
         },

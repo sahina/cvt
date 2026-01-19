@@ -14,7 +14,8 @@ CVT enables API contract testing by validating that HTTP interactions conform to
 
 - [Node.js SDK](/sdks/node/src/index.ts): TypeScript SDK with full type definitions
 - [Python SDK](/sdks/python/cvt_sdk/__init__.py): Python SDK with dataclasses
-- [Go SDK](/sdks/go/cvt/client.go): Go gRPC client SDK
+- [Go SDK](/sdks/go/cvt/validator.go): Go gRPC client SDK
+- [Java SDK](/sdks/java/src/main/java/com/cvt/sdk/ContractValidator.java): Java gRPC client SDK
 - [Embedded Go Library](/pkg/cvt/validator.go): Local validation without gRPC
 
 ## API Reference
@@ -23,10 +24,10 @@ CVT enables API contract testing by validating that HTTP interactions conform to
 
 ## Guides
 
-- [Consumer Testing Guide](/docs/consumer-testing-guide.md): Complete workflow for consumer contract testing
-- [Producer Testing](/docs/producer-testing.md): Server-side validation patterns
-- [Validation Modes](/docs/modes.md): Shadow, warn, and strict modes for production rollout
-- [Observability](/docs/OBSERVABILITY.md): Prometheus metrics and Grafana dashboards
+- [Consumer Testing Guide](/docs/guides/consumer-testing.md): Complete workflow for consumer contract testing
+- [Producer Testing](/docs/guides/producer-testing.md): Server-side validation patterns
+- [Validation Modes](/docs/guides/validation-modes.md): Shadow, warn, and strict modes for production rollout
+- [Observability](/docs/operations/observability.md): Prometheus metrics and Grafana dashboards
 
 ## Examples
 

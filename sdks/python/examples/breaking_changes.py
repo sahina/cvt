@@ -9,7 +9,7 @@ between two versions of an OpenAPI schema. This is useful for:
 - Schema evolution tracking
 
 Prerequisites:
-- CVT server running on localhost:50052
+- CVT server running on localhost:9550
 - Run: make up (from project root)
 
 Usage:
@@ -67,7 +67,7 @@ def log_compare_result(result: CompareResult) -> None:
 def main() -> None:
     print("=== CVT Breaking Change Detection Example ===\n")
 
-    validator = ContractValidator("localhost:50052")
+    validator = ContractValidator("localhost:9550")
 
     try:
         # Step 1: Register schema v1.0.0

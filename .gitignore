@@ -99,6 +99,8 @@ htmlcov/
 # Server executables
 server/server
 server/cvt-server
+# CLI binary at root
+cvt
 # Test coverage
 *.coverprofile
 coverage.out
@@ -119,3 +121,6 @@ vendor/
 
 # Auto Claude data directory
 .auto-claude/
+
+# Local skill drafts
+bd

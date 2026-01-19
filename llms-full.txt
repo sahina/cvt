@@ -544,6 +544,186 @@ validator.RemoveSchema("user-api")
 doc, found := validator.GetSchema("user-api")
 ```
 
+## Java SDK
+
+### Installation
+
+```gradle
+dependencies {
+    implementation 'com.cvt:cvt-sdk:1.0.0'
+}
+```
+
+### Initialization
+
+```java
+import com.cvt.sdk.ContractValidator;
+
+// Simple connection
+ContractValidator validator = new ContractValidator("localhost:9550");
+
+// With TLS and API key
+ContractValidator validator = ContractValidator.builder()
+    .address("localhost:9550")
+    .tlsEnabled(true)
+    .rootCertPath("./certs/ca.crt")
+    .apiKey("cvt-dev-key-12345")
+    .build();
+```
+
+### Types
+
+```java
+// Validation types
+ValidationRequest request = ValidationRequest.builder()
+    .method("GET")
+    .path("/users/123")
+    .headers(Map.of("Content-Type", "application/json"))
+    .build();
+
+ValidationResponse response = ValidationResponse.builder()
+    .statusCode(200)
+    .body("{\"id\": \"123\", \"name\": \"John\"}")
+    .build();
+
+ValidationResult result = validator.validate(request, response);
+// result.isValid(), result.getErrors()
+
+// Breaking change types
+BreakingChange change; // type, path, method, description, oldValue, newValue
+CompareResult compareResult; // compatible, breakingChanges
+
+// Consumer registry types
+RegisterConsumerOptions options; // consumerId, consumerVersion, schemaId, schemaVersion, environment, usedEndpoints
+ConsumerInfo info; // consumerId, consumerVersion, schemaId, schemaVersion, environment, registeredAt, lastValidatedAt, usedEndpoints
+CanIDeployResult deployResult; // safeToDeploy, summary, breakingChanges, affectedConsumers
+```
+
+### Methods
+
+#### registerSchema(schemaId, schemaPath)
+
+```java
+validator.registerSchema("user-api", "./openapi.json");
+validator.registerSchema("user-api", "https://api.example.com/openapi.json");
+```
+
+#### registerSchemaWithVersion(schemaId, schemaPath, version)
+
+```java
+validator.registerSchemaWithVersion("user-api", "./openapi.json", "1.0.0");
+```
+
+#### validate(request, response)
+
+```java
+ValidationResult result = validator.validate(
+    ValidationRequest.builder()
+        .method("POST")
+        .path("/users")
+        .body("{\"name\": \"John\"}")
+        .build(),
+    ValidationResponse.builder()
+        .statusCode(201)
+        .body("{\"id\": \"1\", \"name\": \"John\"}")
+        .build()
+);
+// result: ValidationResult(valid=true, errors=[])
+```
+
+#### compareSchemas(schemaId, oldVersion, newVersion)
+
+```java
+CompareResult result = validator.compareSchemas("user-api", "1.0.0", "2.0.0");
+if (!result.isCompatible()) {
+    for (BreakingChange change : result.getBreakingChanges()) {
+        System.out.println(change.getType() + ": " + change.getDescription());
+    }
+}
+```
+
+#### generateFixture(method, path, options)
+
+```java
+GeneratedFixture fixture = validator.generateFixture("POST", "/users",
+    GenerateOptions.builder().useExamples(true).build());
+// fixture: GeneratedFixture(request, response)
+```
+
+#### generateResponse(method, path, options)
+
+```java
+GeneratedResponse response = validator.generateResponse("GET", "/users/123", null);
+// response: GeneratedResponse(statusCode, headers, body)
+```
+
+#### generateRequestBody(method, path, options)
+
+```java
+Object body = validator.generateRequestBody("POST", "/users", null);
+// body: Map or List depending on schema
+```
+
+#### listEndpoints()
+
+```java
+List<EndpointInfo> endpoints = validator.listEndpoints();
+for (EndpointInfo ep : endpoints) {
+    System.out.println(ep.getMethod() + " " + ep.getPath());
+}
+```
+
+#### registerConsumer(options)
+
+```java
+ConsumerInfo consumer = validator.registerConsumer(RegisterConsumerOptions.builder()
+    .consumerId("order-service")
+    .consumerVersion("2.1.0")
+    .schemaId("user-api")
+    .schemaVersion("1.0.0")
+    .environment("prod")
+    .usedEndpoints(List.of(
+        new EndpointUsage("GET", "/users/{id}", List.of("email", "name"))
+    ))
+    .build());
+```
+
+#### listConsumers(schemaId, environment)
+
+```java
+List<ConsumerInfo> consumers = validator.listConsumers("user-api", "prod");
+```
+
+#### deregisterConsumer(consumerId, schemaId, environment)
+
+```java
+validator.deregisterConsumer("order-service", "user-api", "prod");
+```
+
+#### canIDeploy(schemaId, newVersion, environment)
+
+```java
+CanIDeployResult result = validator.canIDeploy("user-api", "2.0.0", "prod");
+if (!result.isSafeToDeploy()) {
+    System.out.println(result.getSummary());
+    for (ConsumerImpact c : result.getAffectedConsumers()) {
+        if (c.isWillBreak()) {
+            System.out.println(c.getConsumerId() + " will break!");
+        }
+    }
+}
+```
+
+#### close()
+
+```java
+validator.close();
+// Or use try-with-resources since ContractValidator implements AutoCloseable
+try (ContractValidator validator = new ContractValidator("localhost:9550")) {
+    // use validator
+}
+```
+
 ## CLI Reference
 
 ### validate

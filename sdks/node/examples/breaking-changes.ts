@@ -8,7 +8,7 @@
  * - Schema evolution tracking
  *
  * Prerequisites:
- * - CVT server running on localhost:50052
+ * - CVT server running on localhost:9550
  * - Run: make up (from project root)
  *
  * Usage:
@@ -70,7 +70,7 @@ function logCompareResult(result: CompareResult): void {
 async function main() {
   console.log("=== CVT Breaking Change Detection Example ===\n");
 
-  const validator = new ContractValidator("localhost:50052");
+  const validator = new ContractValidator("localhost:9550");
 
   try {
     // Step 1: Register schema v1.0.0

@@ -50,38 +50,27 @@ pnpm add @cvt/cvt-sdk
 pip install cvt-sdk
 
 # Go
-go get github.com/sahina/cvt/sdks/go
+go get github.com/sahina/cvt/sdks/go/cvt
 ```
 
 ### 3. Validate an Interaction
 
 ```typescript
-import { CVTClient } from '@cvt/cvt-sdk';
+import { ContractValidator } from '@cvt/cvt-sdk';
 
-const client = new CVTClient('localhost:9550');
+const validator = new ContractValidator('localhost:9550');
 
 // Register your schema
-await client.registerSchema({
-  schemaId: 'user-api',
-  content: openApiSpec,
-});
+await validator.registerSchema('user-api', './openapi.json');
 
 // Validate an interaction
-const result = await client.validateInteraction({
-  schemaId: 'user-api',
-  request: {
-    method: 'GET',
-    path: '/users/123',
-    headers: { 'Content-Type': 'application/json' },
-  },
-  response: {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: '123', name: 'John' }),
-  },
-});
+const result = await validator.validate(
+  { method: 'GET', path: '/users/123', headers: { 'Content-Type': 'application/json' } },
+  { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: { id: '123', name: 'John' } }
+);
 
 console.log(result.valid); // true or false
+validator.close();
 ```
 
 ## Architecture
@@ -101,9 +90,41 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
                                   └─────────────────┘
 ```
 
+## Documentation Structure
+
+### Getting Started
+
+- **[Installation](./getting-started/installation.md)** - Install the server and SDKs
+- **[Quick Start](./getting-started/quick-start.mdx)** - Your first contract test
+
+### Guides
+
+- **[Consumer Testing](./guides/consumer-testing.md)** - Test your API integrations
+- **[Producer Testing](./guides/producer-testing.md)** - Validate your APIs
+- **[Breaking Changes](./guides/breaking-changes.md)** - Detect schema incompatibilities
+- **[Validation Modes](./guides/validation-modes.md)** - Configure validation behavior
+
+### Reference
+
+- **[API Reference](./reference/api.md)** - gRPC API documentation
+- **[CLI Reference](./reference/cli.md)** - Command-line interface
+- **[Configuration](./reference/configuration.md)** - Environment variables
+- **[SDK Documentation](./reference/sdk/)** - Language-specific guides
+
+### Operations
+
+- **[Observability](./operations/observability.md)** - Metrics, logging, and dashboards
+
+### Development
+
+- **[Contributing](./development/contributing.md)** - Local development setup
+
 ## Next Steps
 
-- **[Use Cases](./use-cases)** - Common scenarios with step-by-step guides
-- **[Consumer Testing Guide](./consumer-testing-guide)** - Test your API consumers
-- **[Producer Testing Guide](./producer-testing)** - Validate your API producers
-- **[Development Guide](./DEVELOPMENT)** - Set up your local development environment
+Choose your path based on your role:
+
+**API Consumer?** Start with the [Consumer Testing Guide](./guides/consumer-testing.md) to learn how to validate your API integrations.
+
+**API Producer?** Check out the [Producer Testing Guide](./guides/producer-testing.md) to ensure your API matches its specification.
+
+**Setting up CVT?** Follow the [Installation Guide](./getting-started/installation.md) for server setup and configuration.

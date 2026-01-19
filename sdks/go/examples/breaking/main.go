@@ -7,7 +7,7 @@
 // - Schema evolution tracking
 //
 // Prerequisites:
-// - CVT server running on localhost:50052
+// - CVT server running on localhost:9550
 // - Run: make up (from project root)
 //
 // Usage:
