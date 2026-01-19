@@ -15,8 +15,8 @@ go run main.go
 
 ## Available Examples
 
-| Example          | Directory      | Description                                                     |
-| ---------------- | -------------- | --------------------------------------------------------------- |
+| Example          | Directory      | Description                                                      |
+| ---------------- | -------------- | ---------------------------------------------------------------- |
 | Consumer Testing | `go/consumer/` | Schema registration, validation, consumer registry, deploy check |
 
 ## What the Example Demonstrates
@@ -36,6 +36,7 @@ Located in `examples/schemas/`:
 | `user-api-v2.json` | User API v2.0.0 with breaking changes |
 
 Breaking changes in v2.0.0:
+
 - `DELETE /users/{id}` endpoint removed
 - `email` field removed from User schema
 

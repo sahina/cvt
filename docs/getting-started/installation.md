@@ -74,46 +74,69 @@ Install the SDK for your language:
 
 ### Node.js
 
+The Node.js SDK is not published to npm. Install from a local clone:
+
 ```bash
-# npm
-npm install @cvt/cvt-sdk
+# Clone the repository (if you haven't already)
+git clone https://github.com/sahina/cvt.git
 
-# pnpm
-pnpm add @cvt/cvt-sdk
+# Install from local path
+cd your-project
+npm install ../cvt/sdks/node
 
-# yarn
-yarn add @cvt/cvt-sdk
+# Or with pnpm
+pnpm add ../cvt/sdks/node
 ```
 
 ### Python
 
+The Python SDK is not published to PyPI. Install from a local clone:
+
 ```bash
-# pip
-pip install cvt-sdk
+# Clone the repository (if you haven't already)
+git clone https://github.com/sahina/cvt.git
 
-# uv
-uv add cvt-sdk
+# Install from local path
+pip install ./cvt/sdks/python
 
-# poetry
-poetry add cvt-sdk
+# Or with uv
+uv pip install ./cvt/sdks/python
 ```
 
 ### Go
 
 ```bash
-go get github.com/sahina/cvt/sdks/go
+go get github.com/cvt/cvt-sdk/go
 ```
 
 ### Java
 
-**Gradle:**
+The Java SDK is not published to Maven Central. Build and publish to your local Maven repository:
+
+```bash
+# Clone the repository (if you haven't already)
+git clone https://github.com/sahina/cvt.git
+cd cvt/sdks/java
+
+# Build and publish to local Maven repository
+./gradlew publishToMavenLocal
+```
+
+Then add to your `build.gradle`:
+
 ```gradle
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
 dependencies {
     implementation 'com.cvt:cvt-sdk:1.0.0'
 }
 ```
 
-**Maven:**
+Or for Maven, add to your `pom.xml`:
+
 ```xml
 <dependency>
     <groupId>com.cvt</groupId>
@@ -157,7 +180,7 @@ print('Connected!')
 
 ```go
 // Go
-import "github.com/sahina/cvt/sdks/go/cvt"
+import "github.com/cvt/cvt-sdk/go/cvt"
 client, _ := cvt.NewValidator("localhost:9550")
 fmt.Println("Connected!")
 ```

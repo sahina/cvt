@@ -15,7 +15,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Guides',
-      collapsed: false,
+      collapsed: true,
       items: [
         'guides/consumer-testing',
         'guides/producer-testing',
@@ -26,7 +26,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Reference',
-      collapsed: false,
+      collapsed: true,
       items: [
         'reference/api',
         'reference/cli',
@@ -48,7 +48,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Operations',
-      collapsed: false,
+      collapsed: true,
       items: [
         'operations/observability',
       ],
