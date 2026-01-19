@@ -5,6 +5,9 @@ sidebar_position: 2
 description: Your first contract test in 5 minutes
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Quick Start
 
 This guide walks you through your first contract test in under 5 minutes.
@@ -33,7 +36,8 @@ curl http://localhost:9551/metrics
 
 ## Step 2: Create a Simple Test
 
-### Node.js
+<Tabs groupId="language">
+  <TabItem value="nodejs" label="Node.js" default>
 
 Create a test file `contract.test.ts`:
 
@@ -114,7 +118,8 @@ Run the test:
 npm test
 ```
 
-### Python
+  </TabItem>
+  <TabItem value="python" label="Python">
 
 Create a test file `test_contract.py`:
 
@@ -193,7 +198,8 @@ Run the test:
 pytest test_contract.py -v
 ```
 
-### Go
+  </TabItem>
+  <TabItem value="go" label="Go">
 
 Create a test file `contract_test.go`:
 
@@ -204,7 +210,7 @@ import (
     "context"
     "testing"
 
-    "github.com/sahina/cvt/sdks/go/cvt"
+    "github.com/cvt/cvt-sdk/go/cvt"
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
 )
@@ -277,6 +283,116 @@ Run the test:
 ```bash
 go test -v
 ```
+
+  </TabItem>
+  <TabItem value="java" label="Java">
+
+Create a test file `ContractTest.java`:
+
+```java
+package com.example;
+
+import com.cvt.sdk.ContractValidator;
+import com.cvt.sdk.ValidationRequest;
+import com.cvt.sdk.ValidationResponse;
+import com.cvt.sdk.ValidationResult;
+import org.junit.jupiter.api.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class UserAPIContractTest {
+    private static ContractValidator validator;
+
+    @BeforeAll
+    static void setup() {
+        validator = new ContractValidator("localhost:9550");
+
+        // Register an OpenAPI schema
+        String schema = """
+            {
+              "openapi": "3.0.0",
+              "info": {"title": "User API", "version": "1.0.0"},
+              "paths": {
+                "/users/{id}": {
+                  "get": {
+                    "parameters": [
+                      {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
+                    ],
+                    "responses": {
+                      "200": {
+                        "content": {
+                          "application/json": {
+                            "schema": {
+                              "type": "object",
+                              "required": ["id", "name"],
+                              "properties": {
+                                "id": {"type": "string"},
+                                "name": {"type": "string"},
+                                "email": {"type": "string"}
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """;
+        validator.registerSchema("user-api", schema);
+    }
+
+    @AfterAll
+    static void teardown() {
+        validator.close();
+    }
+
+    @Test
+    void validatesCorrectResponse() {
+        ValidationRequest request = ValidationRequest.builder()
+                .method("GET")
+                .path("/users/123")
+                .build();
+
+        ValidationResponse response = ValidationResponse.builder()
+                .statusCode(200)
+                .body("{\"id\": \"123\", \"name\": \"John Doe\", \"email\": \"john@example.com\"}")
+                .build();
+
+        ValidationResult result = validator.validate(request, response);
+
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void catchesInvalidResponses() {
+        ValidationRequest request = ValidationRequest.builder()
+                .method("GET")
+                .path("/users/123")
+                .build();
+
+        ValidationResponse response = ValidationResponse.builder()
+                .statusCode(200)
+                .body("{\"id\": \"123\"}")  // missing required 'name' field
+                .build();
+
+        ValidationResult result = validator.validate(request, response);
+
+        assertFalse(result.isValid());
+        assertFalse(result.getErrors().isEmpty());
+    }
+}
+```
+
+Run the test:
+
+```bash
+./gradlew test
+```
+
+  </TabItem>
+</Tabs>
 
 ## Step 3: Use the CLI
 
