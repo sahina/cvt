@@ -44,7 +44,7 @@ const config: Config = {
           path: '../docs',
           routeBasePath: 'docs',
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/sahina/cvt/tree/main/docs-site/',
+          editUrl: 'https://github.com/sahina/cvt/tree/main/',
         },
         blog: false,
         theme: {
