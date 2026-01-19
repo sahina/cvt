@@ -301,6 +301,8 @@ expect(preValidation.valid).toBe(true);
 Use generated responses for mock services:
 
 ```typescript
+import nock from 'nock';
+
 // Generate a valid response
 const responseFixture = await validator.generateFixture(
   'user-api',
