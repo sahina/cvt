@@ -8,7 +8,9 @@ slug: /intro
 
 # Welcome to CVT
 
-**Contract Validator Toolkit (CVT)** is a consumer-based contract validation platform for OpenAPI v2/v3 specifications. It helps teams ensure their API consumers and producers communicate correctly by validating HTTP interactions against published contracts.
+**Contract Validator Toolkit (CVT)** is a consumer and producer based contract validation platform for OpenAPI v2/v3 specifications.
+
+It helps teams ensure their API consumers and producers communicate correctly by validating HTTP interactions against published contracts.
 
 ## What is Contract Testing?
 
@@ -19,14 +21,14 @@ Contract testing validates API interactions against a published contract (OpenAP
 
 ## Key Features
 
-| Feature | Description |
-|---------|-------------|
-| **Schema Validation** | Register OpenAPI v2/v3 schemas and validate request/response pairs |
-| **Consumer Testing** | Validate your HTTP calls against upstream API contracts |
-| **Producer Testing** | Ensure your API implementation matches your specification |
-| **Breaking Change Detection** | Compare schema versions to detect incompatible changes |
-| **Safe Deployments** | Use CanIDeploy to verify changes won't break consumers |
-| **Multi-language SDKs** | Native support for Node.js, Python, Go, and Java |
+| Feature                       | Description                                                        |
+| ----------------------------- | ------------------------------------------------------------------ |
+| **Schema Validation**         | Register OpenAPI v2/v3 schemas and validate request/response pairs |
+| **Consumer Testing**          | Validate your HTTP calls against upstream API contracts            |
+| **Producer Testing**          | Ensure your API implementation matches your specification          |
+| **Breaking Change Detection** | Compare schema versions to detect incompatible changes             |
+| **Safe Deployments**          | Use CanIDeploy to verify changes won't break consumers             |
+| **Multi-language SDKs**       | Native support for Node.js, Python, Go, and Java                   |
 
 ## Quick Start
 
@@ -56,17 +58,25 @@ go get github.com/sahina/cvt/sdks/go/cvt
 ### 3. Validate an Interaction
 
 ```typescript
-import { ContractValidator } from '@cvt/cvt-sdk';
+import { ContractValidator } from "@cvt/cvt-sdk";
 
-const validator = new ContractValidator('localhost:9550');
+const validator = new ContractValidator("localhost:9550");
 
 // Register your schema
-await validator.registerSchema('user-api', './openapi.json');
+await validator.registerSchema("user-api", "./openapi.json");
 
 // Validate an interaction
 const result = await validator.validate(
-  { method: 'GET', path: '/users/123', headers: { 'Content-Type': 'application/json' } },
-  { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: { id: '123', name: 'John' } }
+  {
+    method: "GET",
+    path: "/users/123",
+    headers: { "Content-Type": "application/json" },
+  },
+  {
+    statusCode: 200,
+    headers: { "Content-Type": "application/json" },
+    body: { id: "123", name: "John" },
+  },
 );
 
 console.log(result.valid); // true or false
@@ -77,7 +87,7 @@ validator.close();
 
 CVT runs as a gRPC service that can be deployed via Docker or run locally:
 
-```
+```text
 ┌─────────────────┐     gRPC      ┌─────────────────┐
 │   Your Tests    │ ────────────► │   CVT Server    │
 │  (SDK Client)   │               │   (Port 9550)   │
