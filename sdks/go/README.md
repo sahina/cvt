@@ -141,7 +141,7 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `producer.ModeWarn`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `producer.ModeShadow` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `ModeShadow` → `ModeWarn` → `ModeStrict`. See [Validation Modes](../../docs/guides/validation-modes.md) for the recommended rollout strategy.
+**Recommended rollout:** `ModeShadow` → `ModeWarn` → `ModeStrict`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.md#recommended-rollout-strategy).
 
 ### net/http Middleware
 
