@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/cvt/cvt-sdk/go/cvt/producer"
+	"github.com/sahina/cvt/sdks/go/cvt/producer"
 )
 
 // GinMiddleware creates Gin middleware for producer validation.

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cvt/cvt-sdk/go/cvt/producer"
+	"github.com/sahina/cvt/sdks/go/cvt/producer"
 )
 
 // NetHTTPMiddleware creates HTTP middleware for the standard library.

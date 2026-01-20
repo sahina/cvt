@@ -3,7 +3,7 @@ package adapters
 import (
 	"net/http"
 
-	"github.com/cvt/cvt-sdk/go/cvt/producer"
+	"github.com/sahina/cvt/sdks/go/cvt/producer"
 )
 
 // ChiMiddleware creates Chi middleware for producer validation.

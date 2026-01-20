@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/cvt/cvt-sdk/go/cvt"
+	"github.com/sahina/cvt/sdks/go/cvt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
