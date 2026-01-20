@@ -80,7 +80,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title={`Home`}
-      description="Consumer-based contract validation for OpenAPI specifications">
+      description="Consumer and producer contract validation for OpenAPI specifications">
       <HomepageHeader />
       <main>
         <section className={styles.features}>

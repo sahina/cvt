@@ -9,7 +9,7 @@ description: Complete product, architectural, and implementation requirements fo
 
 ## 1. Overview
 
-This document defines the product, architectural, and implementation requirements for the **Contract Validator Toolkit (CVT)** — a consumer-based contract validation platform for OpenAPI v2 and v3 specifications. CVT is built using **Go**, exposes a **gRPC-first interface**, and runs entirely via **Docker**
+This document defines the product, architectural, and implementation requirements for the **Contract Validator Toolkit (CVT)** — a consumer- and producer-based contract validation platform for OpenAPI v2 and v3 specifications. CVT is built using **Go**, exposes a **gRPC-first interface**, and runs entirely via **Docker**
 
 ## 2. Definitions
 
@@ -18,9 +18,9 @@ This document defines the product, architectural, and implementation requirement
 | Term                                | Definition                                                                                                                                                          |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Consumer-based Contract Testing** | Validation initiated by an API consumer to ensure that requests and responses conform to a published OpenAPI contract.                                              |
-| **Producer-based Contract Testing** | Validation performed by an API provider to ensure their implementation conforms to the contract. _(Out of scope for initial releases; planned for a future phase.)_ |
+| **Producer-based Contract Testing** | Validation performed by an API provider to ensure their implementation conforms to the contract. |
 
-### CVT focuses only on consumer-based contract testing for initial phases
+### CVT supports both consumer and producer contract testing
 
 ## 3. Problem Statement
 
@@ -80,7 +80,7 @@ flowchart LR
 
 ## 4. Goals and Objectives
 
-- **Focus on consumer-based contract testing** for OpenAPI v2 and v3.
+- **Focus on consumer- and producer-based contract testing** for OpenAPI v2 and v3.
 - **SDKs are not test frameworks** — users continue to use existing testing libraries like Jest, Pytest, or JUnit.
 - **SDKs handle communication and orchestration only**: gRPC protocol handling, configuration, authentication, and result retrieval.
 - Maintain **uniform and simple SDK functionality** across Node, Python, Go, and Java.
