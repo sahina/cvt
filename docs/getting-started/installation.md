@@ -19,8 +19,10 @@ The easiest way to run CVT is with Docker:
 # Using Docker Compose (includes observability stack)
 make up
 
-# Or Docker directly
-docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/cvt/cvt-server:latest
+# Or Docker directly BUT
+
+# Docker image is not published to Docker Hub yet
+# docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/cvt/cvt-server:latest
 ```
 
 ### From Source
@@ -39,27 +41,6 @@ make build
 make run-server
 ```
 
-### Binary Installation
-
-Download a pre-built binary:
-
-```bash
-# Linux
-curl -L https://github.com/sahina/cvt/releases/latest/download/cvt-linux-amd64 -o cvt
-chmod +x cvt
-
-# macOS (Intel)
-curl -L https://github.com/sahina/cvt/releases/latest/download/cvt-darwin-amd64 -o cvt
-chmod +x cvt
-
-# macOS (Apple Silicon)
-curl -L https://github.com/sahina/cvt/releases/latest/download/cvt-darwin-arm64 -o cvt
-chmod +x cvt
-
-# Windows
-curl -L https://github.com/sahina/cvt/releases/latest/download/cvt-windows-amd64.exe -o cvt.exe
-```
-
 ### Go Install
 
 ```bash
@@ -74,7 +55,7 @@ Install the SDK for your language:
 
 ### Node.js
 
-The Node.js SDK is not published to npm. Install from a local clone:
+**The Node.js SDK is not published to npm. Install from a local clone:**
 
 ```bash
 # Clone the repository (if you haven't already)
@@ -90,7 +71,7 @@ pnpm add ../cvt/sdks/node
 
 ### Python
 
-The Python SDK is not published to PyPI. Install from a local clone:
+**The Python SDK is not published to PyPI. Install from a local clone:**
 
 ```bash
 # Clone the repository (if you haven't already)
@@ -111,7 +92,7 @@ go get github.com/cvt/cvt-sdk/go
 
 ### Java
 
-The Java SDK is not published to Maven Central. Build and publish to your local Maven repository:
+**The Java SDK is not published to Maven Central. Build and publish to your local Maven repository:**
 
 ```bash
 # Clone the repository (if you haven't already)
@@ -152,14 +133,23 @@ Or for Maven, add to your `pom.xml`:
 ### Check Server
 
 ```bash
-# Health check
+# Check metrics endpoint (no extra tools required)
+curl http://localhost:9551/metrics
+```
+
+#### Using grpc-health-probe (Optional)
+
+The `make health` command and direct health checks require [grpc-health-probe](https://github.com/grpc-ecosystem/grpc-health-probe) to be installed:
+
+```bash
+# Install grpc-health-probe
+go install github.com/grpc-ecosystem/grpc-health-probe@latest
+
+# Then you can run health checks
 make health
 
-# Or use grpc-health-probe
+# Or directly
 grpc-health-probe -addr=localhost:9550
-
-# Check metrics endpoint
-curl http://localhost:9551/metrics
 ```
 
 ### Check SDK
