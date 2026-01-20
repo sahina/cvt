@@ -3,7 +3,7 @@ package producer
 import (
 	"testing"
 
-	cvt "github.com/cvt/cvt-sdk/go/cvt"
+	cvt "github.com/sahina/cvt/sdks/go/cvt"
 )
 
 func TestNewProducerTestKit_RequiresSchemaID(t *testing.T) {

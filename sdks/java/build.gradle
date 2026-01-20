@@ -2,7 +2,11 @@ plugins {
     id 'java-library'
     id 'com.google.protobuf' version '0.9.6'
     id 'jacoco'
+    id 'maven-publish'
 }
+
+group = 'com.cvt'
+version = '0.1.0'
 
 repositories {
     mavenCentral()
@@ -103,6 +107,15 @@ jacocoTestCoverageVerification {
             limit {
                 minimum = 0.70
             }
+        }
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            artifactId = 'cvt-sdk'
         }
     }
 }

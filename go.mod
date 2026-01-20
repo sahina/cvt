@@ -1,4 +1,4 @@
-module github.com/cvt/cvt
+module github.com/sahina/cvt
 
 go 1.24.0
 

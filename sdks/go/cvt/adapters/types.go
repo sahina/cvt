@@ -14,7 +14,7 @@ import (
 	"context"
 	"regexp"
 
-	"github.com/cvt/cvt-sdk/go/cvt"
+	"github.com/sahina/cvt/sdks/go/cvt"
 )
 
 // Validator is the interface that wraps the Validate method.

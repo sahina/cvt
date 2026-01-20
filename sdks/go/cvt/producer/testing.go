@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"strings"
 
-	cvt "github.com/cvt/cvt-sdk/go/cvt"
-	pb "github.com/cvt/cvt-sdk/go/cvt/proto"
+	cvt "github.com/sahina/cvt/sdks/go/cvt"
+	pb "github.com/sahina/cvt/sdks/go/cvt/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"

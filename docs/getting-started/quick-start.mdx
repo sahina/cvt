@@ -15,7 +15,9 @@ This guide walks you through your first contract test in under 5 minutes.
 ## Prerequisites
 
 - CVT server running (see [Installation](./installation.md))
-- An OpenAPI schema to test against
+- An OpenAPI schema to test against (we'll use the included Petstore schema)
+
+Save the [Petstore OpenAPI schema](https://petstore.swagger.io/v2/swagger.json) as `./openapi.json` in your project directory. All examples below reference this file path.
 
 ## Step 1: Start the Server
 
@@ -43,54 +45,32 @@ Create a test file `contract.test.ts`:
 
 ```typescript
 import { ContractValidator } from '@cvt/cvt-sdk';
+import * as path from 'path';
 
-describe('User API Contract', () => {
+describe('Petstore API Contract', () => {
   let validator: ContractValidator;
 
   beforeAll(async () => {
     validator = new ContractValidator('localhost:9550');
 
-    // Register an OpenAPI schema
-    await validator.registerSchema('user-api', JSON.stringify({
-      openapi: '3.0.0',
-      info: { title: 'User API', version: '1.0.0' },
-      paths: {
-        '/users/{id}': {
-          get: {
-            parameters: [
-              { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
-            ],
-            responses: {
-              '200': {
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      required: ['id', 'name'],
-                      properties: {
-                        id: { type: 'string' },
-                        name: { type: 'string' },
-                        email: { type: 'string' }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }));
+    // Register the Petstore schema from file
+    const schemaPath = path.resolve(__dirname, './openapi.json');
+    await validator.registerSchema('petstore', schemaPath);
   });
 
   afterAll(() => validator.close());
 
-  it('validates a correct response', async () => {
+  it('validates a correct pet response', async () => {
     const result = await validator.validate(
-      { method: 'GET', path: '/users/123' },
+      { method: 'GET', path: '/pet/123' },
       {
         statusCode: 200,
-        body: JSON.stringify({ id: '123', name: 'John Doe', email: 'john@example.com' })
+        body: {
+          id: 123,
+          name: 'doggie',
+          photoUrls: ['https://example.com/photo.jpg'],
+          status: 'available'
+        }
       }
     );
 
@@ -99,10 +79,10 @@ describe('User API Contract', () => {
 
   it('catches invalid responses', async () => {
     const result = await validator.validate(
-      { method: 'GET', path: '/users/123' },
+      { method: 'GET', path: '/pet/123' },
       {
         statusCode: 200,
-        body: JSON.stringify({ id: '123' })  // missing required 'name' field
+        body: { id: 123 }  // missing required 'name' and 'photoUrls' fields
       }
     );
 
@@ -127,65 +107,40 @@ Create a test file `test_contract.py`:
 import pytest
 from cvt_sdk import ContractValidator
 
+
 @pytest.fixture(scope="module")
 def validator():
     v = ContractValidator('localhost:9550')
 
-    # Register an OpenAPI schema
-    v.register_schema('user-api', '''
-    {
-      "openapi": "3.0.0",
-      "info": {"title": "User API", "version": "1.0.0"},
-      "paths": {
-        "/users/{id}": {
-          "get": {
-            "parameters": [
-              {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
-            ],
-            "responses": {
-              "200": {
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "required": ["id", "name"],
-                      "properties": {
-                        "id": {"type": "string"},
-                        "name": {"type": "string"},
-                        "email": {"type": "string"}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    ''')
+    # Register the Petstore schema from file
+    v.register_schema('petstore', './openapi.json')
 
     yield v
     v.close()
 
 
-def test_validates_correct_response(validator):
+def test_validates_correct_pet_response(validator):
     result = validator.validate(
-        request={'method': 'GET', 'path': '/users/123'},
+        request={'method': 'GET', 'path': '/pet/123'},
         response={
             'status_code': 200,
-            'body': '{"id": "123", "name": "John Doe", "email": "john@example.com"}'
+            'body': {
+                'id': 123,
+                'name': 'doggie',
+                'photoUrls': ['https://example.com/photo.jpg'],
+                'status': 'available'
+            }
         }
     )
-    assert result.valid is True
+    assert result["valid"] is True
 
 
 def test_catches_invalid_responses(validator):
     result = validator.validate(
-        request={'method': 'GET', 'path': '/users/123'},
+        request={'method': 'GET', 'path': '/pet/123'},
         response={
             'status_code': 200,
-            'body': '{"id": "123"}'  # missing required 'name' field
+            'body': {'id': 123}  # missing required 'name' and 'photoUrls' fields
         }
     )
     assert result["valid"] is False
@@ -210,53 +165,32 @@ import (
     "context"
     "testing"
 
-    "github.com/cvt/cvt-sdk/go/cvt"
+    "github.com/sahina/cvt/sdks/go/cvt"
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
 )
 
-func TestUserAPIContract(t *testing.T) {
+func TestPetstoreAPIContract(t *testing.T) {
     ctx := context.Background()
     validator, err := cvt.NewValidator("localhost:9550")
     require.NoError(t, err)
     defer validator.Close()
 
-    // Register schema
-    schema := `{
-        "openapi": "3.0.0",
-        "info": {"title": "User API", "version": "1.0.0"},
-        "paths": {
-            "/users/{id}": {
-                "get": {
-                    "responses": {
-                        "200": {
-                            "content": {
-                                "application/json": {
-                                    "schema": {
-                                        "type": "object",
-                                        "required": ["id", "name"],
-                                        "properties": {
-                                            "id": {"type": "string"},
-                                            "name": {"type": "string"}
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }`
-    err = validator.RegisterSchema(ctx, "user-api", schema)
+    // Register the Petstore schema from file
+    err = validator.RegisterSchema(ctx, "petstore", "./openapi.json")
     require.NoError(t, err)
 
-    t.Run("validates correct response", func(t *testing.T) {
+    t.Run("validates correct pet response", func(t *testing.T) {
         result, err := validator.Validate(ctx,
-            cvt.Request{Method: "GET", Path: "/users/123"},
-            cvt.Response{
+            cvt.ValidationRequest{Method: "GET", Path: "/pet/123"},
+            cvt.ValidationResponse{
                 StatusCode: 200,
-                Body:       `{"id": "123", "name": "John Doe"}`,
+                Body: map[string]any{
+                    "id":        123,
+                    "name":      "doggie",
+                    "photoUrls": []string{"https://example.com/photo.jpg"},
+                    "status":    "available",
+                },
             },
         )
         require.NoError(t, err)
@@ -265,10 +199,10 @@ func TestUserAPIContract(t *testing.T) {
 
     t.Run("catches invalid responses", func(t *testing.T) {
         result, err := validator.Validate(ctx,
-            cvt.Request{Method: "GET", Path: "/users/123"},
-            cvt.Response{
+            cvt.ValidationRequest{Method: "GET", Path: "/pet/123"},
+            cvt.ValidationResponse{
                 StatusCode: 200,
-                Body:       `{"id": "123"}`, // missing required 'name'
+                Body:       map[string]any{"id": 123}, // missing required 'name' and 'photoUrls'
             },
         )
         require.NoError(t, err)
@@ -298,49 +232,19 @@ import com.cvt.sdk.ValidationResponse;
 import com.cvt.sdk.ValidationResult;
 import org.junit.jupiter.api.*;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-class UserAPIContractTest {
+class PetstoreAPIContractTest {
     private static ContractValidator validator;
 
     @BeforeAll
-    static void setup() {
+    static void setup() throws IOException {
         validator = new ContractValidator("localhost:9550");
 
-        // Register an OpenAPI schema
-        String schema = """
-            {
-              "openapi": "3.0.0",
-              "info": {"title": "User API", "version": "1.0.0"},
-              "paths": {
-                "/users/{id}": {
-                  "get": {
-                    "parameters": [
-                      {"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}
-                    ],
-                    "responses": {
-                      "200": {
-                        "content": {
-                          "application/json": {
-                            "schema": {
-                              "type": "object",
-                              "required": ["id", "name"],
-                              "properties": {
-                                "id": {"type": "string"},
-                                "name": {"type": "string"},
-                                "email": {"type": "string"}
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            """;
-        validator.registerSchema("user-api", schema);
+        // Register the Petstore schema from file
+        validator.registerSchema("petstore", "./openapi.json");
     }
 
     @AfterAll
@@ -349,15 +253,15 @@ class UserAPIContractTest {
     }
 
     @Test
-    void validatesCorrectResponse() {
+    void validatesCorrectPetResponse() {
         ValidationRequest request = ValidationRequest.builder()
                 .method("GET")
-                .path("/users/123")
+                .path("/pet/123")
                 .build();
 
         ValidationResponse response = ValidationResponse.builder()
                 .statusCode(200)
-                .body("{\"id\": \"123\", \"name\": \"John Doe\", \"email\": \"john@example.com\"}")
+                .body("{\"id\": 123, \"name\": \"doggie\", \"photoUrls\": [\"https://example.com/photo.jpg\"], \"status\": \"available\"}")
                 .build();
 
         ValidationResult result = validator.validate(request, response);
@@ -369,12 +273,12 @@ class UserAPIContractTest {
     void catchesInvalidResponses() {
         ValidationRequest request = ValidationRequest.builder()
                 .method("GET")
-                .path("/users/123")
+                .path("/pet/123")
                 .build();
 
         ValidationResponse response = ValidationResponse.builder()
                 .statusCode(200)
-                .body("{\"id\": \"123\"}")  // missing required 'name' field
+                .body("{\"id\": 123}")  // missing required 'name' and 'photoUrls' fields
                 .build();
 
         ValidationResult result = validator.validate(request, response);
@@ -402,10 +306,22 @@ For quick validations without code:
 # Build the CLI
 go build -o cvt ./cmd/cvt
 
-# Validate an interaction
-echo '{"method": "GET", "path": "/users/123"}' > request.json
-echo '{"status_code": 200, "body": "{\"id\": \"123\", \"name\": \"John\"}"}' > response.json
+# Create request and response files
+cat > request.json << 'EOF'
+{
+  "method": "GET",
+  "path": "/pet/123"
+}
+EOF
 
+cat > response.json << 'EOF'
+{
+  "status_code": 200,
+  "body": "{\"id\": 123, \"name\": \"doggie\", \"photoUrls\": [\"https://example.com/photo.jpg\"], \"status\": \"available\"}"
+}
+EOF
+
+# Validate the interaction
 cvt validate --schema openapi.json --request request.json --response response.json
 ```
 
@@ -420,13 +336,11 @@ Now that you've validated your first interaction, explore:
 
 ## Common Patterns
 
-### Loading Schema from File
+### Loading Schema from URL
 
 ```typescript
-import * as fs from 'fs';
-
-const schema = fs.readFileSync('./openapi.json', 'utf-8');
-await validator.registerSchema('my-api', schema);
+// Register schema directly from URL
+await validator.registerSchema('petstore', 'https://petstore.swagger.io/v2/swagger.json');
 ```
 
 ### Using HTTP Adapters
@@ -435,13 +349,17 @@ Automatically validate all HTTP traffic:
 
 ```typescript
 import axios from 'axios';
-import { createAxiosAdapter } from '@cvt/cvt-sdk';
+import { createAxiosAdapter } from '@cvt/cvt-sdk/adapters';
 
 const api = axios.create({ baseURL: 'http://api.example.com' });
-createAxiosAdapter({ axios: api, validator, schemaId: 'my-api', autoValidate: true });
+const adapter = createAxiosAdapter({ axios: api, validator, autoValidate: true });
 
 // All requests/responses are now validated automatically
-const user = await api.get('/users/123');
+const pet = await api.get('/pet/123');
+
+// Check validation results
+const interactions = adapter.getInteractions();
+console.log(interactions[0].validationResult?.valid);
 ```
 
 ### Registering as a Consumer
@@ -452,11 +370,11 @@ Enable deployment safety checks:
 await validator.registerConsumer({
   consumerId: 'my-service',
   consumerVersion: '1.0.0',
-  schemaId: 'user-api',
+  schemaId: 'petstore',
   schemaVersion: '1.0.0',
   environment: 'dev',
   usedEndpoints: [
-    { method: 'GET', path: '/users/{id}', usedFields: ['id', 'name'] }
+    { method: 'GET', path: '/pet/{petId}', usedFields: ['id', 'name', 'status'] }
   ]
 });
 ```

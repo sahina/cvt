@@ -11,9 +11,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/cvt/cvt/server/cvtservice"
-	"github.com/cvt/cvt/server/pb"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sahina/cvt/server/cvtservice"
+	"github.com/sahina/cvt/server/pb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"

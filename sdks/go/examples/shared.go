@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/cvt/cvt-sdk/go/cvt"
+	"github.com/sahina/cvt/sdks/go/cvt"
 )
 
 // Pet represents a pet entity from the Petstore API

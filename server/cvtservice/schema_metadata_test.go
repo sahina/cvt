@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cvt/cvt/server/pb"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/sahina/cvt/server/pb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

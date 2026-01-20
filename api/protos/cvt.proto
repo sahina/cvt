@@ -4,7 +4,7 @@ package cvt;
 
 option java_package = "com.cvt.proto";
 option java_multiple_files = true;
-option go_package = "github.com/cvt/cvt/server/pb";
+option go_package = "github.com/sahina/cvt/server/pb";
 
 service ContractValidator {
   // Registers an OpenAPI schema for future validation

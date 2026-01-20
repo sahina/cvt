@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/cvt/cvt/server/pb"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/sahina/cvt/server/pb"
 )
 
 // SchemaRecord represents a stored schema with all metadata.

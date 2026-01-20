@@ -22,7 +22,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/cvt/cvt-sdk/go/cvt"
+	"github.com/sahina/cvt/sdks/go/cvt"
 )
 
 const schemaID = "petstore-api"

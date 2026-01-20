@@ -419,7 +419,14 @@ ci: lint
 	@echo ""
 	@echo "🔍 Running CI format checks..."
 	@echo ">>> Checking Go formatting..."
-	@gofmt -l server/ pkg/cvt/ cmd/cvt/ sdks/go/ | grep -q . && (echo "❌ Go files need formatting. Run: gofmt -w <file>" && gofmt -l server/ pkg/cvt/ cmd/cvt/ sdks/go/ && exit 1) || echo "✅ Go formatting OK"
+	@UNFORMATTED=$$(gofmt -l server/ pkg/cvt/ cmd/cvt/ sdks/go/); \
+	if [ -n "$$UNFORMATTED" ]; then \
+		echo "❌ Go files need formatting. Run: gofmt -w <file>"; \
+		echo "$$UNFORMATTED"; \
+		exit 1; \
+	else \
+		echo "✅ Go formatting OK"; \
+	fi
 	@echo ">>> Checking Node.js formatting..."
 	cd sdks/node && pnpm run format:check
 	@echo ">>> Checking Python formatting..."

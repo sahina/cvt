@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	pb "github.com/cvt/cvt-sdk/go/cvt/proto"
+	pb "github.com/sahina/cvt/sdks/go/cvt/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"

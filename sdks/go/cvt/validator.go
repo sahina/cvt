@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	pb "github.com/cvt/cvt-sdk/go/cvt/proto"
+	pb "github.com/sahina/cvt/sdks/go/cvt/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"

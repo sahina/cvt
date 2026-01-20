@@ -11,13 +11,13 @@ The **CVT Go SDK** allows you to validate HTTP interactions (requests and respon
 To use locally, add a `replace` directive to your `go.mod`:
 
 ```go
-replace github.com/cvt/cvt-sdk/go => ../path/to/cvt/sdks/go
+replace github.com/sahina/cvt/sdks/go => ../path/to/cvt/sdks/go
 ```
 
 Then require it:
 
 ```bash
-go get github.com/cvt/cvt-sdk/go/cvt
+go get github.com/sahina/cvt/sdks/go/cvt
 ```
 
 ## Usage
@@ -30,7 +30,7 @@ package main
 import (
     "context"
     "log"
-    "github.com/cvt/cvt-sdk/go/cvt"
+    "github.com/sahina/cvt/sdks/go/cvt"
 )
 
 func main() {
@@ -66,7 +66,7 @@ import (
     "context"
     "fmt"
     "log"
-    "github.com/cvt/cvt-sdk/go/cvt"
+    "github.com/sahina/cvt/sdks/go/cvt"
 )
 
 func main() {
@@ -105,8 +105,8 @@ The SDK includes adapters for automatic HTTP traffic validation.
 ```go
 import (
     "net/http"
-    "github.com/cvt/cvt-sdk/go/cvt"
-    "github.com/cvt/cvt-sdk/go/cvt/adapters"
+    "github.com/sahina/cvt/sdks/go/cvt"
+    "github.com/sahina/cvt/sdks/go/cvt/adapters"
 )
 
 validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:9550"})
@@ -148,8 +148,8 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 ```go
 import (
     "net/http"
-    "github.com/cvt/cvt-sdk/go/cvt/producer"
-    "github.com/cvt/cvt-sdk/go/cvt/producer/adapters"
+    "github.com/sahina/cvt/sdks/go/cvt/producer"
+    "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
 )
 
 config := producer.Config{
@@ -166,7 +166,7 @@ http.ListenAndServe(":8080", handler)
 ### Gin Middleware
 
 ```go
-import "github.com/cvt/cvt-sdk/go/cvt/producer/adapters"
+import "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
 
 router := gin.Default()
 router.Use(adapters.GinMiddleware(config))
@@ -175,7 +175,7 @@ router.Use(adapters.GinMiddleware(config))
 ### Chi Middleware
 
 ```go
-import "github.com/cvt/cvt-sdk/go/cvt/producer/adapters"
+import "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
 
 r := chi.NewRouter()
 r.Use(adapters.ChiMiddleware(config))
@@ -214,7 +214,7 @@ import (
     "fmt"
     "log"
     "os"
-    "github.com/cvt/cvt-sdk/go/cvt"
+    "github.com/sahina/cvt/sdks/go/cvt"
 )
 
 func main() {
@@ -264,7 +264,7 @@ Test that your API handlers return responses matching your OpenAPI specification
 ### ProducerTestKit
 
 ```go
-import "github.com/cvt/cvt-sdk/go/cvt/producer"
+import "github.com/sahina/cvt/sdks/go/cvt/producer"
 
 testKit, err := producer.NewProducerTestKit(producer.TestConfig{
     SchemaID:      "user-api",
@@ -410,7 +410,7 @@ package cvt_test
 import (
     "context"
     "testing"
-    "github.com/cvt/cvt-sdk/go/cvt"
+    "github.com/sahina/cvt/sdks/go/cvt"
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
 )

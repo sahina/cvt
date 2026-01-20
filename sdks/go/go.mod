@@ -1,4 +1,4 @@
-module github.com/cvt/cvt-sdk/go
+module github.com/sahina/cvt/sdks/go
 
 go 1.25.0
 

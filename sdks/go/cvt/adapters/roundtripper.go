@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cvt/cvt-sdk/go/cvt"
+	"github.com/sahina/cvt/sdks/go/cvt"
 )
 
 // RoundTripperConfig configures the ValidatingRoundTripper.
