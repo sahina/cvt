@@ -8,7 +8,7 @@ slug: /intro
 
 # Welcome to CVT
 
-**Contract Validator Toolkit (CVT)** is a consumer and producer based contract validation platform for OpenAPI v2/v3 specifications.
+**Contract Validator Toolkit (CVT)** is a consumer- and producer-based contract validation platform for OpenAPI v2/v3 specifications.
 
 It helps teams ensure their API consumers and producers communicate correctly by validating HTTP interactions against published contracts.
 
