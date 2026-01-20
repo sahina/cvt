@@ -44,18 +44,27 @@ make run-server
 
 ### 2. Install an SDK
 
-```bash
-# Node.js
-pnpm add @cvt/cvt-sdk
+SDKs are currently installed from a local clone (not yet published to package registries):
 
-# Python
-pip install cvt-sdk
+```bash
+# Clone the repository
+git clone https://github.com/sahina/cvt.git
+
+# Node.js (from local path)
+pnpm add ../cvt/sdks/node
+
+# Python (from local path)
+pip install ./cvt/sdks/python
 
 # Go
-go get github.com/sahina/cvt/sdks/go/cvt
+go get github.com/sahina/cvt/sdks/go
 ```
 
+See [Installation](./getting-started/installation.md) for detailed instructions.
+
 ### 3. Validate an Interaction
+
+Save the [Petstore OpenAPI schema](https://petstore.swagger.io/v2/swagger.json) as `./openapi.json`, then:
 
 ```typescript
 import { ContractValidator } from "@cvt/cvt-sdk";
@@ -63,19 +72,19 @@ import { ContractValidator } from "@cvt/cvt-sdk";
 const validator = new ContractValidator("localhost:9550");
 
 // Register your schema
-await validator.registerSchema("user-api", "./openapi.json");
+await validator.registerSchema("petstore", "./openapi.json");
 
 // Validate an interaction
 const result = await validator.validate(
-  {
-    method: "GET",
-    path: "/users/123",
-    headers: { "Content-Type": "application/json" },
-  },
+  { method: "GET", path: "/pet/123" },
   {
     statusCode: 200,
-    headers: { "Content-Type": "application/json" },
-    body: { id: "123", name: "John" },
+    body: {
+      id: 123,
+      name: "doggie",
+      photoUrls: ["https://example.com/photo.jpg"],
+      status: "available",
+    },
   },
 );
 
