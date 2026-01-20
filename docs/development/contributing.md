@@ -325,7 +325,7 @@ pip install -e /path/to/cvt/sdks/python
 Add to your project's `go.mod`:
 
 ```go
-replace github.com/cvt/cvt-sdk/go => /path/to/cvt/sdks/go
+replace github.com/sahina/cvt/sdks/go => /path/to/cvt/sdks/go
 ```
 
 ### Java - publishToMavenLocal

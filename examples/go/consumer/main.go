@@ -31,8 +31,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/cvt/cvt-sdk/go/cvt"
-	"github.com/cvt/cvt-sdk/go/cvt/adapters"
+	"github.com/sahina/cvt/sdks/go/cvt"
+	"github.com/sahina/cvt/sdks/go/cvt/adapters"
 )
 
 const schemaID = "user-api"

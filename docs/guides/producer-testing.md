@@ -277,7 +277,7 @@ fastify.register(createFastifyPlugin({ schemaId: 'my-api', validator }));
 ### Go (net/http)
 
 ```go
-import "github.com/cvt/cvt-sdk/go/cvt/producer/adapters"
+import "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
 
 config := producer.Config{
     SchemaID:  "my-api",

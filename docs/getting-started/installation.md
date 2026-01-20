@@ -87,7 +87,7 @@ uv pip install ./cvt/sdks/python
 ### Go
 
 ```bash
-go get github.com/cvt/cvt-sdk/go
+go get github.com/sahina/cvt/sdks/go
 ```
 
 ### Java
@@ -112,7 +112,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.cvt:cvt-sdk:1.0.0'
+    implementation 'com.cvt:cvt-sdk:0.1.0'
 }
 ```
 
@@ -122,7 +122,7 @@ Or for Maven, add to your `pom.xml`:
 <dependency>
     <groupId>com.cvt</groupId>
     <artifactId>cvt-sdk</artifactId>
-    <version>1.0.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
@@ -170,7 +170,7 @@ print('Connected!')
 
 ```go
 // Go
-import "github.com/cvt/cvt-sdk/go/cvt"
+import "github.com/sahina/cvt/sdks/go/cvt"
 client, _ := cvt.NewValidator("localhost:9550")
 fmt.Println("Connected!")
 ```

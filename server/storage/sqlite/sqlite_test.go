@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cvt/cvt/server/pb"
-	"github.com/cvt/cvt/server/storage"
+	"github.com/sahina/cvt/server/pb"
+	"github.com/sahina/cvt/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

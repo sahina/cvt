@@ -1,8 +1,8 @@
-module github.com/cvt/examples/consumer
+module github.com/sahina/cvt/examples/go/consumer
 
 go 1.25.0
 
-require github.com/cvt/cvt-sdk/go v0.0.0
+require github.com/sahina/cvt/sdks/go v0.0.0
 
 require (
 	golang.org/x/net v0.48.0 // indirect
@@ -13,4 +13,4 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace github.com/cvt/cvt-sdk/go => ../../../sdks/go
+replace github.com/sahina/cvt/sdks/go => ../../../sdks/go

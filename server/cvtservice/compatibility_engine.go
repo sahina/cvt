@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cvt/cvt/server/pb"
+	"github.com/sahina/cvt/server/pb"
 	"github.com/getkin/kin-openapi/openapi3"
 	"go.uber.org/zap"
 )

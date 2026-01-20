@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cvt/cvt/server/pb"
-	"github.com/cvt/cvt/server/storage"
+	"github.com/sahina/cvt/server/pb"
+	"github.com/sahina/cvt/server/storage"
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )

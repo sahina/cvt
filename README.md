@@ -609,7 +609,7 @@ app.add_middleware(ASGIMiddleware, config=config)
 
 ```go
 // Go - Middleware wrapper for any http.Handler
-import "github.com/cvt/cvt-sdk/go/cvt/producer/adapters"
+import "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
 http.Handle("/", adapters.NetHTTPMiddleware(config)(handler))
 ```
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cvt/cvt/server/pb"
+	"github.com/sahina/cvt/server/pb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
