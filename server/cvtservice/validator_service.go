@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sahina/cvt/server/pb"
 	"github.com/getkin/kin-openapi/openapi2"
 	"github.com/getkin/kin-openapi/openapi2conv"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/sahina/cvt/server/pb"
 	"go.uber.org/zap"
 )
 

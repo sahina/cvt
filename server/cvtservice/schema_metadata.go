@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sahina/cvt/server/pb"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/sahina/cvt/server/pb"
 )
 
 // SchemaEntry represents a registered schema with its metadata.

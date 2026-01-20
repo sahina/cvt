@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sahina/cvt/server/pb"
-	"github.com/sahina/cvt/server/storage"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sahina/cvt/server/pb"
+	"github.com/sahina/cvt/server/storage"
 )
 
 //go:embed migrations/*.sql
