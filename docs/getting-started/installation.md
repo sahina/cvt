@@ -166,9 +166,9 @@ curl http://localhost:9551/metrics
 
 ```typescript
 // Node.js
-import { ContractValidator } from '@cvt/cvt-sdk';
-const validator = new ContractValidator('localhost:9550');
-console.log('Connected!');
+import { ContractValidator } from "@cvt/cvt-sdk";
+const validator = new ContractValidator("localhost:9550");
+console.log("Connected!");
 ```
 
 ```python
@@ -189,12 +189,12 @@ fmt.Println("Connected!")
 
 ## Port Configuration
 
-| Port | Service |
-|------|---------|
-| 9550 | gRPC server |
-| 9551 | Prometheus metrics |
+| Port | Service                                  |
+| ---- | ---------------------------------------- |
+| 9550 | gRPC server                              |
+| 9551 | Prometheus metrics                       |
 | 9091 | Prometheus UI (with observability stack) |
-| 3000 | Grafana UI (with observability stack) |
+| 3000 | Grafana UI (with observability stack)    |
 
 ---
 

@@ -86,7 +86,7 @@ if (result.isValid()) {
 
 Validate incoming requests and outgoing responses against your OpenAPI contract on the server side.
 
-> **Full documentation:** See [Validation Modes](../../README.md#validation-modes) in the main README for detailed behavior, rollout strategy, and metrics information.
+> **Full documentation:** See [Validation Modes](../../docs/guides/validation-modes.md) for detailed behavior, rollout strategy, and metrics information.
 
 ### Validation Modes
 
@@ -96,7 +96,7 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `ValidationMode.WARN`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `ValidationMode.SHADOW` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `SHADOW` → `WARN` → `STRICT`. See [Recommended Rollout Strategy](../../README.md#recommended-rollout-strategy).
+**Recommended rollout:** `SHADOW` → `WARN` → `STRICT`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.md#recommended-rollout-strategy).
 
 ### Spring Interceptor
 
@@ -272,7 +272,7 @@ if (!result.isSafeToDeploy()) {
 }
 ```
 
-See [Producer Testing Guide](../../docs/producer-testing.md) for complete documentation.
+See [Producer Testing Guide](../../docs/guides/producer-testing.md) for complete documentation.
 
 ## Prerequisites
 

@@ -144,7 +144,7 @@ const response = await api.post("/pets", { name: "Fluffy" });
 
 Validate incoming requests and outgoing responses against your OpenAPI contract on the server side.
 
-> **Full documentation:** See [Validation Modes](../../README.md#validation-modes) in the main README for detailed behavior, rollout strategy, and metrics information.
+> **Full documentation:** See [Validation Modes](../../docs/guides/validation-modes.md) for detailed behavior, rollout strategy, and metrics information.
 
 ### Validation Modes
 
@@ -154,7 +154,7 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `"warn"`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `"shadow"` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `shadow` → `warn` → `strict`. See [Recommended Rollout Strategy](../../README.md#recommended-rollout-strategy).
+**Recommended rollout:** `shadow` → `warn` → `strict`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.md#recommended-rollout-strategy).
 
 ### Express Middleware
 
@@ -323,7 +323,7 @@ if (!result.safeToDeploy) {
 }
 ```
 
-See [Producer Testing Guide](../../docs/producer-testing.md) for complete documentation.
+See [Producer Testing Guide](../../docs/guides/producer-testing.md) for complete documentation.
 
 ## Security Configuration
 

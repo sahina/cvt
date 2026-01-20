@@ -131,7 +131,7 @@ resp, _ := client.Post("https://api.example.com/pets", "application/json", body)
 
 Validate incoming requests and outgoing responses against your OpenAPI contract on the server side.
 
-> **Full documentation:** See [Validation Modes](../../README.md#validation-modes) in the main README for detailed behavior, rollout strategy, and metrics information.
+> **Full documentation:** See [Validation Modes](../../docs/guides/validation-modes.md) for detailed behavior, rollout strategy, and metrics information.
 
 ### Validation Modes
 
@@ -141,7 +141,7 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `producer.ModeWarn`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `producer.ModeShadow` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `ModeShadow` → `ModeWarn` → `ModeStrict`. See [Recommended Rollout Strategy](../../README.md#recommended-rollout-strategy).
+**Recommended rollout:** `ModeShadow` → `ModeWarn` → `ModeStrict`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.md#recommended-rollout-strategy).
 
 ### net/http Middleware
 
@@ -330,7 +330,7 @@ if !result.SafeToDeploy {
 }
 ```
 
-See [Producer Testing Guide](../../docs/producer-testing.md) for complete documentation.
+See [Producer Testing Guide](../../docs/guides/producer-testing.md) for complete documentation.
 
 ## Security Configuration
 
