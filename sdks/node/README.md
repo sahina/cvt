@@ -154,7 +154,7 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `"warn"`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `"shadow"` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `shadow` → `warn` → `strict`. See [Validation Modes](../../docs/guides/validation-modes.md) for the recommended rollout strategy.
+**Recommended rollout:** `shadow` → `warn` → `strict`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.md#recommended-rollout-strategy).
 
 ### Express Middleware
 
