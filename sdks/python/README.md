@@ -115,7 +115,7 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `ValidationMode.WARN`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `ValidationMode.SHADOW` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `SHADOW` → `WARN` → `STRICT`. See [Validation Modes](../../docs/guides/validation-modes.md) for the recommended rollout strategy.
+**Recommended rollout:** `SHADOW` → `WARN` → `STRICT`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.md#recommended-rollout-strategy).
 
 ### FastAPI / ASGI Middleware
 
