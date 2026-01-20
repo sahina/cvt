@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cvt/cvt/pkg/cvt"
+	"github.com/sahina/cvt/pkg/cvt"
 	"github.com/spf13/cobra"
 )
 

@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/cvt/cvt/server/cvtservice"
-	"github.com/cvt/cvt/server/pb"
+	"github.com/sahina/cvt/server/cvtservice"
+	"github.com/sahina/cvt/server/pb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

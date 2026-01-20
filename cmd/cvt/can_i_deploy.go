@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	pb "github.com/cvt/cvt/server/pb"
+	pb "github.com/sahina/cvt/server/pb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
