@@ -7,16 +7,18 @@ description: Validate your API implementation matches your OpenAPI specification
 
 # Producer Testing Guide
 
+**CONTENT TO BE VALIDATED**
+
 This guide covers how to use CVT for producer-side contract testing. Producer testing ensures your API implementation matches your OpenAPI specification before deployment.
 
 ## Overview
 
 Producer testing answers the question: **"Does my API match my spec?"**
 
-| Approach | Who Uses It | What It Tests |
-|----------|-------------|---------------|
+| Approach             | Who Uses It   | What It Tests                    |
+| -------------------- | ------------- | -------------------------------- |
 | **Consumer Testing** | API consumers | "Can I call this API correctly?" |
-| **Producer Testing** | API producers | "Does my API match my spec?" |
+| **Producer Testing** | API producers | "Does my API match my spec?"     |
 
 ```text
 ┌─────────────────────┐     HTTP      ┌─────────────────────┐
@@ -36,12 +38,12 @@ Producer testing answers the question: **"Does my API match my spec?"**
 
 ## Capabilities
 
-| Capability | Server Required? | What It Answers |
-|------------|-----------------|-----------------|
-| **Schema compliance tests** | Yes | "Does my handler return spec-compliant responses?" |
-| **Breaking change detection** | No (CLI) | "What changed between v1 and v2 of my spec?" |
-| **Consumer registry** | Yes | "Which services depend on my API?" |
-| **can-i-deploy** | Yes | "Will this change break real consumers?" |
+| Capability                    | Server Required? | What It Answers                                    |
+| ----------------------------- | ---------------- | -------------------------------------------------- |
+| **Schema compliance tests**   | Yes              | "Does my handler return spec-compliant responses?" |
+| **Breaking change detection** | No (CLI)         | "What changed between v1 and v2 of my spec?"       |
+| **Consumer registry**         | Yes              | "Which services depend on my API?"                 |
+| **can-i-deploy**              | Yes              | "Will this change break real consumers?"           |
 
 ---
 
@@ -74,15 +76,15 @@ sequenceDiagram
 ### Node.js Example
 
 ```typescript
-import { ProducerTestKit } from '@cvt/cvt-sdk/producer';
+import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
 
-describe('User API', () => {
+describe("User API", () => {
   let testKit: ProducerTestKit;
 
   beforeAll(async () => {
     testKit = new ProducerTestKit({
-      schemaId: 'user-api',
-      serverAddress: 'localhost:9550',
+      schemaId: "user-api",
+      serverAddress: "localhost:9550",
     });
   });
 
@@ -90,14 +92,14 @@ describe('User API', () => {
     await testKit.close();
   });
 
-  it('GET /users/:id returns valid response', async () => {
+  it("GET /users/:id returns valid response", async () => {
     // Call your actual handler
-    const response = await userHandler.getUser('123');
+    const response = await userHandler.getUser("123");
 
     // Validate against schema
     const result = await testKit.validateResponse({
-      method: 'GET',
-      path: '/users/123',
+      method: "GET",
+      path: "/users/123",
       statusCode: 200,
       body: response,
     });
@@ -106,16 +108,16 @@ describe('User API', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('detects missing required fields', async () => {
+  it("detects missing required fields", async () => {
     const result = await testKit.validateResponse({
-      method: 'GET',
-      path: '/users/123',
+      method: "GET",
+      path: "/users/123",
       statusCode: 200,
-      body: { id: '123' }, // missing 'name' field
+      body: { id: "123" }, // missing 'name' field
     });
 
     expect(result.valid).toBe(false);
-    expect(result.errors[0]).toContain('name');
+    expect(result.errors[0]).toContain("name");
   });
 });
 ```
@@ -257,21 +259,23 @@ sequenceDiagram
 ### Node.js (Express)
 
 ```typescript
-import { createExpressMiddleware } from '@cvt/cvt-sdk/producer';
+import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
 
-app.use(createExpressMiddleware({
-  schemaId: 'my-api',
-  validator,
-  mode: 'strict',  // or 'warn' or 'shadow'
-}));
+app.use(
+  createExpressMiddleware({
+    schemaId: "my-api",
+    validator,
+    mode: "strict", // or 'warn' or 'shadow'
+  }),
+);
 ```
 
 ### Node.js (Fastify)
 
 ```typescript
-import { createFastifyPlugin } from '@cvt/cvt-sdk/producer';
+import { createFastifyPlugin } from "@cvt/cvt-sdk/producer";
 
-fastify.register(createFastifyPlugin({ schemaId: 'my-api', validator }));
+fastify.register(createFastifyPlugin({ schemaId: "my-api", validator }));
 ```
 
 ### Go (net/http)
@@ -329,11 +333,11 @@ Exclude health checks, metrics, or other paths from validation:
 
 ```typescript
 createExpressMiddleware({
-  schemaId: 'my-api',
+  schemaId: "my-api",
   validator,
-  mode: 'strict',
-  excludePaths: ['/health', '/metrics', '/ready'],
-  includePaths: ['/api/**'],
+  mode: "strict",
+  excludePaths: ["/health", "/metrics", "/ready"],
+  includePaths: ["/api/**"],
 });
 ```
 
@@ -343,15 +347,15 @@ createExpressMiddleware({
 
 See [Validation Modes](./validation-modes.md) for detailed information.
 
-| Mode | Request Violation | Response Violation | Use Case |
-|------|-------------------|-------------------|----------|
-| **strict** | Reject with 400 | Log error | Production enforcement |
-| **warn** | Log, continue | Log, continue | Gradual rollout |
-| **shadow** | Silent | Silent | Initial deployment |
+| Mode       | Request Violation | Response Violation | Use Case               |
+| ---------- | ----------------- | ------------------ | ---------------------- |
+| **strict** | Reject with 400   | Log error          | Production enforcement |
+| **warn**   | Log, continue     | Log, continue      | Gradual rollout        |
+| **shadow** | Silent            | Silent             | Initial deployment     |
 
 ### Recommended Rollout
 
-```
+```text
 Deploy with SHADOW → Analyze metrics → Switch to WARN → Fix issues → Switch to STRICT
 ```
 
@@ -365,8 +369,8 @@ Track which services depend on your API.
 
 ```typescript
 const consumers = await validator.listConsumers({
-  schemaId: 'user-api',
-  environment: 'prod',
+  schemaId: "user-api",
+  environment: "prod",
 });
 
 console.log(`${consumers.length} services depend on user-api in prod`);
@@ -382,22 +386,23 @@ Consumers register after their contract tests pass:
 ```typescript
 // A consumer (not you) registers like this:
 await validator.registerConsumer({
-  consumerId: 'order-service',
-  consumerVersion: '2.1.0',
-  schemaId: 'user-api',        // Your API
-  schemaVersion: '1.0.0',
-  environment: 'prod',
+  consumerId: "order-service",
+  consumerVersion: "2.1.0",
+  schemaId: "user-api", // Your API
+  schemaVersion: "1.0.0",
+  environment: "prod",
   usedEndpoints: [
     {
-      method: 'GET',
-      path: '/users/{id}',
-      usedFields: ['id', 'email', 'name'],
+      method: "GET",
+      path: "/users/{id}",
+      usedFields: ["id", "email", "name"],
     },
   ],
 });
 ```
 
 This tells you:
+
 - `order-service` depends on your API
 - They use `GET /users/{id}`
 - They specifically need the `id`, `email`, and `name` fields
@@ -422,13 +427,13 @@ cvt can-i-deploy --schema user-api --version 2.0.0 --env prod --json
 
 ```typescript
 const result = await validator.canIDeploy({
-  schemaId: 'user-api',
-  newVersion: '2.0.0',
-  environment: 'prod',
+  schemaId: "user-api",
+  newVersion: "2.0.0",
+  environment: "prod",
 });
 
 if (!result.safeToDeploy) {
-  console.error('Cannot deploy:', result.summary);
+  console.error("Cannot deploy:", result.summary);
   for (const consumer of result.affectedConsumers) {
     if (consumer.willBreak) {
       console.error(`- ${consumer.consumerId} will break`);
@@ -440,7 +445,7 @@ if (!result.safeToDeploy) {
 
 ### Example Output (Unsafe)
 
-```
+```text
 Deployment Safety Check
 =======================
 Schema:      user-api
@@ -540,22 +545,22 @@ deploy:
 Don't just test the happy path:
 
 ```typescript
-it('validates 404 response', async () => {
+it("validates 404 response", async () => {
   const result = await testKit.validateResponse({
-    method: 'GET',
-    path: '/users/nonexistent',
+    method: "GET",
+    path: "/users/nonexistent",
     statusCode: 404,
-    body: { error: 'User not found' },
+    body: { error: "User not found" },
   });
   expect(result.valid).toBe(true);
 });
 
-it('validates 400 response for bad request', async () => {
+it("validates 400 response for bad request", async () => {
   const result = await testKit.validateResponse({
-    method: 'POST',
-    path: '/users',
+    method: "POST",
+    path: "/users",
     statusCode: 400,
-    body: { errors: [{ field: 'email', message: 'Invalid format' }] },
+    body: { errors: [{ field: "email", message: "Invalid format" }] },
   });
   expect(result.valid).toBe(true);
 });
@@ -587,13 +592,13 @@ Start with `shadow` mode, progress to `strict`:
 
 ```typescript
 // Week 1: Shadow mode - metrics only
-mode: 'shadow'
+mode: "shadow";
 
 // Week 2: Warn mode - log violations
-mode: 'warn'
+mode: "warn";
 
 // Week 3: Strict mode - full enforcement
-mode: 'strict'
+mode: "strict";
 ```
 
 ---
@@ -606,9 +611,9 @@ Ensure the schema is registered before running producer tests:
 
 ```typescript
 await validator.registerSchema({
-  schemaId: 'user-api',
-  schemaVersion: '1.0.0',
-  content: fs.readFileSync('./openapi.yaml', 'utf-8'),
+  schemaId: "user-api",
+  schemaVersion: "1.0.0",
+  content: fs.readFileSync("./openapi.yaml", "utf-8"),
 });
 ```
 
@@ -626,7 +631,7 @@ path: '/users/123',  // NOT '/users/{userId}'
 
 This is normal if you're the first to deploy or if no consumers have registered:
 
-```
+```text
 SAFE TO DEPLOY
 No consumers registered for this schema in prod.
 ```
