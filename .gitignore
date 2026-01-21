@@ -125,5 +125,5 @@ vendor/
 # Local skill drafts
 bd
 
-.playwrigt-test/
+.playwright-test/
 .playwright-mcp/

@@ -187,7 +187,11 @@ print('Connected!')
 
 ```go
 import "github.com/sahina/cvt/sdks/go/cvt"
-client, _ := cvt.NewValidator("localhost:9550")
+
+client, err := cvt.NewValidator("localhost:9550")
+if err != nil {
+    log.Fatalf("Failed to connect: %v", err)
+}
 fmt.Println("Connected!")
 ```
 

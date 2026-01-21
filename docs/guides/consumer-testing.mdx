@@ -966,11 +966,11 @@ if (!result.safeToDeploy) {
 ```python
 result = validator.can_i_deploy('petstore', '2.0.0', 'prod')
 
-if not result['safe_to_deploy']:
+if not result['safeToDeploy']:
     print('UNSAFE:', result['summary'])
-    for consumer in result['affected_consumers']:
-        if consumer['will_break']:
-            print(f"- {consumer['consumer_id']} will break")
+    for consumer in result['affectedConsumers']:
+        if consumer['willBreak']:
+            print(f"- {consumer['consumerId']} will break")
 ```
 
 </TabItem>
@@ -1674,9 +1674,9 @@ deploy:
           --env prod \
           --json > check.json
 
-        if [ $(jq '.safe_to_deploy' check.json) != "true" ]; then
+        if [ $(jq '.safeToDeploy' check.json) != "true" ]; then
           echo "Upstream API has breaking changes!"
-          jq '.affected_consumers[] | select(.will_break == true) | .consumer_id' check.json
+          jq '.affectedConsumers[] | select(.willBreak == true) | .consumerId' check.json
           exit 1
         fi
 ```

@@ -592,13 +592,13 @@ Start with `shadow` mode, progress to `strict`:
 
 ```typescript
 // Week 1: Shadow mode - metrics only
-mode: "shadow";
+mode: "shadow"
 
 // Week 2: Warn mode - log violations
-mode: "warn";
+mode: "warn"
 
 // Week 3: Strict mode - full enforcement
-mode: "strict";
+mode: "strict"
 ```
 
 ---
