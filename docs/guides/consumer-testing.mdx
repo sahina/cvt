@@ -12,6 +12,10 @@ import TabItem from '@theme/TabItem';
 
 This guide covers how to test your service's API integrations using CVT. Consumer testing validates that your HTTP calls to upstream APIs match their published OpenAPI contracts.
 
+:::tip Example Schema
+The examples in this guide use the Petstore schema from `sdks/shared/openapi.json`. Copy it to your project as `openapi.json` or adjust the paths to reference it directly.
+:::
+
 ## Overview
 
 Consumer testing answers the question: **"Am I calling this API correctly?"**
@@ -58,20 +62,20 @@ make run-server
 ```typescript
 import { ContractValidator } from "@cvt/cvt-sdk";
 
-describe("User Service Contract", () => {
+describe("Petstore Contract", () => {
   let validator: ContractValidator;
 
   beforeAll(async () => {
     validator = new ContractValidator("localhost:9550");
-    await validator.registerSchema("user-service", "./contracts/user-api.json");
+    await validator.registerSchema("petstore", "./openapi.json");
   });
 
   afterAll(() => validator.close());
 
-  it("GET /users/{id} returns valid response", async () => {
+  it("GET /pet/{petId} returns valid response", async () => {
     const result = await validator.validate(
-      { method: "GET", path: "/users/123" },
-      { statusCode: 200, body: { id: "123", name: "John" } },
+      { method: "GET", path: "/pet/123" },
+      { statusCode: 200, body: { id: 123, name: "Fluffy", status: "available", photoUrls: [] } },
     );
     expect(result.valid).toBe(true);
   });
@@ -88,14 +92,14 @@ from cvt_sdk import ContractValidator
 @pytest.fixture
 def validator():
     v = ContractValidator('localhost:9550')
-    v.register_schema('user-service', './contracts/user-api.json')
+    v.register_schema('petstore', './openapi.json')
     yield v
     v.close()
 
-def test_get_user_returns_valid_response(validator):
+def test_get_pet_returns_valid_response(validator):
     result = validator.validate(
-        request={'method': 'GET', 'path': '/users/123'},
-        response={'status_code': 200, 'body': {'id': '123', 'name': 'John'}}
+        request={'method': 'GET', 'path': '/pet/123'},
+        response={'status_code': 200, 'body': {'id': 123, 'name': 'Fluffy', 'status': 'available', 'photoUrls': []}}
     )
     assert result['valid'] is True
 ```
@@ -114,21 +118,21 @@ import (
     "github.com/stretchr/testify/assert"
 )
 
-func TestGetUserReturnsValidResponse(t *testing.T) {
+func TestGetPetReturnsValidResponse(t *testing.T) {
     ctx := context.Background()
     validator, err := cvt.NewValidator("localhost:9550")
     assert.NoError(t, err)
     defer validator.Close()
 
-    err = validator.RegisterSchema(ctx, "user-service", "./contracts/user-api.json")
+    err = validator.RegisterSchema(ctx, "petstore", "./openapi.json")
     assert.NoError(t, err)
 
     result, err := validator.Validate(ctx, cvt.ValidationRequest{
         Method: "GET",
-        Path:   "/users/123",
+        Path:   "/pet/123",
     }, cvt.ValidationResponse{
         StatusCode: 200,
-        Body:       map[string]any{"id": "123", "name": "John"},
+        Body:       map[string]any{"id": 123, "name": "Fluffy", "status": "available", "photoUrls": []any{}},
     })
     assert.NoError(t, err)
     assert.True(t, result.Valid)
@@ -145,13 +149,13 @@ import com.cvt.sdk.ValidationResponse;
 import com.cvt.sdk.ValidationResult;
 import org.junit.jupiter.api.*;
 
-class UserServiceContractTest {
+class PetstoreContractTest {
     private static ContractValidator validator;
 
     @BeforeAll
     static void setup() throws Exception {
         validator = new ContractValidator("localhost:9550");
-        validator.registerSchema("user-service", "./contracts/user-api.json");
+        validator.registerSchema("petstore", "./openapi.json");
     }
 
     @AfterAll
@@ -160,12 +164,12 @@ class UserServiceContractTest {
     }
 
     @Test
-    void getUserReturnsValidResponse() {
+    void getPetReturnsValidResponse() {
         ValidationResult result = validator.validate(
-            ValidationRequest.builder().method("GET").path("/users/123").build(),
+            ValidationRequest.builder().method("GET").path("/pet/123").build(),
             ValidationResponse.builder()
                 .statusCode(200)
-                .body("{\"id\": \"123\", \"name\": \"John\"}")
+                .body("{\"id\": 123, \"name\": \"Fluffy\", \"status\": \"available\", \"photoUrls\": []}")
                 .build()
         );
         Assertions.assertTrue(result.isValid());
@@ -193,19 +197,19 @@ Build request/response objects and validate them directly:
 import { ContractValidator } from "@cvt/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
-await validator.registerSchema("user-api", "./user-api.json");
+await validator.registerSchema("petstore", "./openapi.json");
 
 // Validate a specific interaction
 const result = await validator.validate(
   {
     method: "GET",
-    path: "/users/123",
+    path: "/pet/123",
     headers: { Accept: "application/json" },
   },
   {
     statusCode: 200,
     headers: { "Content-Type": "application/json" },
-    body: { id: "123", name: "John Doe", email: "john@example.com" },
+    body: { id: 123, name: "Fluffy", status: "available", photoUrls: [] },
   },
 );
 
@@ -223,19 +227,19 @@ validator.close();
 from cvt_sdk import ContractValidator
 
 validator = ContractValidator('localhost:9550')
-validator.register_schema('user-api', './user-api.json')
+validator.register_schema('petstore', './openapi.json')
 
 # Validate a specific interaction
 result = validator.validate(
     request={
         'method': 'GET',
-        'path': '/users/123',
+        'path': '/pet/123',
         'headers': {'Accept': 'application/json'}
     },
     response={
         'status_code': 200,
         'headers': {'Content-Type': 'application/json'},
-        'body': {'id': '123', 'name': 'John Doe', 'email': 'john@example.com'}
+        'body': {'id': 123, 'name': 'Fluffy', 'status': 'available', 'photoUrls': []}
     }
 )
 
@@ -253,17 +257,17 @@ validator, _ := cvt.NewValidator("localhost:9550")
 defer validator.Close()
 
 ctx := context.Background()
-validator.RegisterSchema(ctx, "user-api", "./user-api.json")
+validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
 // Validate a specific interaction
 result, _ := validator.Validate(ctx, cvt.ValidationRequest{
     Method:  "GET",
-    Path:    "/users/123",
+    Path:    "/pet/123",
     Headers: map[string]string{"Accept": "application/json"},
 }, cvt.ValidationResponse{
     StatusCode: 200,
     Headers:    map[string]string{"Content-Type": "application/json"},
-    Body:       map[string]any{"id": "123", "name": "John Doe", "email": "john@example.com"},
+    Body:       map[string]any{"id": 123, "name": "Fluffy", "status": "available", "photoUrls": []any{}},
 })
 
 if !result.Valid {
@@ -281,19 +285,19 @@ import com.cvt.sdk.ValidationResponse;
 import com.cvt.sdk.ValidationResult;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
-validator.registerSchema("user-api", "./user-api.json");
+validator.registerSchema("petstore", "./openapi.json");
 
 // Validate a specific interaction
 ValidationResult result = validator.validate(
     ValidationRequest.builder()
         .method("GET")
-        .path("/users/123")
+        .path("/pet/123")
         .header("Accept", "application/json")
         .build(),
     ValidationResponse.builder()
         .statusCode(200)
         .header("Content-Type", "application/json")
-        .body("{\"id\": \"123\", \"name\": \"John Doe\", \"email\": \"john@example.com\"}")
+        .body("{\"id\": 123, \"name\": \"Fluffy\", \"status\": \"available\", \"photoUrls\": []}")
         .build()
 );
 
@@ -319,15 +323,15 @@ import axios from "axios";
 import { ContractValidator, createAxiosAdapter } from "@cvt/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
-await validator.registerSchema("user-service", "./contracts/user-api.json");
+await validator.registerSchema("petstore", "./openapi.json");
 
-const api = axios.create({ baseURL: "http://user-service" });
+const api = axios.create({ baseURL: "http://petstore-api" });
 
 // Wrap axios - all traffic is now validated automatically
 createAxiosAdapter({
   axios: api,
   validator,
-  schemaId: "user-service",
+  schemaId: "petstore",
   autoValidate: true,
   onValidationFailure: (result) => {
     throw new Error(`Contract violation: ${result.errors.join(", ")}`);
@@ -335,7 +339,7 @@ createAxiosAdapter({
 });
 
 // Use normally - validation happens transparently
-const user = await api.get("/users/123");
+const pet = await api.get("/pet/123");
 
 validator.close();
 ```
@@ -348,18 +352,18 @@ import requests
 from cvt_sdk import ContractValidator, create_validating_session
 
 validator = ContractValidator('localhost:9550')
-validator.register_schema('user-service', './contracts/user-api.json')
+validator.register_schema('petstore', './openapi.json')
 
 # Create validating session - all traffic is validated automatically
 session = create_validating_session(
     validator=validator,
-    schema_id='user-service',
+    schema_id='petstore',
     auto_validate=True,
     on_validation_failure=lambda result: raise_error(result)
 )
 
 # Use normally - validation happens transparently
-response = session.get('http://user-service/users/123')
+response = session.get('http://petstore-api/pet/123')
 
 validator.close()
 ```
@@ -372,11 +376,11 @@ validator, _ := cvt.NewValidator("localhost:9550")
 defer validator.Close()
 
 ctx := context.Background()
-validator.RegisterSchema(ctx, "user-service", "./contracts/user-api.json")
+validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
 // Wrap http.Client with validating transport
 transport := adapters.NewValidatingTransport(validator, adapters.TransportConfig{
-    SchemaID:     "user-service",
+    SchemaID:     "petstore",
     AutoValidate: true,
     OnValidationFailure: func(result *cvt.ValidationResult) error {
         return fmt.Errorf("contract violation: %v", result.Errors)
@@ -386,7 +390,7 @@ transport := adapters.NewValidatingTransport(validator, adapters.TransportConfig
 client := &http.Client{Transport: transport}
 
 // Use normally - validation happens transparently
-resp, _ := client.Get("http://user-service/users/123")
+resp, _ := client.Get("http://petstore-api/pet/123")
 ```
 
 </TabItem>
@@ -397,12 +401,12 @@ import com.cvt.sdk.ContractValidator;
 import com.cvt.sdk.adapters.ValidatingHttpClient;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
-validator.registerSchema("user-service", "./contracts/user-api.json");
+validator.registerSchema("petstore", "./openapi.json");
 
 // Wrap HttpClient with validating client
 ValidatingHttpClient client = ValidatingHttpClient.builder()
     .validator(validator)
-    .schemaId("user-service")
+    .schemaId("petstore")
     .autoValidate(true)
     .onValidationFailure(result -> {
         throw new RuntimeException("Contract violation: " + result.getErrors());
@@ -411,7 +415,7 @@ ValidatingHttpClient client = ValidatingHttpClient.builder()
 
 // Use normally - validation happens transparently
 HttpResponse<String> response = client.send(
-    HttpRequest.newBuilder().uri(URI.create("http://user-service/users/123")).build(),
+    HttpRequest.newBuilder().uri(URI.create("http://petstore-api/pet/123")).build(),
     HttpResponse.BodyHandlers.ofString()
 );
 
@@ -432,14 +436,14 @@ Use the mock adapter for tests without a real API:
 import { ContractValidator, createMockAdapter } from "@cvt/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
-await validator.registerSchema("user-api", "./contracts/user-api.json");
+await validator.registerSchema("petstore", "./openapi.json");
 
 // Create mock adapter that auto-generates responses from schema
-const mock = createMockAdapter({ validator, schemaId: "user-api", cache: true });
+const mock = createMockAdapter({ validator, schemaId: "petstore", cache: true });
 
 // Make requests - responses are generated from OpenAPI schema
-const response = await mock.fetch("http://mock.user-api/users/456");
-const user = await response.json();
+const response = await mock.fetch("http://mock.petstore/pet/456");
+const pet = await response.json();
 
 // Check recorded interactions for consumer registration
 const interactions = mock.getInteractions();
@@ -454,14 +458,14 @@ validator.close();
 from cvt_sdk import ContractValidator, create_mock_session
 
 validator = ContractValidator('localhost:9550')
-validator.register_schema('user-api', './contracts/user-api.json')
+validator.register_schema('petstore', './openapi.json')
 
 # Create mock session that auto-generates responses from schema
-mock = create_mock_session(validator=validator, schema_id='user-api', cache=True)
+mock = create_mock_session(validator=validator, schema_id='petstore', cache=True)
 
 # Make requests - responses are generated from OpenAPI schema
-response = mock.get('http://mock.user-api/users/456')
-user = response.json()
+response = mock.get('http://mock.petstore/pet/456')
+pet = response.json()
 
 # Check recorded interactions for consumer registration
 interactions = mock.get_interactions()
@@ -477,14 +481,14 @@ validator, _ := cvt.NewValidator("localhost:9550")
 defer validator.Close()
 
 ctx := context.Background()
-validator.RegisterSchema(ctx, "user-api", "./contracts/user-api.json")
+validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
 // Create mock client that auto-generates responses from schema
 mock := adapters.NewMock(validator, adapters.WithCache())
 mockClient := mock.Client()
 
 // Make requests - responses are generated from OpenAPI schema
-req, _ := http.NewRequest("GET", "http://mock.user-api/users/456", nil)
+req, _ := http.NewRequest("GET", "http://mock.petstore/pet/456", nil)
 resp, _ := mockClient.Do(req)
 
 // Check recorded interactions for consumer registration
@@ -499,19 +503,19 @@ import com.cvt.sdk.ContractValidator;
 import com.cvt.sdk.adapters.MockClient;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
-validator.registerSchema("user-api", "./contracts/user-api.json");
+validator.registerSchema("petstore", "./openapi.json");
 
 // Create mock client that auto-generates responses from schema
 MockClient mock = MockClient.builder()
     .validator(validator)
-    .schemaId("user-api")
+    .schemaId("petstore")
     .cache(true)
     .build();
 
 // Make requests - responses are generated from OpenAPI schema
 HttpResponse<String> response = mock.send(
     HttpRequest.newBuilder()
-        .uri(URI.create("http://mock.user-api/users/456"))
+        .uri(URI.create("http://mock.petstore/pet/456"))
         .build(),
     HttpResponse.BodyHandlers.ofString()
 );
@@ -545,7 +549,7 @@ Before creating adapters or registering consumers, ensure the schema is register
 const validator = new ContractValidator("localhost:9550");
 
 // Always register schema first
-await validator.registerSchema("user-api", "./contracts/user-api.json");
+await validator.registerSchema("petstore", "./openapi.json");
 
 // Now you can create adapters or validate interactions
 ```
@@ -561,14 +565,14 @@ Register from captured test interactions - endpoints and fields are extracted au
 import { ContractValidator, createMockAdapter } from "@cvt/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
-await validator.registerSchema("user-api", "./contracts/user-api.json");
+await validator.registerSchema("petstore", "./openapi.json");
 
 // Create mock adapter to capture interactions
 const mock = createMockAdapter({ validator, cache: true });
 
 // Run tests using the mock
-await mock.fetch("http://mock.user-api/users/123");
-await mock.fetch("http://mock.user-api/users", { method: "POST", body: "{}" });
+await mock.fetch("http://mock.petstore/pet/123");
+await mock.fetch("http://mock.petstore/pet", { method: "POST", body: "{}" });
 
 // Auto-register consumer from captured interactions
 const consumerInfo = await validator.registerConsumerFromInteractions(
@@ -578,7 +582,7 @@ const consumerInfo = await validator.registerConsumerFromInteractions(
     consumerVersion: "2.1.0",
     environment: "dev",
     schemaVersion: "1.0.0",
-    // schemaId auto-extracted from URL: http://mock.user-api/... -> "user-api"
+    // schemaId auto-extracted from URL: http://mock.petstore/... -> "petstore"
   },
 );
 
@@ -600,7 +604,7 @@ consumerInfo, err := validator.RegisterConsumerFromInteractions(ctx, interaction
     ConsumerVersion: "2.1.0",
     Environment:     "dev",
     SchemaVersion:   "1.0.0",
-    // SchemaID is auto-extracted from URL: http://mock.user-api/... -> "user-api"
+    // SchemaID is auto-extracted from URL: http://mock.petstore/... -> "petstore"
 })
 if err != nil {
     log.Fatal(err)
@@ -616,14 +620,14 @@ fmt.Printf("Registered %s with %d endpoints\n", consumerInfo.ConsumerID, len(con
 from cvt_sdk import ContractValidator, create_mock_session
 
 validator = ContractValidator('localhost:9550')
-validator.register_schema('user-api', './contracts/user-api.json')
+validator.register_schema('petstore', './openapi.json')
 
 # Create mock session to capture interactions
 mock = create_mock_session(validator=validator, cache=True)
 
 # Run tests using the mock
-mock.get('http://mock.user-api/users/123')
-mock.post('http://mock.user-api/users', json={})
+mock.get('http://mock.petstore/pet/123')
+mock.post('http://mock.petstore/pet', json={})
 
 # Auto-register consumer from captured interactions
 consumer_info = validator.register_consumer_from_interactions(
@@ -632,7 +636,7 @@ consumer_info = validator.register_consumer_from_interactions(
     consumer_version='2.1.0',
     environment='dev',
     schema_version='1.0.0',
-    # schema_id auto-extracted from URL: http://mock.user-api/... -> 'user-api'
+    # schema_id auto-extracted from URL: http://mock.petstore/... -> 'petstore'
 )
 
 print(f"Registered {consumer_info['consumer_id']} with {len(consumer_info['used_endpoints'])} endpoints")
@@ -649,7 +653,7 @@ import com.cvt.sdk.AutoRegisterConfig;
 import com.cvt.sdk.ConsumerInfo;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
-validator.registerSchema("user-api", "./contracts/user-api.json");
+validator.registerSchema("petstore", "./openapi.json");
 
 // Create mock client to capture interactions
 MockClient mock = MockClient.builder()
@@ -658,8 +662,8 @@ MockClient mock = MockClient.builder()
     .build();
 
 // Run tests using the mock
-mock.get("http://mock.user-api/users/123");
-mock.post("http://mock.user-api/users", "{}");
+mock.get("http://mock.petstore/pet/123");
+mock.post("http://mock.petstore/pet", "{}");
 
 // Auto-register consumer from captured interactions
 ConsumerInfo consumerInfo = validator.registerConsumerFromInteractions(
@@ -669,7 +673,7 @@ ConsumerInfo consumerInfo = validator.registerConsumerFromInteractions(
         .consumerVersion("2.1.0")
         .environment("dev")
         .schemaVersion("1.0.0")
-        // schemaId auto-extracted from URL: http://mock.user-api/... -> "user-api"
+        // schemaId auto-extracted from URL: http://mock.petstore/... -> "petstore"
         .build()
 );
 
@@ -683,7 +687,7 @@ validator.close();
 
 **Schema ID Extraction:**
 
-- Auto-extracted from mock URLs: `http://mock.user-api/users/123` extracts `user-api`
+- Auto-extracted from mock URLs: `http://mock.petstore/pet/123` extracts `petstore`
 - Override with explicit `schemaId` when using non-mock URLs:
 
 ```typescript
@@ -694,7 +698,7 @@ const consumerInfo = await validator.registerConsumerFromInteractions(
     consumerVersion: "2.1.0",
     environment: "dev",
     schemaVersion: "1.0.0",
-    schemaId: "user-api", // Explicit override for non-mock URLs
+    schemaId: "petstore", // Explicit override for non-mock URLs
   },
 );
 ```
@@ -717,18 +721,18 @@ For fine-grained control, specify endpoints explicitly:
 await validator.registerConsumer({
   consumerId: "order-service",
   consumerVersion: "2.1.0",
-  schemaId: "user-api",
+  schemaId: "petstore",
   schemaVersion: "1.0.0",
   environment: "dev",
   usedEndpoints: [
     {
       method: "GET",
-      path: "/users/{id}",
-      usedFields: ["id", "name", "email", "address.city", "address.zipCode"],
+      path: "/pet/{petId}",
+      usedFields: ["id", "name", "status", "category.name", "tags"],
     },
     {
       method: "POST",
-      path: "/users",
+      path: "/pet",
       usedFields: ["id"],
     },
   ],
@@ -744,18 +748,18 @@ from cvt_sdk import RegisterConsumerOptions, EndpointUsage
 validator.register_consumer(RegisterConsumerOptions(
     consumer_id='order-service',
     consumer_version='2.1.0',
-    schema_id='user-api',
+    schema_id='petstore',
     schema_version='1.0.0',
     environment='dev',
     used_endpoints=[
         EndpointUsage(
             method='GET',
-            path='/users/{id}',
-            used_fields=['id', 'name', 'email', 'address.city', 'address.zipCode']
+            path='/pet/{petId}',
+            used_fields=['id', 'name', 'status', 'category.name', 'tags']
         ),
         EndpointUsage(
             method='POST',
-            path='/users',
+            path='/pet',
             used_fields=['id']
         )
     ]
@@ -769,18 +773,18 @@ validator.register_consumer(RegisterConsumerOptions(
 _, err := validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
     ConsumerID:      "order-service",
     ConsumerVersion: "2.1.0",
-    SchemaID:        "user-api",
+    SchemaID:        "petstore",
     SchemaVersion:   "1.0.0",
     Environment:     "dev",
     UsedEndpoints: []cvt.EndpointUsage{
         {
             Method:     "GET",
-            Path:       "/users/{id}",
-            UsedFields: []string{"id", "name", "email", "address.city", "address.zipCode"},
+            Path:       "/pet/{petId}",
+            UsedFields: []string{"id", "name", "status", "category.name", "tags"},
         },
         {
             Method:     "POST",
-            Path:       "/users",
+            Path:       "/pet",
             UsedFields: []string{"id"},
         },
     },
@@ -797,15 +801,15 @@ import java.util.Arrays;
 import java.util.List;
 
 List<EndpointUsage> endpoints = Arrays.asList(
-    new EndpointUsage("GET", "/users/{id}",
-        Arrays.asList("id", "name", "email", "address.city", "address.zipCode")),
-    new EndpointUsage("POST", "/users", Arrays.asList("id"))
+    new EndpointUsage("GET", "/pet/{petId}",
+        Arrays.asList("id", "name", "status", "category.name", "tags")),
+    new EndpointUsage("POST", "/pet", Arrays.asList("id"))
 );
 
 validator.registerConsumer(new RegisterConsumerOptions(
     "order-service",   // consumerId
     "2.1.0",           // consumerVersion
-    "user-api",        // schemaId
+    "petstore",        // schemaId
     "1.0.0",           // schemaVersion
     "dev",             // environment
     endpoints
@@ -820,13 +824,13 @@ validator.registerConsumer(new RegisterConsumerOptions(
 Use dot notation to specify nested fields in `usedFields`:
 
 - `id` - top-level field
-- `address.city` - nested field
-- `user.profile.settings.theme` - deeply nested field
+- `category.name` - nested field
+- `category.id` - another nested field
 
 This tells CVT:
 
 - **Who you are**: `order-service` v2.1.0
-- **What you depend on**: `user-api` v1.0.0
+- **What you depend on**: `petstore` v1.0.0
 - **What you use**: Specific endpoints and fields
 
 ### Idempotent Registration
@@ -841,32 +845,32 @@ Query all consumers registered for a schema:
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-const consumers = await validator.listConsumers("user-api", "dev");
-console.log(`${consumers.length} services depend on user-api`);
+const consumers = await validator.listConsumers("petstore", "dev");
+console.log(`${consumers.length} services depend on petstore`);
 ```
 
 </TabItem>
 <TabItem value="python" label="Python">
 
 ```python
-consumers = validator.list_consumers('user-api', 'dev')
-print(f"{len(consumers)} services depend on user-api")
+consumers = validator.list_consumers('petstore', 'dev')
+print(f"{len(consumers)} services depend on petstore")
 ```
 
 </TabItem>
 <TabItem value="go" label="Go">
 
 ```go
-consumers, _ := validator.ListConsumers(ctx, "user-api", "dev")
-fmt.Printf("%d services depend on user-api\n", len(consumers))
+consumers, _ := validator.ListConsumers(ctx, "petstore", "dev")
+fmt.Printf("%d services depend on petstore\n", len(consumers))
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```java
-List<ConsumerInfo> consumers = validator.listConsumers("user-api", "dev");
-System.out.printf("%d services depend on user-api%n", consumers.size());
+List<ConsumerInfo> consumers = validator.listConsumers("petstore", "dev");
+System.out.printf("%d services depend on petstore%n", consumers.size());
 ```
 
 </TabItem>
@@ -880,28 +884,28 @@ Remove a consumer registration when no longer needed:
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-await validator.deregisterConsumer("order-service", "user-api", "dev");
+await validator.deregisterConsumer("order-service", "petstore", "dev");
 ```
 
 </TabItem>
 <TabItem value="python" label="Python">
 
 ```python
-validator.deregister_consumer('order-service', 'user-api', 'dev')
+validator.deregister_consumer('order-service', 'petstore', 'dev')
 ```
 
 </TabItem>
 <TabItem value="go" label="Go">
 
 ```go
-validator.DeregisterConsumer(ctx, "order-service", "user-api", "dev")
+validator.DeregisterConsumer(ctx, "order-service", "petstore", "dev")
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```java
-validator.deregisterConsumer("order-service", "user-api", "dev");
+validator.deregisterConsumer("order-service", "petstore", "dev");
 ```
 
 </TabItem>
@@ -917,10 +921,10 @@ Before the upstream API deploys a new version, they can check if it's safe:
 
 ```bash
 # Check if version 2.0.0 can be deployed to production
-cvt can-i-deploy --schema user-api --version 2.0.0 --env prod
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod
 
 # Check against a specific server with JSON output
-cvt can-i-deploy --schema user-api --version 2.0.0 --env staging \
+cvt can-i-deploy --schema petstore --version 2.0.0 --env staging \
   --server localhost:9550 --json --timeout 30
 ```
 
@@ -939,7 +943,7 @@ cvt can-i-deploy --schema user-api --version 2.0.0 --env staging \
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-const result = await validator.canIDeploy("user-api", "2.0.0", "prod");
+const result = await validator.canIDeploy("petstore", "2.0.0", "prod");
 
 if (!result.safeToDeploy) {
   console.error("UNSAFE:", result.summary);
@@ -960,7 +964,7 @@ if (!result.safeToDeploy) {
 <TabItem value="python" label="Python">
 
 ```python
-result = validator.can_i_deploy('user-api', '2.0.0', 'prod')
+result = validator.can_i_deploy('petstore', '2.0.0', 'prod')
 
 if not result['safe_to_deploy']:
     print('UNSAFE:', result['summary'])
@@ -973,7 +977,7 @@ if not result['safe_to_deploy']:
 <TabItem value="go" label="Go">
 
 ```go
-result, err := validator.CanIDeploy(ctx, "user-api", "2.0.0", "prod")
+result, err := validator.CanIDeploy(ctx, "petstore", "2.0.0", "prod")
 if err != nil {
     log.Fatal(err)
 }
@@ -992,7 +996,7 @@ if !result.SafeToDeploy {
 <TabItem value="java" label="Java">
 
 ```java
-CanIDeployResult result = validator.canIDeploy("user-api", "2.0.0", "prod");
+CanIDeployResult result = validator.canIDeploy("petstore", "2.0.0", "prod");
 
 if (!result.isSafeToDeploy()) {
     System.out.println("UNSAFE: " + result.getSummary());
@@ -1044,11 +1048,11 @@ const validator = new ContractValidator("cvt.internal:9550");
 await validator.registerConsumer({
   consumerId: "order-service",
   consumerVersion: "2.1.0",
-  schemaId: "user-api",
+  schemaId: "petstore",
   schemaVersion: "1.0.0",
   environment: "dev", // Start in dev
   usedEndpoints: [
-    { method: "GET", path: "/users/{id}", usedFields: ["id", "name"] },
+    { method: "GET", path: "/pet/{petId}", usedFields: ["id", "name"] },
   ],
 });
 
@@ -1056,11 +1060,11 @@ await validator.registerConsumer({
 await validator.registerConsumer({
   consumerId: "order-service",
   consumerVersion: "2.1.0",
-  schemaId: "user-api",
+  schemaId: "petstore",
   schemaVersion: "1.0.0",
   environment: "staging", // Promote to staging
   usedEndpoints: [
-    { method: "GET", path: "/users/{id}", usedFields: ["id", "name"] },
+    { method: "GET", path: "/pet/{petId}", usedFields: ["id", "name"] },
   ],
 });
 
@@ -1068,11 +1072,11 @@ await validator.registerConsumer({
 await validator.registerConsumer({
   consumerId: "order-service",
   consumerVersion: "2.1.0",
-  schemaId: "user-api",
+  schemaId: "petstore",
   schemaVersion: "1.0.0",
   environment: "prod", // Production ready
   usedEndpoints: [
-    { method: "GET", path: "/users/{id}", usedFields: ["id", "name"] },
+    { method: "GET", path: "/pet/{petId}", usedFields: ["id", "name"] },
   ],
 });
 
@@ -1088,14 +1092,14 @@ from cvt_sdk import ContractValidator, RegisterConsumerOptions, EndpointUsage
 validator = ContractValidator('cvt.internal:9550')
 
 endpoints = [
-    EndpointUsage(method='GET', path='/users/{id}', used_fields=['id', 'name'])
+    EndpointUsage(method='GET', path='/pet/{petId}', used_fields=['id', 'name'])
 ]
 
 # 1. Register consumer in dev after tests pass
 validator.register_consumer(RegisterConsumerOptions(
     consumer_id='order-service',
     consumer_version='2.1.0',
-    schema_id='user-api',
+    schema_id='petstore',
     schema_version='1.0.0',
     environment='dev',  # Start in dev
     used_endpoints=endpoints
@@ -1105,7 +1109,7 @@ validator.register_consumer(RegisterConsumerOptions(
 validator.register_consumer(RegisterConsumerOptions(
     consumer_id='order-service',
     consumer_version='2.1.0',
-    schema_id='user-api',
+    schema_id='petstore',
     schema_version='1.0.0',
     environment='staging',  # Promote to staging
     used_endpoints=endpoints
@@ -1115,7 +1119,7 @@ validator.register_consumer(RegisterConsumerOptions(
 validator.register_consumer(RegisterConsumerOptions(
     consumer_id='order-service',
     consumer_version='2.1.0',
-    schema_id='user-api',
+    schema_id='petstore',
     schema_version='1.0.0',
     environment='prod',  # Production ready
     used_endpoints=endpoints
@@ -1134,14 +1138,14 @@ defer validator.Close()
 ctx := context.Background()
 
 endpoints := []cvt.EndpointUsage{
-    {Method: "GET", Path: "/users/{id}", UsedFields: []string{"id", "name"}},
+    {Method: "GET", Path: "/pet/{petId}", UsedFields: []string{"id", "name"}},
 }
 
 // 1. Register consumer in dev after tests pass
 validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
     ConsumerID:      "order-service",
     ConsumerVersion: "2.1.0",
-    SchemaID:        "user-api",
+    SchemaID:        "petstore",
     SchemaVersion:   "1.0.0",
     Environment:     "dev", // Start in dev
     UsedEndpoints:   endpoints,
@@ -1151,7 +1155,7 @@ validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
 validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
     ConsumerID:      "order-service",
     ConsumerVersion: "2.1.0",
-    SchemaID:        "user-api",
+    SchemaID:        "petstore",
     SchemaVersion:   "1.0.0",
     Environment:     "staging", // Promote to staging
     UsedEndpoints:   endpoints,
@@ -1161,7 +1165,7 @@ validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
 validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
     ConsumerID:      "order-service",
     ConsumerVersion: "2.1.0",
-    SchemaID:        "user-api",
+    SchemaID:        "petstore",
     SchemaVersion:   "1.0.0",
     Environment:     "prod", // Production ready
     UsedEndpoints:   endpoints,
@@ -1180,14 +1184,14 @@ import java.util.List;
 ContractValidator validator = new ContractValidator("cvt.internal:9550");
 
 List<EndpointUsage> endpoints = List.of(
-    new EndpointUsage("GET", "/users/{id}", List.of("id", "name"))
+    new EndpointUsage("GET", "/pet/{petId}", List.of("id", "name"))
 );
 
 // 1. Register consumer in dev after tests pass
 validator.registerConsumer(RegisterConsumerOptions.builder()
     .consumerId("order-service")
     .consumerVersion("2.1.0")
-    .schemaId("user-api")
+    .schemaId("petstore")
     .schemaVersion("1.0.0")
     .environment("dev")  // Start in dev
     .usedEndpoints(endpoints)
@@ -1197,7 +1201,7 @@ validator.registerConsumer(RegisterConsumerOptions.builder()
 validator.registerConsumer(RegisterConsumerOptions.builder()
     .consumerId("order-service")
     .consumerVersion("2.1.0")
-    .schemaId("user-api")
+    .schemaId("petstore")
     .schemaVersion("1.0.0")
     .environment("staging")  // Promote to staging
     .usedEndpoints(endpoints)
@@ -1207,7 +1211,7 @@ validator.registerConsumer(RegisterConsumerOptions.builder()
 validator.registerConsumer(RegisterConsumerOptions.builder()
     .consumerId("order-service")
     .consumerVersion("2.1.0")
-    .schemaId("user-api")
+    .schemaId("petstore")
     .schemaVersion("1.0.0")
     .environment("prod")  // Production ready
     .usedEndpoints(endpoints)
@@ -1222,8 +1226,8 @@ validator.close();
 ### Checking Safety Before Promotion
 
 ```bash
-# Before promoting user-api v2.0.0 to production
-cvt can-i-deploy --schema user-api --version 2.0.0 --env prod
+# Before promoting petstore v2.0.0 to production
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod
 
 # Output will show if any prod consumers will break
 ```
@@ -1253,7 +1257,7 @@ const validator = new ContractValidator({
 });
 
 // Use validator as normal
-await validator.registerSchema("user-api", "./openapi.json");
+await validator.registerSchema("petstore", "./openapi.json");
 validator.close();
 ```
 
@@ -1273,7 +1277,7 @@ validator = ContractValidator(ContractValidatorOptions(
     )
 ))
 
-validator.register_schema('user-api', './openapi.json')
+validator.register_schema('petstore', './openapi.json')
 validator.close()
 ```
 
@@ -1306,7 +1310,7 @@ ContractValidator validator = ContractValidator.builder()
     .rootCertPath("./certs/ca.crt")
     .build();
 
-validator.registerSchema("user-api", "./openapi.json");
+validator.registerSchema("petstore", "./openapi.json");
 validator.close();
 ```
 
@@ -1373,10 +1377,10 @@ ContractValidator validator = ContractValidator.builder()
 ```typescript
 it("returns valid response with all required fields", async () => {
   const result = await validator.validate(
-    { method: "GET", path: "/users/123" },
+    { method: "GET", path: "/pet/123" },
     {
       statusCode: 200,
-      body: { id: "123", name: "John", email: "john@example.com" },
+      body: { id: 123, name: "Fluffy", status: "available", photoUrls: [] },
     },
   );
   expect(result.valid).toBe(true);
@@ -1390,10 +1394,10 @@ it("returns valid response with all required fields", async () => {
 ```python
 def test_returns_valid_response_with_all_required_fields(validator):
     result = validator.validate(
-        request={'method': 'GET', 'path': '/users/123'},
+        request={'method': 'GET', 'path': '/pet/123'},
         response={
             'status_code': 200,
-            'body': {'id': '123', 'name': 'John', 'email': 'john@example.com'}
+            'body': {'id': 123, 'name': 'Fluffy', 'status': 'available', 'photoUrls': []}
         }
     )
     assert result['valid'] is True
@@ -1407,11 +1411,11 @@ def test_returns_valid_response_with_all_required_fields(validator):
 func TestReturnsValidResponseWithAllRequiredFields(t *testing.T) {
     result, err := validator.Validate(ctx, cvt.ValidationRequest{
         Method: "GET",
-        Path:   "/users/123",
+        Path:   "/pet/123",
     }, cvt.ValidationResponse{
         StatusCode: 200,
         Body: map[string]any{
-            "id": "123", "name": "John", "email": "john@example.com",
+            "id": 123, "name": "Fluffy", "status": "available", "photoUrls": []any{},
         },
     })
     assert.NoError(t, err)
@@ -1427,10 +1431,10 @@ func TestReturnsValidResponseWithAllRequiredFields(t *testing.T) {
 @Test
 void returnsValidResponseWithAllRequiredFields() {
     ValidationResult result = validator.validate(
-        ValidationRequest.builder().method("GET").path("/users/123").build(),
+        ValidationRequest.builder().method("GET").path("/pet/123").build(),
         ValidationResponse.builder()
             .statusCode(200)
-            .body("{\"id\": \"123\", \"name\": \"John\", \"email\": \"john@example.com\"}")
+            .body("{\"id\": 123, \"name\": \"Fluffy\", \"status\": \"available\", \"photoUrls\": []}")
             .build()
     );
     assertTrue(result.isValid());
@@ -1449,10 +1453,10 @@ void returnsValidResponseWithAllRequiredFields() {
 ```typescript
 it("catches missing required fields", async () => {
   const result = await validator.validate(
-    { method: "GET", path: "/users/123" },
+    { method: "GET", path: "/pet/123" },
     {
       statusCode: 200,
-      body: { id: "123" }, // missing name, email
+      body: { id: 123 }, // missing name and photoUrls (required)
     },
   );
   expect(result.valid).toBe(false);
@@ -1467,10 +1471,10 @@ it("catches missing required fields", async () => {
 ```python
 def test_catches_missing_required_fields(validator):
     result = validator.validate(
-        request={'method': 'GET', 'path': '/users/123'},
+        request={'method': 'GET', 'path': '/pet/123'},
         response={
             'status_code': 200,
-            'body': {'id': '123'}  # missing name, email
+            'body': {'id': 123}  # missing name and photoUrls (required)
         }
     )
     assert result['valid'] is False
@@ -1485,10 +1489,10 @@ def test_catches_missing_required_fields(validator):
 func TestCatchesMissingRequiredFields(t *testing.T) {
     result, err := validator.Validate(ctx, cvt.ValidationRequest{
         Method: "GET",
-        Path:   "/users/123",
+        Path:   "/pet/123",
     }, cvt.ValidationResponse{
         StatusCode: 200,
-        Body:       map[string]any{"id": "123"}, // missing name, email
+        Body:       map[string]any{"id": 123}, // missing name and photoUrls (required)
     })
     assert.NoError(t, err)
     assert.False(t, result.Valid)
@@ -1511,10 +1515,10 @@ func TestCatchesMissingRequiredFields(t *testing.T) {
 @Test
 void catchesMissingRequiredFields() {
     ValidationResult result = validator.validate(
-        ValidationRequest.builder().method("GET").path("/users/123").build(),
+        ValidationRequest.builder().method("GET").path("/pet/123").build(),
         ValidationResponse.builder()
             .statusCode(200)
-            .body("{\"id\": \"123\"}")  // missing name, email
+            .body("{\"id\": 123}")  // missing name and photoUrls (required)
             .build()
     );
     assertFalse(result.isValid());
@@ -1534,10 +1538,10 @@ void catchesMissingRequiredFields() {
 ```typescript
 it("validates 404 error response format", async () => {
   const result = await validator.validate(
-    { method: "GET", path: "/users/nonexistent" },
+    { method: "GET", path: "/pet/nonexistent" },
     {
       statusCode: 404,
-      body: { error: "User not found", code: "NOT_FOUND" },
+      body: {},
     },
   );
   // Valid if 404 response matches schema's 404 response definition
@@ -1551,10 +1555,10 @@ it("validates 404 error response format", async () => {
 ```python
 def test_validates_404_error_response_format(validator):
     result = validator.validate(
-        request={'method': 'GET', 'path': '/users/nonexistent'},
+        request={'method': 'GET', 'path': '/pet/nonexistent'},
         response={
             'status_code': 404,
-            'body': {'error': 'User not found', 'code': 'NOT_FOUND'}
+            'body': {}
         }
     )
     # Valid if 404 response matches schema's 404 response definition
@@ -1568,13 +1572,10 @@ def test_validates_404_error_response_format(validator):
 func TestValidates404ErrorResponseFormat(t *testing.T) {
     result, err := validator.Validate(ctx, cvt.ValidationRequest{
         Method: "GET",
-        Path:   "/users/nonexistent",
+        Path:   "/pet/nonexistent",
     }, cvt.ValidationResponse{
         StatusCode: 404,
-        Body: map[string]any{
-            "error": "User not found",
-            "code":  "NOT_FOUND",
-        },
+        Body:       map[string]any{},
     })
     assert.NoError(t, err)
     // Valid if 404 response matches schema's 404 response definition
@@ -1589,10 +1590,10 @@ func TestValidates404ErrorResponseFormat(t *testing.T) {
 @Test
 void validates404ErrorResponseFormat() {
     ValidationResult result = validator.validate(
-        ValidationRequest.builder().method("GET").path("/users/nonexistent").build(),
+        ValidationRequest.builder().method("GET").path("/pet/nonexistent").build(),
         ValidationResponse.builder()
             .statusCode(404)
-            .body("{\"error\": \"User not found\", \"code\": \"NOT_FOUND\"}")
+            .body("{}")
             .build()
     );
     // Valid if 404 response matches schema's 404 response definition
@@ -1646,7 +1647,7 @@ jobs:
           npm run register-consumer -- \
             --id my-service \
             --version ${{ github.sha }} \
-            --schema user-api \
+            --schema petstore \
             --env staging
 ```
 
@@ -1668,7 +1669,7 @@ deploy:
       run: |
         # This checks if any upstream dependencies have breaking changes
         cvt can-i-deploy \
-          --schema user-api \
+          --schema petstore \
           --version ${{ env.SCHEMA_VERSION }} \
           --env prod \
           --json > check.json
@@ -1749,7 +1750,7 @@ ValidationResult result = validator.validate(request, response);
 
 Check that your path matches the OpenAPI spec:
 
-- Use actual path values: `/users/123` not `/users/{id}`
+- Use actual path values: `/pet/123` not `/pet/{petId}`
 - Ensure the HTTP method matches
 
 ### Connection refused
