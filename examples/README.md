@@ -42,5 +42,5 @@ Breaking changes in v2.0.0:
 
 ## Related Documentation
 
-- [Consumer Testing Guide](../docs/consumer-testing-guide.md)
-- [Producer Testing Guide](../docs/producer-testing.md)
+- [Consumer Testing Guide](../docs/guides/consumer-testing.mdx)
+- [Producer Testing Guide](../docs/guides/producer-testing.md)

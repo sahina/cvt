@@ -7,6 +7,8 @@ description: Understanding and detecting breaking changes in API schemas
 
 # Breaking Changes Guide
 
+**CONTENT TO BE VALIDATED**
+
 This guide covers how CVT detects breaking changes between API schema versions and how to use the `can-i-deploy` safety check.
 
 ## What Are Breaking Changes?
@@ -15,27 +17,27 @@ Breaking changes are modifications to an API that can cause existing consumers t
 
 ### Types of Breaking Changes
 
-| Type | Description | Example |
-|------|-------------|---------|
-| `ENDPOINT_REMOVED` | An endpoint was removed | `DELETE /users/{id}` no longer exists |
-| `REQUIRED_FIELD_ADDED` | A new required field in request | Request now requires `phone` field |
-| `REQUIRED_PARAMETER_ADDED` | New required query/path/header param | `?apiVersion` now required |
-| `TYPE_CHANGED` | Field type changed incompatibly | `id` changed from `integer` to `string` |
-| `RESPONSE_SCHEMA_CHANGED` | Response structure changed | Response no longer includes `email` field |
-| `ENUM_VALUE_REMOVED` | Enum value was removed | `status` no longer accepts `"pending"` |
+| Type                       | Description                          | Example                                   |
+| -------------------------- | ------------------------------------ | ----------------------------------------- |
+| `ENDPOINT_REMOVED`         | An endpoint was removed              | `DELETE /users/{id}` no longer exists     |
+| `REQUIRED_FIELD_ADDED`     | A new required field in request      | Request now requires `phone` field        |
+| `REQUIRED_PARAMETER_ADDED` | New required query/path/header param | `?apiVersion` now required                |
+| `TYPE_CHANGED`             | Field type changed incompatibly      | `id` changed from `integer` to `string`   |
+| `RESPONSE_SCHEMA_CHANGED`  | Response structure changed           | Response no longer includes `email` field |
+| `ENUM_VALUE_REMOVED`       | Enum value was removed               | `status` no longer accepts `"pending"`    |
 
 ### Non-Breaking Changes
 
 These changes are safe for existing consumers:
 
-| Change | Why It's Safe |
-|--------|---------------|
-| Adding optional fields | Consumers can ignore them |
-| Adding new endpoints | Existing calls aren't affected |
-| Adding optional parameters | Existing calls work without them |
-| Adding enum values | Existing values still work |
-| Relaxing validation | Previously valid requests remain valid |
-| Improving descriptions | Documentation-only |
+| Change                     | Why It's Safe                          |
+| -------------------------- | -------------------------------------- |
+| Adding optional fields     | Consumers can ignore them              |
+| Adding new endpoints       | Existing calls aren't affected         |
+| Adding optional parameters | Existing calls work without them       |
+| Adding enum values         | Existing values still work             |
+| Relaxing validation        | Previously valid requests remain valid |
+| Improving descriptions     | Documentation-only                     |
 
 ---
 
@@ -79,20 +81,20 @@ Result: INCOMPATIBLE (2 breaking changes)
 ### Using the SDK
 
 ```typescript
-import { ContractValidator } from '@cvt/cvt-sdk';
+import { ContractValidator } from "@cvt/cvt-sdk";
 
-const validator = new ContractValidator('localhost:9550');
+const validator = new ContractValidator("localhost:9550");
 
 // Register both versions
-await validator.registerSchemaWithVersion('my-api', oldSchema, '1.0.0');
-await validator.registerSchemaWithVersion('my-api', newSchema, '2.0.0');
+await validator.registerSchemaWithVersion("my-api", oldSchema, "1.0.0");
+await validator.registerSchemaWithVersion("my-api", newSchema, "2.0.0");
 
 // Compare
-const result = await validator.compareSchemas('my-api', '1.0.0', '2.0.0');
+const result = await validator.compareSchemas("my-api", "1.0.0", "2.0.0");
 
 if (!result.compatible) {
-  console.error('Breaking changes detected:');
-  result.breakingChanges.forEach(change => {
+  console.error("Breaking changes detected:");
+  result.breakingChanges.forEach((change) => {
     console.error(`- [${change.type}] ${change.path} ${change.method}`);
     console.error(`  ${change.description}`);
   });
@@ -107,19 +109,19 @@ The `can-i-deploy` check combines breaking change detection with the consumer re
 
 ### How It Works
 
-```
+```text
 ┌─────────────────────┐
 │  New Schema v2.0.0  │
 └─────────────────────┘
           │
           ▼
 ┌─────────────────────────────────────────────┐
-│            CVT Server                        │
+│            CVT Server                       │
 │                                             │
 │  1. Detect breaking changes from v1.0.0     │
 │  2. Look up registered consumers            │
 │  3. Check which consumers use affected      │
-│     endpoints/fields                         │
+│     endpoints/fields                        │
 │  4. Return safety assessment                │
 └─────────────────────────────────────────────┘
           │
@@ -147,15 +149,15 @@ cvt can-i-deploy --schema user-api --version 2.0.0 --env prod --json
 
 ```typescript
 const result = await validator.canIDeploy({
-  schemaId: 'user-api',
-  newVersion: '2.0.0',
-  environment: 'prod',
+  schemaId: "user-api",
+  newVersion: "2.0.0",
+  environment: "prod",
 });
 
 if (result.safeToDeploy) {
-  console.log('Safe to deploy!');
+  console.log("Safe to deploy!");
 } else {
-  console.error('UNSAFE:', result.summary);
+  console.error("UNSAFE:", result.summary);
 
   // Show breaking changes
   for (const change of result.breakingChanges) {
@@ -166,7 +168,9 @@ if (result.safeToDeploy) {
   for (const consumer of result.affectedConsumers) {
     if (consumer.willBreak) {
       console.error(`Consumer ${consumer.consumerId} will break!`);
-      console.error(`  Uses endpoints: ${consumer.relevantChanges.map(c => c.path).join(', ')}`);
+      console.error(
+        `  Uses endpoints: ${consumer.relevantChanges.map((c) => c.path).join(", ")}`,
+      );
     }
   }
 }
@@ -174,7 +178,7 @@ if (result.safeToDeploy) {
 
 ### Output: Safe to Deploy
 
-```
+```text
 Deployment Safety Check
 =======================
 Schema:      user-api
@@ -190,7 +194,7 @@ Consumers checked: 3
 
 ### Output: Unsafe to Deploy
 
-```
+```text
 Deployment Safety Check
 =======================
 Schema:      user-api
@@ -243,7 +247,7 @@ name: API Compatibility Check
 on:
   pull_request:
     paths:
-      - 'api/openapi.json'
+      - "api/openapi.json"
 
 jobs:
   check-breaking-changes:
@@ -317,10 +321,10 @@ Keep both versions available during transition:
 Gradually roll out changes:
 
 ```typescript
-app.get('/users/:id', (req, res) => {
+app.get("/users/:id", (req, res) => {
   const user = getUser(req.params.id);
 
-  if (req.headers['x-api-version'] === '2') {
+  if (req.headers["x-api-version"] === "2") {
     // New format (breaking)
     res.json({ id: user.id, profile: { name: user.name } });
   } else {
@@ -359,7 +363,7 @@ app.get('/users/:id', (req, res) => {
 
 ## Related Documentation
 
-- **[Consumer Testing Guide](./consumer-testing.md)** - Register as a consumer
+- **[Consumer Testing Guide](./consumer-testing.mdx)** - Register as a consumer
 - **[Producer Testing Guide](./producer-testing.md)** - Validate your API
 - **[CLI Reference](../reference/cli.md)** - Command-line options
 - **[API Reference](../reference/api.md)** - Message types
