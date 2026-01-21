@@ -51,7 +51,7 @@ Node.js and Python SDKs are installed from a local clone (not yet published to p
 git clone https://github.com/sahina/cvt.git
 
 # Node.js (from local clone)
-pnpm add ./cvt/sdks/node
+npm install ./cvt/sdks/node
 
 # Python (from local clone)
 pip install ./cvt/sdks/python

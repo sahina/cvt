@@ -12,16 +12,16 @@ To install from the local source:
 
 ```bash
 cd sdks/node
-pnpm install
-pnpm build
+npm install
+npm run build
 cd ../your-project
-pnpm add ../sdks/node
+npm install ../sdks/node
 ```
 
 For the published version (once available):
 
 ```bash
-pnpm add @cvt/cvt-sdk
+npm install @cvt/cvt-sdk
 ```
 
 ## Usage
@@ -368,19 +368,19 @@ The Node.js SDK includes comprehensive tests covering:
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Run all tests
-pnpm test
+npm test
 
 # Run tests with coverage
-pnpm test -- --coverage
+npm test -- --coverage
 
 # Run specific test file
-pnpm test ContractValidator.test.ts
+npm test ContractValidator.test.ts
 
 # Run tests in watch mode
-pnpm test -- --watch
+npm test -- --watch
 ```
 
 ### Test Structure
@@ -426,7 +426,7 @@ describe("ContractValidator", () => {
 The SDK maintains 60%+ test coverage. Generate coverage reports with:
 
 ```bash
-pnpm test -- --coverage
+npm test -- --coverage
 open coverage/lcov-report/index.html
 ```
 
@@ -434,17 +434,17 @@ open coverage/lcov-report/index.html
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Build the SDK
-pnpm run build
+npm run build
 
 # Run linter
-pnpm run lint
+npm run lint
 
 # Format code
-pnpm run format
+npm run format
 
 # Run example
-pnpm run example
+npm run example
 ```

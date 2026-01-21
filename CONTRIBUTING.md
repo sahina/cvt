@@ -8,7 +8,7 @@ CVT (Contract Validator Toolkit) is an internal tool for consumer-based contract
 
 - Go 1.25+
 - Docker and Docker Compose
-- Node.js 18+ and pnpm (for Node SDK)
+- Node.js 18+ and npm (for Node SDK)
 - Python 3.11+ and uv (for Python SDK)
 - Java 17+ and Gradle (for Java SDK)
 
@@ -92,8 +92,8 @@ golangci-lint run
 
 ```bash
 cd sdks/node
-pnpm lint
-pnpm format
+npm run lint
+npm run format
 ```
 
 ### Python (Python SDK)

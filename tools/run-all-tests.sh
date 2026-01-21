@@ -107,7 +107,7 @@ echo "============================================================"
 echo ""
 
 echo ">>> Testing Node.js SDK..."
-if (cd sdks/node && pnpm test); then
+if (cd sdks/node && npm test); then
     echo "✅ Node.js SDK tests passed"
 else
     echo "❌ Node.js SDK tests failed"

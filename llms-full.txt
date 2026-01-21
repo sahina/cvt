@@ -103,7 +103,7 @@ cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --server localhost:9
 ### Installation
 
 ```bash
-pnpm add @cvt/sdk
+npm install @cvt/sdk
 ```
 
 ### Initialization

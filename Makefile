@@ -120,7 +120,7 @@ build:
 	@echo "🏗️  Building Go server..."
 	cd server && go build -v -o cvt-server .
 	@echo "🏗️  Building Node.js SDK..."
-	cd sdks/node && pnpm install && pnpm run build
+	cd sdks/node && npm install && npm run build
 	@echo "🏗️  Building Python SDK..."
 	cd sdks/python && uv sync
 	# cd sdks/java && ./gradlew build
@@ -141,7 +141,7 @@ test-server:
 
 test-node-sdk:
 	@echo "🧪 Running Node.js SDK tests..."
-	cd sdks/node && pnpm test
+	cd sdks/node && npm test
 	@echo "✅ Node.js SDK tests passed!"
 
 test-python-sdk:
@@ -315,7 +315,7 @@ run-server:
 
 run-example:
 	@echo "🧪 Running Node.js SDK example..."
-	cd sdks/node && pnpm run example
+	cd sdks/node && npm run example
 
 # Update commands
 update: update-server update-go-sdk update-java-sdk update-node-sdk update-python-sdk
@@ -338,7 +338,7 @@ update-java-sdk:
 
 update-node-sdk:
 	@echo "🔄 Updating Node.js SDK dependencies..."
-	cd sdks/node && pnpm update
+	cd sdks/node && npm update
 	@echo "✅ Node.js SDK dependencies updated!"
 
 update-python-sdk:
@@ -401,7 +401,7 @@ lint-go:
 
 lint-node:
 	@echo "🔍 Linting Node.js SDK..."
-	cd sdks/node && pnpm run lint 2>/dev/null || (echo "⚠️  No lint script found in Node.js SDK" && exit 0)
+	cd sdks/node && npm run lint 2>/dev/null || (echo "⚠️  No lint script found in Node.js SDK" && exit 0)
 	@echo "✅ Node.js linting complete!"
 
 lint-python:
@@ -428,7 +428,7 @@ ci: lint
 		echo "✅ Go formatting OK"; \
 	fi
 	@echo ">>> Checking Node.js formatting..."
-	cd sdks/node && pnpm run format:check
+	cd sdks/node && npm run format:check
 	@echo ">>> Checking Python formatting..."
 	cd sdks/python && uv run ruff format --check .
 	@echo ""
@@ -464,8 +464,8 @@ check-coverage:
 	@echo "✅ Python SDK: >= 70%"
 	@echo ""
 	@echo ">>> Node.js SDK coverage..."
-	@cd sdks/node && pnpm test --coverage --silent 2>&1 | grep -E "(All files|Coverage)" || true
-	@cd sdks/node && pnpm test --coverage --silent 2>/dev/null && \
+	@cd sdks/node && npm test -- --coverage --silent 2>&1 | grep -E "(All files|Coverage)" || true
+	@cd sdks/node && npm test -- --coverage --silent 2>/dev/null && \
 		echo "✅ Node.js SDK: >= 70% (enforced by jest.config.js)" || \
 		(echo "❌ Node.js SDK coverage below 70%" && exit 1)
 	@echo ""
@@ -485,25 +485,25 @@ ci-full: ci check-coverage
 # Documentation commands
 docs-install:
 	@echo "📦 Installing documentation dependencies..."
-	cd docs-site && pnpm install
+	cd docs-site && npm install
 	@echo "✅ Documentation dependencies installed!"
 
 docs-dev: docs-install
 	@echo "🚀 Starting documentation development server..."
 	@echo "📖 Open http://localhost:4100/cvt/ in your browser"
-	cd docs-site && pnpm start
+	cd docs-site && npm start
 
 docs-build: docs-install
 	@echo "🏗️  Building documentation site..."
-	cd docs-site && pnpm build
+	cd docs-site && npm run build
 	@echo "✅ Documentation built in docs-site/build/"
 
 docs-serve: docs-build
 	@echo "🌐 Serving built documentation..."
 	@echo "📖 Open http://localhost:4100/cvt/ in your browser"
-	cd docs-site && pnpm serve
+	cd docs-site && npm run serve
 
 docs-deploy: docs-build
 	@echo "🚀 Deploying documentation to GitHub Pages..."
-	cd docs-site && pnpm deploy
+	cd docs-site && npm run deploy
 	@echo "✅ Documentation deployed!"

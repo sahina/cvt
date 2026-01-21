@@ -45,7 +45,7 @@ make test                  # Fast tests with direct server (no Docker)
 make test-docker           # Full tests with Docker + PostgreSQL
 make test-server           # Go server unit tests only
 make test-coverage         # Server tests with HTML coverage report
-make test-node-sdk         # Node.js SDK tests (pnpm test)
+make test-node-sdk         # Node.js SDK tests (npm test)
 make test-python-sdk       # Python SDK tests with coverage
 make test-go-sdk           # Go SDK tests with coverage
 make test-java-sdk         # Java SDK tests with coverage
@@ -130,7 +130,7 @@ _Phase 3 - Deployment Safety:_
 
 ### SDKs (`sdks/`)
 
-- **Node.js** (`sdks/node/`): TypeScript, pnpm, Jest - production-ready
+- **Node.js** (`sdks/node/`): TypeScript, npm, Jest - production-ready
 - **Python** (`sdks/python/`): uv package manager, pytest
 - **Go** (`sdks/go/`): Standard Go modules
 - **Java** (`sdks/java/`): Gradle build
