@@ -93,7 +93,7 @@ golangci-lint run
 ```bash
 cd sdks/node
 npm run lint
-npm run format
+npm run format:check
 ```
 
 ### Python (Python SDK)

@@ -120,7 +120,7 @@ build:
 	@echo "🏗️  Building Go server..."
 	cd server && go build -v -o cvt-server .
 	@echo "🏗️  Building Node.js SDK..."
-	cd sdks/node && npm install && npm run build
+	cd sdks/node && npm ci && npm run build
 	@echo "🏗️  Building Python SDK..."
 	cd sdks/python && uv sync
 	# cd sdks/java && ./gradlew build

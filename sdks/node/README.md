@@ -377,7 +377,7 @@ npm test
 npm test -- --coverage
 
 # Run specific test file
-npm test ContractValidator.test.ts
+npm test -- ContractValidator.test.ts
 
 # Run tests in watch mode
 npm test -- --watch
@@ -443,7 +443,7 @@ npm run build
 npm run lint
 
 # Format code
-npm run format
+npm run format:check
 
 # Run example
 npm run example
