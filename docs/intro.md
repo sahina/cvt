@@ -60,7 +60,7 @@ pip install ./cvt/sdks/python
 go get github.com/sahina/cvt/sdks/go
 ```
 
-See [Installation](./getting-started/installation.md) for detailed instructions.
+See [Installation](./getting-started/installation.mdx) for detailed instructions.
 
 ### 3. Validate an Interaction
 
@@ -113,12 +113,12 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
 
 ### Getting Started
 
-- **[Installation](./getting-started/installation.md)** - Install the server and SDKs
+- **[Installation](./getting-started/installation.mdx)** - Install the server and SDKs
 - **[Quick Start](./getting-started/quick-start.mdx)** - Your first contract test
 
 ### Guides
 
-- **[Consumer Testing](./guides/consumer-testing.md)** - Test your API integrations
+- **[Consumer Testing](./guides/consumer-testing.mdx)** - Test your API integrations
 - **[Producer Testing](./guides/producer-testing.md)** - Validate your APIs
 - **[Breaking Changes](./guides/breaking-changes.md)** - Detect schema incompatibilities
 - **[Validation Modes](./guides/validation-modes.md)** - Configure validation behavior
@@ -142,8 +142,8 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
 
 Choose your path based on your role:
 
-**API Consumer?** Start with the [Consumer Testing Guide](./guides/consumer-testing.md) to learn how to validate your API integrations.
+**API Consumer?** Start with the [Consumer Testing Guide](./guides/consumer-testing.mdx) to learn how to validate your API integrations.
 
 **API Producer?** Check out the [Producer Testing Guide](./guides/producer-testing.md) to ensure your API matches its specification.
 
-**Setting up CVT?** Follow the [Installation Guide](./getting-started/installation.md) for server setup and configuration.
+**Setting up CVT?** Follow the [Installation Guide](./getting-started/installation.mdx) for server setup and configuration.

@@ -640,7 +640,7 @@ No consumers registered for this schema in prod.
 
 ## Next Steps
 
-- **[Consumer Testing Guide](./consumer-testing.md)** - Test your API integrations
+- **[Consumer Testing Guide](./consumer-testing.mdx)** - Test your API integrations
 - **[Validation Modes](./validation-modes.md)** - Configure validation behavior
 - **[Breaking Changes Guide](./breaking-changes.md)** - Understand schema compatibility
 - **[API Reference](../reference/api.md)** - Full API documentation

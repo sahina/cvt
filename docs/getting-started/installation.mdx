@@ -5,6 +5,9 @@ sidebar_position: 1
 description: Install CVT server and SDKs
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Installation
 
 This guide covers installing the CVT server and client SDKs.
@@ -53,7 +56,8 @@ go install github.com/sahina/cvt/cmd/cvt@latest
 
 Install the SDK for your language:
 
-### Node.js
+<Tabs groupId="sdk-language">
+  <TabItem value="nodejs" label="Node.js" default>
 
 **The Node.js SDK is not published to npm. Install from a local clone:**
 
@@ -69,7 +73,8 @@ npm install ../cvt/sdks/node
 pnpm add ../cvt/sdks/node
 ```
 
-### Python
+  </TabItem>
+  <TabItem value="python" label="Python">
 
 **The Python SDK is not published to PyPI. Install from a local clone:**
 
@@ -84,13 +89,15 @@ pip install ./cvt/sdks/python
 uv pip install ./cvt/sdks/python
 ```
 
-### Go
+  </TabItem>
+  <TabItem value="go" label="Go">
 
 ```bash
 go get github.com/sahina/cvt/sdks/go
 ```
 
-### Java
+  </TabItem>
+  <TabItem value="java" label="Java">
 
 **The Java SDK is not published to Maven Central. Build and publish to your local Maven repository:**
 
@@ -126,6 +133,9 @@ Or for Maven, add to your `pom.xml`:
 </dependency>
 ```
 
+  </TabItem>
+</Tabs>
+
 ---
 
 ## Verify Installation
@@ -154,26 +164,45 @@ grpc-health-probe -addr=localhost:9550
 
 ### Check SDK
 
+<Tabs groupId="sdk-language">
+  <TabItem value="nodejs" label="Node.js" default>
+
 ```typescript
-// Node.js
 import { ContractValidator } from "@cvt/cvt-sdk";
 const validator = new ContractValidator("localhost:9550");
 console.log("Connected!");
 ```
 
+  </TabItem>
+  <TabItem value="python" label="Python">
+
 ```python
-# Python
 from cvt_sdk import ContractValidator
 validator = ContractValidator('localhost:9550')
 print('Connected!')
 ```
 
+  </TabItem>
+  <TabItem value="go" label="Go">
+
 ```go
-// Go
 import "github.com/sahina/cvt/sdks/go/cvt"
 client, _ := cvt.NewValidator("localhost:9550")
 fmt.Println("Connected!")
 ```
+
+  </TabItem>
+  <TabItem value="java" label="Java">
+
+```java
+import com.cvt.sdk.ContractValidator;
+
+ContractValidator validator = new ContractValidator("localhost:9550");
+System.out.println("Connected!");
+```
+
+  </TabItem>
+</Tabs>
 
 ---
 
@@ -191,6 +220,6 @@ fmt.Println("Connected!")
 ## Next Steps
 
 - **[Quick Start](./quick-start.mdx)** - Your first contract test
-- **[Consumer Testing Guide](../guides/consumer-testing.md)** - Test API integrations
+- **[Consumer Testing Guide](../guides/consumer-testing.mdx)** - Test API integrations
 - **[Producer Testing Guide](../guides/producer-testing.md)** - Validate your APIs
 - **[Configuration Reference](../reference/configuration.md)** - Server settings
