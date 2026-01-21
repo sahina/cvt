@@ -5,11 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cvt-sdk"
 version = "0.1.0"
-dependencies = [
-    "grpcio>=1.76.0",
-    "protobuf>=6.33.2",
-    "pytest>=9.0.2",
-]
+dependencies = ["grpcio>=1.76.0", "protobuf>=6.33.2", "pytest>=9.0.2"]
 requires-python = ">=3.11"
 
 [project.optional-dependencies]
@@ -18,12 +14,12 @@ all = ["requests>=2.32.0"]
 
 [dependency-groups]
 dev = [
-    "grpcio-tools>=1.76.0",
-    "pytest-cov>=7.0.0",
-    "pytest-asyncio>=0.24.0",
-    "ruff>=0.14.10",
-    "requests>=2.32.0",
-    "responses>=0.25.0",
+  "grpcio-tools>=1.76.0",
+  "pytest-cov>=7.0.0",
+  "pytest-asyncio>=0.24.0",
+  "ruff>=0.14.10",
+  "requests>=2.32.0",
+  "responses>=0.25.0",
 ]
 
 [tool.ruff]
@@ -40,3 +36,10 @@ python_functions = "test_*"
 norecursedirs = ".git .tox dist build *.egg"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+# [[tool.uv.index]]
+# url = "path-to-your-internal-index"
+# default = true
+#
+# [tool.uv.pip]
+# index-url = "path-to-your-internal-index"

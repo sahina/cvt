@@ -15,9 +15,6 @@ The Node.js SDK provides TypeScript-first contract validation for Node.js applic
 # npm
 npm install @cvt/cvt-sdk
 
-# pnpm
-pnpm add @cvt/cvt-sdk
-
 # yarn
 yarn add @cvt/cvt-sdk
 ```

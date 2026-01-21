@@ -74,11 +74,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+          cache: 'npm'
+          cache-dependency-path: sdks/node/package-lock.json
 
       - name: Start CVT server
         run: |
@@ -97,11 +94,11 @@ jobs:
 
       - name: Install Node SDK dependencies
         working-directory: ./sdks/node
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Run Node SDK integration tests
         working-directory: ./sdks/node
-        run: pnpm test
+        run: npm test
         env:
           CVT_SERVER_ADDRESS: localhost:9550
 
@@ -184,36 +181,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          cache: 'npm'
+          cache-dependency-path: sdks/node/package-lock.json
 
       - name: Install dependencies
         working-directory: ./sdks/node
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Build Node SDK
         working-directory: ./sdks/node
-        run: pnpm build
+        run: npm run build
 
       - name: Run tests
         working-directory: ./sdks/node
-        run: pnpm test
+        run: npm test
 
       - name: Upload test results
         if: always()
@@ -428,23 +409,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+          cache: 'npm'
+          cache-dependency-path: sdks/node/package-lock.json
 
       - name: Install Node SDK dependencies
         working-directory: ./sdks/node
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Run ESLint
         working-directory: ./sdks/node
-        run: pnpm lint
+        run: npm run lint
 
       - name: Run Prettier check
         working-directory: ./sdks/node
-        run: pnpm format:check
+        run: npm run format:check
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5

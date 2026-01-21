@@ -17,7 +17,6 @@ Install the following tools before developing CVT:
 | ------- | ------------ | ----------------------------------------------------------------------------- |
 | Go      | 1.25+        | [golang.org/dl](https://golang.org/dl/)                                       |
 | Node.js | 20+          | [nodejs.org](https://nodejs.org/)                                             |
-| pnpm    | 10+          | `npm install -g pnpm`                                                         |
 | Python  | 3.12+        | [python.org](https://python.org/)                                             |
 | uv      | latest       | `curl -LsSf https://astral.sh/uv/install.sh \| sh`                            |
 | Java    | 21 (Temurin) | [adoptium.net](https://adoptium.net/)                                         |
@@ -170,19 +169,19 @@ Location: `sdks/node/`
 cd sdks/node
 
 # Install dependencies
-pnpm install
+npm install
 
 # Build TypeScript
-pnpm build
+npm run build
 
 # Run tests
-pnpm test
+npm test
 
 # Run linting
-pnpm lint
+npm run lint
 
 # Run example
-pnpm example
+npm run example
 ```
 
 ### Python SDK
@@ -298,16 +297,16 @@ make run-server
 
 Test SDK changes in consumer projects without publishing to a registry.
 
-### Node.js - pnpm link
+### Node.js - npm link
 
 ```bash
 # In the SDK directory
 cd sdks/node
-pnpm build
-pnpm link --global
+npm run build
+npm link
 
 # In your consumer project
-pnpm link --global @cvt/cvt-sdk
+npm link @cvt/cvt-sdk
 ```
 
 ### Python - Editable Install
@@ -345,7 +344,7 @@ make lint
 
 # Lint individual components
 cd server && go fmt ./... && go vet ./...
-cd sdks/node && pnpm lint
+cd sdks/node && npm run lint
 cd sdks/python && uv run ruff check .
 cd sdks/java && ./gradlew check
 ```
@@ -365,7 +364,7 @@ make update
 
 # Update individual components
 make update-server
-cd sdks/node && pnpm update
+cd sdks/node && npm update
 cd sdks/python && uv lock --upgrade
 cd sdks/go && go get -u ./...
 cd sdks/java && ./gradlew dependencyUpdates
