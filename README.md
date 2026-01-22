@@ -480,13 +480,13 @@ This section walks you through common use cases from start to finish.
 
 **Use Cases:**
 
-| Use Case                          | Description                                                | Link                                                                                     |
-| --------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| **1. Adding Contract Tests**      | Validate your HTTP calls match upstream API contracts      | [Consumer Testing Guide](docs/guides/consumer-testing.md)                                |
-| **2. Detecting Breaking Changes** | Ensure API updates don't break existing consumers          | [Breaking Changes Guide](docs/guides/breaking-changes.md)                                |
-| **3. Local Development**          | Fast feedback without Docker using CLI or embedded library | [CLI Reference](docs/reference/cli.md)                                                   |
-| **4. Testing Without API Access** | Validate integration code before you have API access       | [Consumer Testing Guide](docs/guides/consumer-testing.md#mock-adapters-offline-testing)  |
-| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [Producer Testing Guide](docs/guides/producer-testing.md)                                |
+| Use Case                          | Description                                                | Link                                                                                    |
+| --------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **1. Adding Contract Tests**      | Validate your HTTP calls match upstream API contracts      | [Consumer Testing Guide](docs/guides/consumer-testing.mdx)                              |
+| **2. Detecting Breaking Changes** | Ensure API updates don't break existing consumers          | [Breaking Changes Guide](docs/guides/breaking-changes.md)                               |
+| **3. Local Development**          | Fast feedback without Docker using CLI or embedded library | [CLI Reference](docs/reference/cli.md)                                                  |
+| **4. Testing Without API Access** | Validate integration code before you have API access       | [Consumer Testing Guide](docs/guides/consumer-testing.md#mock-adapters-offline-testing) |
+| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [Producer Testing Guide](docs/guides/producer-testing.md)                               |
 
 **See the guides above for complete step-by-step instructions with code examples.**
 
@@ -888,7 +888,7 @@ export SSL_CERT_FILE=/path/to/corp-ca.crt
 
 **Guides:**
 
-- [docs/guides/consumer-testing.md](docs/guides/consumer-testing.md) - Consumer contract testing guide
+- [docs/guides/consumer-testing.md](docs/guides/consumer-testing.mdx) - Consumer contract testing guide
 - [docs/guides/producer-testing.md](docs/guides/producer-testing.md) - Producer testing and deployment safety
 - [docs/guides/breaking-changes.md](docs/guides/breaking-changes.md) - Detecting and handling breaking changes
 - [docs/guides/validation-modes.md](docs/guides/validation-modes.md) - Validation modes (strict/warn/shadow) and rollout strategy
