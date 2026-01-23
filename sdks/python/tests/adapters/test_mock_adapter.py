@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -64,7 +64,7 @@ class TestMockFetch:
 
         session.get("http://mock.api/users/123")
 
-        mock_validator.generate_response.assert_called_with("GET", "/users/123", {})
+        mock_validator.generate_response.assert_called_with("GET", "/users/123", ANY)
 
     def test_handle_post_requests(self, mock_validator):
         """Should handle POST requests."""
@@ -76,7 +76,7 @@ class TestMockFetch:
             json_body={"name": "New User"},
         )
 
-        mock_validator.generate_response.assert_called_with("POST", "/users", {})
+        mock_validator.generate_response.assert_called_with("POST", "/users", ANY)
 
     def test_capture_request_in_interactions(self, mock_validator):
         """Should capture request in interactions."""
@@ -114,26 +114,32 @@ class TestMockFetch:
         interactions = session.get_interactions()
         assert interactions[0].request["body"] == request_body
 
-    def test_include_query_string_in_path(self, mock_validator):
-        """Should include query string in path."""
+    def test_include_query_string_in_captured_interaction(self, mock_validator):
+        """Should include query string in captured interaction path."""
         session = MockSession(mock_validator)
 
         session.get("http://mock.api/users?status=active&limit=10")
 
-        mock_validator.generate_response.assert_called_with(
-            "GET", "/users?status=active&limit=10", {}
-        )
+        # generateResponse is called with path WITHOUT query string (for OpenAPI route matching)
+        mock_validator.generate_response.assert_called_with("GET", "/users", ANY)
+
+        # But the captured interaction should have the full path WITH query string
+        interactions = session.get_interactions()
+        assert interactions[0].request["path"] == "/users?status=active&limit=10"
 
     def test_handle_params_dict(self, mock_validator):
-        """Should handle params dict."""
+        """Should handle params dict in captured interaction."""
         session = MockSession(mock_validator)
 
         session.get("http://mock.api/users", params={"status": "active", "limit": "10"})
 
-        call_args = mock_validator.generate_response.call_args
-        # Check that params are added to path
-        assert "status=active" in call_args[0][1]
-        assert "limit=10" in call_args[0][1]
+        # generateResponse is called with path WITHOUT query params
+        mock_validator.generate_response.assert_called_with("GET", "/users", ANY)
+
+        # But the captured interaction should have the query params
+        interactions = session.get_interactions()
+        assert "status=active" in interactions[0].request["path"]
+        assert "limit=10" in interactions[0].request["path"]
 
 
 class TestCaching:

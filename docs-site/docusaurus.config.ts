@@ -80,6 +80,11 @@ const config: Config = {
           label: 'GitHub',
           position: 'right',
         },
+        {
+          href: 'https://github.com/sahina/cvt-demo',
+          label: 'GitHub Demo',
+          position: 'right',
+        },
       ],
     },
     footer: {

@@ -128,9 +128,21 @@ export class AxiosContractAdapter {
       return;
     }
 
-    // Extract path from URL
+    // Extract path from URL, including query params from config.params
     const url = new URL(response.config.url || "", response.config.baseURL);
-    const path = url.pathname + url.search;
+    const searchParams = new URLSearchParams(url.search);
+
+    // Add params from config.params (axios stores query params separately)
+    if (response.config.params) {
+      for (const [key, value] of Object.entries(response.config.params)) {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, String(value));
+        }
+      }
+    }
+
+    const queryString = searchParams.toString();
+    const path = url.pathname + (queryString ? "?" + queryString : "");
 
     if (!shouldValidatePath(path, this.includePaths, this.excludePaths)) {
       return;
@@ -184,7 +196,24 @@ export class AxiosContractAdapter {
     body: any,
   ): ValidationRequest {
     const url = new URL(config.url || "", config.baseURL);
-    const path = url.pathname + url.search;
+    let path = url.pathname;
+
+    // Build query string from both URL and config.params
+    const searchParams = new URLSearchParams(url.search);
+
+    // Add params from config.params (axios stores query params separately)
+    if (config.params) {
+      for (const [key, value] of Object.entries(config.params)) {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, String(value));
+        }
+      }
+    }
+
+    const queryString = searchParams.toString();
+    if (queryString) {
+      path += "?" + queryString;
+    }
 
     return {
       method: (config.method || "GET").toUpperCase(),

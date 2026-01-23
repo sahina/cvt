@@ -123,13 +123,20 @@ describe("MockAdapter", () => {
       expect(interactions[0].request.body).toEqual(requestBody);
     });
 
-    it("should include query string in path", async () => {
+    it("should include query string in captured interaction path", async () => {
       await adapter.fetch("http://mock.api/users?status=active&limit=10");
 
+      // generateResponse is called with path WITHOUT query string (for OpenAPI route matching)
       expect(mockValidator.generateResponse).toHaveBeenCalledWith(
         "GET",
-        "/users?status=active&limit=10",
+        "/users",
         {},
+      );
+
+      // But the captured interaction should have the full path WITH query string
+      const interactions = adapter.getInteractions();
+      expect(interactions[0].request.path).toBe(
+        "/users?status=active&limit=10",
       );
     });
 

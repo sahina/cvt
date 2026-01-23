@@ -137,7 +137,7 @@ class MockSession:
     ):
         self._validator = validator
         self._cache_enabled = cache
-        self._generate_options = generate_options or {}
+        self._generate_options = generate_options or GenerateOptions()
         self._include_paths: list[PathFilter] = include_paths or []
         self._exclude_paths: list[PathFilter] = exclude_paths or []
         self._captured_interactions: list[CapturedInteraction] = []
@@ -238,7 +238,9 @@ class MockSession:
 
     def _get_or_generate_response(self, method: str, path: str) -> GeneratedResponse:
         """Get cached response or generate a new one."""
-        cache_key = f"{method}:{path}"
+        # Strip query params for route matching - OpenAPI paths don't include query strings
+        path_without_query = path.split("?")[0]
+        cache_key = f"{method}:{path_without_query}"
 
         # Check cache
         if self._cache_enabled:
@@ -246,9 +248,9 @@ class MockSession:
             if cached is not None:
                 return cached
 
-        # Generate new response
+        # Generate new response using path without query params
         generated = self._validator.generate_response(
-            method, path, self._generate_options
+            method, path_without_query, self._generate_options
         )
 
         # Cache if enabled

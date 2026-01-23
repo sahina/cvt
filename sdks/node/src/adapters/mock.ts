@@ -255,7 +255,9 @@ export class MockAdapter {
     method: string,
     path: string,
   ): Promise<GeneratedResponse> {
-    const cacheKey = `${method}:${path}`;
+    // Strip query params for route matching - OpenAPI paths don't include query strings
+    const pathWithoutQuery = path.split("?")[0];
+    const cacheKey = `${method}:${pathWithoutQuery}`;
 
     // Check cache
     if (this.cacheEnabled) {
@@ -265,10 +267,10 @@ export class MockAdapter {
       }
     }
 
-    // Generate new response
+    // Generate new response using path without query params
     const generated = await this.validator.generateResponse(
       method,
-      path,
+      pathWithoutQuery,
       this.generateOptions,
     );
 
