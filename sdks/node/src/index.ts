@@ -7,8 +7,8 @@ import * as path from "path";
 import { buildConsumerFromInteractions as buildConsumer } from "./auto-register";
 
 // Resolve path relative to the monorepo root
-// sdks/node/dist/index.js -> ../../../api/protos/cvt.proto
-const PROJECT_ROOT = path.resolve(__dirname, "../../..");
+// sdks/node/dist/src/index.js -> ../../../../api/protos/cvt.proto
+const PROJECT_ROOT = path.resolve(__dirname, "../../../..");
 const PROTO_PATH = path.join(PROJECT_ROOT, "api/protos/cvt.proto");
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {

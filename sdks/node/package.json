@@ -2,16 +2,20 @@
   "name": "@cvt/cvt-sdk",
   "version": "0.1.0",
   "description": "Contract Validator Toolkit SDK",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./adapters": {
+      "types": "./dist/src/adapters/index.d.ts",
+      "default": "./dist/src/adapters/index.js"
     },
     "./producer": {
-      "types": "./dist/producer/index.d.ts",
-      "default": "./dist/producer/index.js"
+      "types": "./dist/src/producer/index.d.ts",
+      "default": "./dist/src/producer/index.js"
     }
   },
   "scripts": {
