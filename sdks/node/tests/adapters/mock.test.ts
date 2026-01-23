@@ -135,7 +135,9 @@ describe("MockAdapter", () => {
 
       // But the captured interaction should have the full path WITH query string
       const interactions = adapter.getInteractions();
-      expect(interactions[0].request.path).toBe("/users?status=active&limit=10");
+      expect(interactions[0].request.path).toBe(
+        "/users?status=active&limit=10",
+      );
     });
 
     it("should handle URL object input", async () => {
