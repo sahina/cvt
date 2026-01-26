@@ -8,6 +8,10 @@
 
 A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against API contracts. Supports both consumer-side (client) and producer-side (server) validation.
 
+> For complete working examples with real-world usage patterns:
+>
+> [CVT Demo Repository](https://github.com/sahina/cvt-demo).
+
 ## Understanding Consumer vs Producer Validation
 
 CVT supports two complementary validation approaches. Understanding when to use each is key to effective contract testing.
@@ -428,7 +432,6 @@ make down
 ```
 
 > **Note**: The Docker setup includes PostgreSQL for persistent storage. Schemas and consumer registrations survive server restarts.
-> **Demo Repository**: For a complete working example with real-world usage patterns, see the [CVT Demo Repository](https://github.com/sahina/cvt-demo).
 
 ### Consumer Validation (Client SDK)
 
