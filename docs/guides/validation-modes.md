@@ -189,6 +189,6 @@ This is by design: by the time we validate the response, it's already been sent 
 
 ## Related Documentation
 
-- **[Producer Testing Guide](./producer-testing.md)** - Full producer testing workflow
+- **[Producer Testing Guide](./producer-testing.mdx)** - Full producer testing workflow
 - **[Observability Guide](../operations/observability.md)** - Metrics and monitoring
 - **[Configuration Reference](../reference/configuration.md)** - Environment variables

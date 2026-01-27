@@ -364,6 +364,6 @@ app.get("/users/:id", (req, res) => {
 ## Related Documentation
 
 - **[Consumer Testing Guide](./consumer-testing.mdx)** - Register as a consumer
-- **[Producer Testing Guide](./producer-testing.md)** - Validate your API
+- **[Producer Testing Guide](./producer-testing.mdx)** - Validate your API
 - **[CLI Reference](../reference/cli.md)** - Command-line options
 - **[API Reference](../reference/api.md)** - Message types

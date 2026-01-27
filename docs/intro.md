@@ -119,7 +119,7 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
 ### Guides
 
 - **[Consumer Testing](./guides/consumer-testing.mdx)** - Test your API integrations
-- **[Producer Testing](./guides/producer-testing.md)** - Validate your APIs
+- **[Producer Testing](./guides/producer-testing.mdx)** - Validate your APIs
 - **[Breaking Changes](./guides/breaking-changes.md)** - Detect schema incompatibilities
 - **[Validation Modes](./guides/validation-modes.md)** - Configure validation behavior
 
@@ -144,6 +144,6 @@ Choose your path based on your role:
 
 **API Consumer?** Start with the [Consumer Testing Guide](./guides/consumer-testing.mdx) to learn how to validate your API integrations.
 
-**API Producer?** Check out the [Producer Testing Guide](./guides/producer-testing.md) to ensure your API matches its specification.
+**API Producer?** Check out the [Producer Testing Guide](./guides/producer-testing.mdx) to ensure your API matches its specification.
 
 **Setting up CVT?** Follow the [Installation Guide](./getting-started/installation.mdx) for server setup and configuration.
