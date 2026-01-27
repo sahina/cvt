@@ -1,4 +1,4 @@
-// Package main provides caching functionality for the Contract Validation Tool.
+// Package cvtservice provides caching functionality for the Contract Validation Tool.
 // This file implements a high-performance cache for storing OpenAPI schemas
 // using the Ristretto cache library.
 package cvtservice

@@ -1,4 +1,4 @@
-// Package main provides the validator service implementation for contract testing.
+// Package cvtservice provides the validator service implementation for contract testing.
 // This service validates HTTP request/response interactions against OpenAPI specifications.
 package cvtservice
 

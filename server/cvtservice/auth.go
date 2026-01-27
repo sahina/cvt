@@ -1,4 +1,4 @@
-// Package main provides API key authentication for the CVT server.
+// Package cvtservice provides API key authentication for the CVT server.
 package cvtservice
 
 import (

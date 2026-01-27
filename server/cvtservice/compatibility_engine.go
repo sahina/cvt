@@ -1,4 +1,4 @@
-// Package main provides compatibility checking functionality for the CVT server.
+// Package cvtservice provides compatibility checking functionality for the CVT server.
 // This file implements detection of breaking changes between OpenAPI schema versions.
 package cvtservice
 
