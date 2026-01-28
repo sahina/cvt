@@ -272,17 +272,12 @@ Instead of hand-crafting test data (error-prone and drifts from schema), use thi
 3. **Validate** to ensure customizations didn't break compliance
 
 ```typescript
-// 1. Generate base fixture
-const baseFixture = await validator.generateFixture(
-  'user-api',
-  'POST',
-  '/users',
-  'request'
-);
+// 1. Generate base request body
+const baseRequestBody = await validator.generateRequestBody('POST', '/users');
 
 // 2. Customize for your scenario
 const testUser = {
-  ...JSON.parse(baseFixture.content),
+  ...baseRequestBody,
   name: 'Test User for Edge Case',
   email: 'edge-case@test.com'
 };
@@ -304,18 +299,14 @@ Use generated responses for mock services:
 import nock from 'nock';
 
 // Generate a valid response
-const responseFixture = await validator.generateFixture(
-  'user-api',
-  'GET',
-  '/users/{id}',
-  'response',
-  { statusCode: 200 }
-);
+const response = await validator.generateResponse('GET', '/users/{id}', {
+  statusCode: 200
+});
 
 // Use in mock
 nock('http://user-service')
   .get('/users/123')
-  .reply(200, JSON.parse(responseFixture.content));
+  .reply(200, response.body);
 ```
 
 ### Using Schema Examples
@@ -323,13 +314,9 @@ nock('http://user-service')
 If your OpenAPI schema has examples, prefer those:
 
 ```typescript
-const fixture = await validator.generateFixture(
-  'user-api',
-  'GET',
-  '/users/{id}',
-  'response',
-  { useExamples: true }  // Use examples from schema if available
-);
+const response = await validator.generateResponse('GET', '/users/{id}', {
+  useExamples: true  // Use examples from schema if available
+});
 ```
 
 ### Listing Available Endpoints
@@ -337,12 +324,11 @@ const fixture = await validator.generateFixture(
 Ask AI to help explore what fixtures can be generated:
 
 ```typescript
-const endpoints = await validator.listEndpoints('user-api');
+const endpoints = await validator.listEndpoints();
 
 for (const endpoint of endpoints) {
   console.log(`${endpoint.method} ${endpoint.path}`);
   console.log(`  Summary: ${endpoint.summary}`);
-  console.log(`  Parameters: ${endpoint.parameters?.join(', ') || 'none'}`);
 }
 ```
 

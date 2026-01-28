@@ -73,11 +73,14 @@ When using AI coding agents with CVT, watch out for these common pitfalls. Share
 
 ## Fixture Generation
 
-- **Don't hand-craft test data** - Use CVT's `generateFixture()` to create schema-compliant test data. Hand-crafted fixtures drift from the schema over time:
+- **Don't hand-craft test data** - Use CVT's fixture generation to create schema-compliant test data. Hand-crafted fixtures drift from the schema over time:
 
   ```typescript
   // Generate a valid response from the schema
-  const fixture = await validator.generateFixture('user-api', 'GET', '/users/{id}', 'response');
+  const response = await validator.generateResponse('GET', '/users/{id}');
+
+  // Or generate both request and response
+  const fixture = await validator.generateFixture('POST', '/users');
   ```
 
 - **Don't assume generated fixtures are complete** - `generateFixture()` creates structurally valid data. You may need to customize specific values for your test scenarios.
