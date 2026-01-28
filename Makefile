@@ -7,6 +7,7 @@
 .PHONY: metrics grafana prometheus observability-status observability-logs
 .PHONY: lint lint-go lint-node lint-python lint-java ci check-coverage ci-full
 .PHONY: docs-dev docs-build docs-serve docs-deploy docs-install
+.PHONY: tag tag-push
 
 # Default target
 all: build
@@ -92,6 +93,10 @@ help:
 	@echo "  make docs-build         - Build documentation site for production"
 	@echo "  make docs-serve         - Serve built documentation locally"
 	@echo "  make docs-deploy        - Deploy documentation to GitHub Pages"
+	@echo ""
+	@echo "Release commands:"
+	@echo "  make tag TAG=x.y.z      - Create git tag vx.y.z"
+	@echo "  make tag-push TAG=x.y.z - Create and push git tag vx.y.z (triggers release)"
 
 # Code generation
 generate:
@@ -547,3 +552,23 @@ docs-deploy: docs-build
 	@echo "🚀 Deploying documentation to GitHub Pages..."
 	cd docs-site && npm run deploy
 	@echo "✅ Documentation deployed!"
+
+# Release commands
+tag:
+ifndef TAG
+	$(error TAG is required. Usage: make tag TAG=x.y.z)
+endif
+	@echo "🏷️  Creating tag v$(TAG)..."
+	git tag v$(TAG)
+	@echo "✅ Tag v$(TAG) created locally"
+	@echo "💡 Run 'make tag-push TAG=$(TAG)' to push and trigger release"
+
+tag-push:
+ifndef TAG
+	$(error TAG is required. Usage: make tag-push TAG=x.y.z)
+endif
+	@echo "🏷️  Creating and pushing tag v$(TAG)..."
+	git tag v$(TAG) 2>/dev/null || echo "Tag v$(TAG) already exists"
+	git push origin v$(TAG)
+	@echo "✅ Tag v$(TAG) pushed to origin"
+	@echo "🚀 Release workflow will build and push Docker image to ghcr.io/sahina/cvt-server"

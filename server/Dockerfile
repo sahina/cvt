@@ -23,7 +23,10 @@ COPY storage/ ./storage/
 # Build the binary with optimizations
 # - CGO_ENABLED=0: Build a static binary
 # - -ldflags="-w -s": Strip debug information to reduce size
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o cvt-server .
+# - TARGETOS/TARGETARCH: Set automatically by docker buildx for multi-platform builds
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o cvt-server .
 
 # Stage 2: Create minimal runtime image
 FROM alpine:3.21
