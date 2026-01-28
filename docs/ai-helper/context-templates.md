@@ -90,7 +90,7 @@ Fetch CVT documentation from:
 ## SDK
 
 Using [Node.js/Python/Go/Java] SDK. Import from:
-- Node.js: @cvt/cvt-sdk
+- Node.js: @cvt/sdk
 - Python: cvt_sdk
 - Go: github.com/sahina/cvt/sdks/go/cvt
 - Java: com.cvt.sdk
@@ -191,7 +191,7 @@ For highly restricted environments, embed the essential information directly:
 ### Node.js SDK
 
 ```typescript
-import { ContractValidator } from '@cvt/cvt-sdk';
+import { ContractValidator } from '@cvt/sdk';
 
 const validator = new ContractValidator('localhost:9550');
 await validator.registerSchema('api-name', schemaContent);
