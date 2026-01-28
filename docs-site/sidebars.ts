@@ -54,6 +54,7 @@ const sidebars: SidebarsConfig = {
             'reference/sdk/java',
           ],
         },
+        'reference/openapi-support',
       ],
     },
     {
