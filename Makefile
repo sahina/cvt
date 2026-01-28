@@ -7,7 +7,7 @@
 .PHONY: metrics grafana prometheus observability-status observability-logs
 .PHONY: lint lint-go lint-node lint-python lint-java ci check-coverage ci-full
 .PHONY: docs-dev docs-build docs-serve docs-deploy docs-install
-.PHONY: tag tag-push
+.PHONY: tag tag-push release prerelease
 
 # Default target
 all: build
@@ -97,6 +97,8 @@ help:
 	@echo "Release commands:"
 	@echo "  make tag TAG=x.y.z      - Create git tag vx.y.z"
 	@echo "  make tag-push TAG=x.y.z - Create and push git tag vx.y.z (triggers release)"
+	@echo "  make release TAG=x.y.z  - Alias for tag-push"
+	@echo "  make prerelease TAG=x.y.z-rc.1 - Create and push pre-release tag"
 
 # Code generation
 generate:
@@ -572,3 +574,20 @@ endif
 	git push origin v$(TAG)
 	@echo "✅ Tag v$(TAG) pushed to origin"
 	@echo "🚀 Release workflow will build and push Docker image to ghcr.io/sahina/cvt-server"
+
+release: tag-push
+
+prerelease:
+ifndef TAG
+	$(error TAG is required. Usage: make prerelease TAG=x.y.z-rc.1)
+endif
+	@if echo "$(TAG)" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "❌ Pre-release TAG must include suffix like -alpha.1, -beta.1, or -rc.1"; \
+		echo "   Example: make prerelease TAG=1.0.0-rc.1"; \
+		exit 1; \
+	fi
+	@echo "🏷️  Creating and pushing pre-release tag v$(TAG)..."
+	git tag v$(TAG) 2>/dev/null || echo "Tag v$(TAG) already exists"
+	git push origin v$(TAG)
+	@echo "✅ Pre-release tag v$(TAG) pushed to origin"
+	@echo "🚀 Release workflow will build Docker image (will NOT update :latest tag)"
