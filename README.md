@@ -413,7 +413,7 @@ if (!result.safeToDeploy) {
 }
 ```
 
-**See [docs/guides/producer-testing.md](docs/guides/producer-testing.md) for complete producer testing documentation.**
+**See [docs/guides/producer-testing.md](docs/guides/producer-testing.mdx) for complete producer testing documentation.**
 
 ## Quick Start
 
@@ -490,7 +490,7 @@ This section walks you through common use cases from start to finish.
 | **2. Detecting Breaking Changes** | Ensure API updates don't break existing consumers          | [Breaking Changes Guide](docs/guides/breaking-changes.md)                               |
 | **3. Local Development**          | Fast feedback without Docker using CLI or embedded library | [CLI Reference](docs/reference/cli.md)                                                  |
 | **4. Testing Without API Access** | Validate integration code before you have API access       | [Consumer Testing Guide](docs/guides/consumer-testing.md#mock-adapters-offline-testing) |
-| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [Producer Testing Guide](docs/guides/producer-testing.md)                               |
+| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [Producer Testing Guide](docs/guides/producer-testing.mdx)                              |
 
 **See the guides above for complete step-by-step instructions with code examples.**
 
@@ -622,7 +622,7 @@ http.Handle("/", adapters.NetHTTPMiddleware(config)(handler))
 registry.addInterceptor(new SpringInterceptor(config)).addPathPatterns("/api/**");
 ```
 
-See [Producer Testing Guide](docs/guides/producer-testing.md) for complete producer validation documentation.
+See [Producer Testing Guide](docs/guides/producer-testing.mdx) for complete producer validation documentation.
 
 ### Security Configuration
 
@@ -893,7 +893,7 @@ export SSL_CERT_FILE=/path/to/corp-ca.crt
 **Guides:**
 
 - [docs/guides/consumer-testing.md](docs/guides/consumer-testing.mdx) - Consumer contract testing guide
-- [docs/guides/producer-testing.md](docs/guides/producer-testing.md) - Producer testing and deployment safety
+- [docs/guides/producer-testing.md](docs/guides/producer-testing.mdx) - Producer testing and deployment safety
 - [docs/guides/breaking-changes.md](docs/guides/breaking-changes.md) - Detecting and handling breaking changes
 - [docs/guides/validation-modes.md](docs/guides/validation-modes.md) - Validation modes (strict/warn/shadow) and rollout strategy
 

@@ -323,7 +323,7 @@ if (!result.safeToDeploy) {
 }
 ```
 
-See [Producer Testing Guide](../../docs/guides/producer-testing.md) for complete documentation.
+See [Producer Testing Guide](../../docs/guides/producer-testing.mdx) for complete documentation.
 
 ## Security Configuration
 

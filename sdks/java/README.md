@@ -272,7 +272,7 @@ if (!result.isSafeToDeploy()) {
 }
 ```
 
-See [Producer Testing Guide](../../docs/guides/producer-testing.md) for complete documentation.
+See [Producer Testing Guide](../../docs/guides/producer-testing.mdx) for complete documentation.
 
 ## Prerequisites
 

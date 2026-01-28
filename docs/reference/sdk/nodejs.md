@@ -22,17 +22,20 @@ yarn add @cvt/cvt-sdk
 ## Quick Start
 
 ```typescript
-import { ContractValidator } from '@cvt/cvt-sdk';
+import { ContractValidator } from "@cvt/cvt-sdk";
 
-const validator = new ContractValidator('localhost:9550');
+const validator = new ContractValidator("localhost:9550");
 
 // Register a schema
-await validator.registerSchema('user-api', fs.readFileSync('openapi.json', 'utf-8'));
+await validator.registerSchema(
+  "user-api",
+  fs.readFileSync("openapi.json", "utf-8"),
+);
 
 // Validate an interaction
 const result = await validator.validate(
-  { method: 'GET', path: '/users/123' },
-  { statusCode: 200, body: JSON.stringify({ id: '123', name: 'John' }) }
+  { method: "GET", path: "/users/123" },
+  { statusCode: 200, body: JSON.stringify({ id: "123", name: "John" }) },
 );
 
 console.log(result.valid); // true or false
@@ -48,11 +51,11 @@ console.log(result.valid); // true or false
 new ContractValidator(address: string, options?: ValidatorOptions)
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `address` | `string` | Server address (e.g., `localhost:9550`) |
-| `options.tls` | `TLSConfig` | TLS configuration |
-| `options.metadata` | `Record<string, string>` | gRPC metadata (e.g., API key) |
+| Parameter          | Type                     | Description                             |
+| ------------------ | ------------------------ | --------------------------------------- |
+| `address`          | `string`                 | Server address (e.g., `localhost:9550`) |
+| `options.tls`      | `TLSConfig`              | TLS configuration                       |
+| `options.metadata` | `Record<string, string>` | gRPC metadata (e.g., API key)           |
 
 #### Methods
 
@@ -117,40 +120,40 @@ close(): void
 Automatically validate all Axios requests:
 
 ```typescript
-import axios from 'axios';
-import { ContractValidator, createAxiosAdapter } from '@cvt/cvt-sdk';
+import axios from "axios";
+import { ContractValidator, createAxiosAdapter } from "@cvt/cvt-sdk";
 
-const validator = new ContractValidator('localhost:9550');
-await validator.registerSchema('user-api', schema);
+const validator = new ContractValidator("localhost:9550");
+await validator.registerSchema("user-api", schema);
 
-const api = axios.create({ baseURL: 'http://user-service' });
+const api = axios.create({ baseURL: "http://user-service" });
 
 createAxiosAdapter({
   axios: api,
   validator,
-  schemaId: 'user-api',
+  schemaId: "user-api",
   autoValidate: true,
   onValidationFailure: (result) => {
-    throw new Error(`Contract violation: ${result.errors.join(', ')}`);
-  }
+    throw new Error(`Contract violation: ${result.errors.join(", ")}`);
+  },
 });
 
 // All requests are now validated
-const user = await api.get('/users/123');
+const user = await api.get("/users/123");
 ```
 
 ### Fetch Adapter
 
 ```typescript
-import { createFetchAdapter } from '@cvt/cvt-sdk';
+import { createFetchAdapter } from "@cvt/cvt-sdk";
 
 const validatedFetch = createFetchAdapter({
   validator,
-  schemaId: 'user-api',
-  baseUrl: 'http://user-service'
+  schemaId: "user-api",
+  baseUrl: "http://user-service",
 });
 
-const response = await validatedFetch('/users/123');
+const response = await validatedFetch("/users/123");
 ```
 
 ## Producer Middleware
@@ -158,61 +161,65 @@ const response = await validatedFetch('/users/123');
 ### Express
 
 ```typescript
-import express from 'express';
-import { createExpressMiddleware } from '@cvt/cvt-sdk/producer';
+import express from "express";
+import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
 
 const app = express();
 
-app.use(createExpressMiddleware({
-  schemaId: 'my-api',
-  validator,
-  mode: 'strict', // 'strict' | 'warn' | 'shadow'
-  excludePaths: ['/health', '/metrics']
-}));
+app.use(
+  createExpressMiddleware({
+    schemaId: "my-api",
+    validator,
+    mode: "strict", // 'strict' | 'warn' | 'shadow'
+    excludePaths: ["/health", "/metrics"],
+  }),
+);
 
-app.get('/users/:id', (req, res) => {
-  res.json({ id: req.params.id, name: 'John' });
+app.get("/users/:id", (req, res) => {
+  res.json({ id: req.params.id, name: "John" });
 });
 ```
 
 ### Fastify
 
 ```typescript
-import Fastify from 'fastify';
-import { createFastifyPlugin } from '@cvt/cvt-sdk/producer';
+import Fastify from "fastify";
+import { createFastifyPlugin } from "@cvt/cvt-sdk/producer";
 
 const fastify = Fastify();
 
-fastify.register(createFastifyPlugin({
-  schemaId: 'my-api',
-  validator,
-  mode: 'strict'
-}));
+fastify.register(
+  createFastifyPlugin({
+    schemaId: "my-api",
+    validator,
+    mode: "strict",
+  }),
+);
 ```
 
 ## Producer Test Kit
 
 ```typescript
-import { ProducerTestKit } from '@cvt/cvt-sdk/producer';
+import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
 
-describe('User API', () => {
+describe("User API", () => {
   let testKit: ProducerTestKit;
 
   beforeAll(async () => {
     testKit = new ProducerTestKit({
-      schemaId: 'user-api',
-      serverAddress: 'localhost:9550'
+      schemaId: "user-api",
+      serverAddress: "localhost:9550",
     });
   });
 
   afterAll(() => testKit.close());
 
-  it('returns valid response', async () => {
+  it("returns valid response", async () => {
     const result = await testKit.validateResponse({
-      method: 'GET',
-      path: '/users/123',
+      method: "GET",
+      path: "/users/123",
       statusCode: 200,
-      body: { id: '123', name: 'John' }
+      body: { id: "123", name: "John" },
     });
 
     expect(result.valid).toBe(true);
@@ -223,25 +230,25 @@ describe('User API', () => {
 ## TLS Configuration
 
 ```typescript
-import * as fs from 'fs';
+import * as fs from "fs";
 
-const validator = new ContractValidator('localhost:9550', {
+const validator = new ContractValidator("localhost:9550", {
   tls: {
-    rootCerts: fs.readFileSync('./certs/ca.crt'),
+    rootCerts: fs.readFileSync("./certs/ca.crt"),
     // For mTLS:
-    privateKey: fs.readFileSync('./certs/client.key'),
-    certChain: fs.readFileSync('./certs/client.crt')
-  }
+    privateKey: fs.readFileSync("./certs/client.key"),
+    certChain: fs.readFileSync("./certs/client.crt"),
+  },
 });
 ```
 
 ## API Key Authentication
 
 ```typescript
-const validator = new ContractValidator('localhost:9550', {
+const validator = new ContractValidator("localhost:9550", {
   metadata: {
-    'x-api-key': 'your-api-key'
-  }
+    "x-api-key": "your-api-key",
+  },
 });
 ```
 
@@ -258,20 +265,20 @@ import {
   RegisterConsumerOptions,
   ConsumerInfo,
   BreakingChange,
-  CanIDeployResponse
-} from '@cvt/cvt-sdk';
+  CanIDeployResponse,
+} from "@cvt/cvt-sdk";
 ```
 
 ## Error Handling
 
 ```typescript
 try {
-  await validator.registerSchema('my-api', schema);
+  await validator.registerSchema("my-api", schema);
 } catch (error) {
-  if (error.code === 'INVALID_SCHEMA') {
-    console.error('Schema is not valid OpenAPI');
-  } else if (error.code === 'UNAVAILABLE') {
-    console.error('CVT server is not reachable');
+  if (error.code === "INVALID_SCHEMA") {
+    console.error("Schema is not valid OpenAPI");
+  } else if (error.code === "UNAVAILABLE") {
+    console.error("CVT server is not reachable");
   }
 }
 ```

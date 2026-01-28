@@ -58,13 +58,13 @@ ContractValidator(
 )
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `address` | `str` | Server address (e.g., `localhost:9550`) |
-| `tls_root_certs` | `bytes` | CA certificate for TLS |
-| `tls_private_key` | `bytes` | Client private key for mTLS |
-| `tls_cert_chain` | `bytes` | Client certificate for mTLS |
-| `api_key` | `str` | API key for authentication |
+| Parameter         | Type    | Description                             |
+| ----------------- | ------- | --------------------------------------- |
+| `address`         | `str`   | Server address (e.g., `localhost:9550`) |
+| `tls_root_certs`  | `bytes` | CA certificate for TLS                  |
+| `tls_private_key` | `bytes` | Client private key for mTLS             |
+| `tls_cert_chain`  | `bytes` | Client certificate for mTLS             |
+| `api_key`         | `str`   | API key for authentication              |
 
 #### Methods
 

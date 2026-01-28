@@ -7,8 +7,6 @@ description: Understanding and detecting breaking changes in API schemas
 
 # Breaking Changes Guide
 
-**CONTENT TO BE VALIDATED**
-
 This guide covers how CVT detects breaking changes between API schema versions and how to use the `can-i-deploy` safety check.
 
 ## What Are Breaking Changes?
