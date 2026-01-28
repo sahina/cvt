@@ -47,8 +47,8 @@ export interface MockAdapterConfig {
  *
  * @example
  * ```typescript
- * import { ContractValidator } from '@cvt/cvt-sdk';
- * import { createMockAdapter } from '@cvt/cvt-sdk/adapters/mock';
+ * import { ContractValidator } from '@cvt/sdk';
+ * import { createMockAdapter } from '@cvt/sdk/adapters/mock';
  *
  * const validator = new ContractValidator();
  * await validator.registerSchema('petstore', './openapi.json');

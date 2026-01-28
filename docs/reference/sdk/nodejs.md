@@ -24,7 +24,7 @@ pnpm add ./cvt/sdks/node
 ## Quick Start
 
 ```typescript
-import { ContractValidator } from "@cvt/cvt-sdk";
+import { ContractValidator } from "@cvt/sdk";
 
 const validator = new ContractValidator("localhost:9550");
 
@@ -202,8 +202,8 @@ Automatically validate all Axios requests:
 
 ```typescript
 import axios from "axios";
-import { ContractValidator } from "@cvt/cvt-sdk";
-import { createAxiosAdapter } from "@cvt/cvt-sdk/adapters";
+import { ContractValidator } from "@cvt/sdk";
+import { createAxiosAdapter } from "@cvt/sdk/adapters";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -233,8 +233,8 @@ adapter.detach();
 ### Fetch Adapter
 
 ```typescript
-import { ContractValidator } from "@cvt/cvt-sdk";
-import { createFetchAdapter } from "@cvt/cvt-sdk/adapters";
+import { ContractValidator } from "@cvt/sdk";
+import { createFetchAdapter } from "@cvt/sdk/adapters";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -258,8 +258,8 @@ const interactions = adapter.getInteractions();
 
 ```typescript
 import express from "express";
-import { ContractValidator } from "@cvt/cvt-sdk";
-import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
+import { ContractValidator } from "@cvt/sdk";
+import { createExpressMiddleware } from "@cvt/sdk/producer";
 
 const app = express();
 app.use(express.json());
@@ -285,18 +285,18 @@ app.get("/pet/:petId", (req, res) => {
 
 ```typescript
 import Fastify from "fastify";
-import { ContractValidator } from "@cvt/cvt-sdk";
-import { createFastifyPlugin } from "@cvt/cvt-sdk/producer";
+import { ContractValidator } from "@cvt/sdk";
+import { fastifyProducerPlugin } from "@cvt/sdk/producer";
 
 const fastify = Fastify();
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
 
-fastify.register(createFastifyPlugin({
+fastify.register(fastifyProducerPlugin, {
   schemaId: "petstore",
   validator,
   mode: "strict",
-}));
+});
 ```
 
 ## Producer Test Kit
@@ -304,7 +304,7 @@ fastify.register(createFastifyPlugin({
 Test your API responses against your schema without real consumers:
 
 ```typescript
-import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
+import { ProducerTestKit } from "@cvt/sdk/producer";
 
 describe("Pet API", () => {
   let testKit: ProducerTestKit;
@@ -404,7 +404,7 @@ import {
   RegisterConsumerOptions,
   ConsumerInfo,
   CanIDeployResult,
-} from "@cvt/cvt-sdk";
+} from "@cvt/sdk";
 ```
 
 ## Error Handling

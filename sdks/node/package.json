@@ -1,5 +1,5 @@
 {
-  "name": "@cvt/cvt-sdk",
+  "name": "@cvt/sdk",
   "version": "0.1.0",
   "description": "Contract Validator Toolkit SDK",
   "main": "dist/src/index.js",

@@ -317,7 +317,7 @@ Test your API handlers return spec-compliant responses without needing real cons
 
 ```typescript
 // Node.js
-import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
+import { ProducerTestKit } from "@cvt/sdk/producer";
 
 const testKit = new ProducerTestKit({
   schemaId: "user-api",
@@ -438,7 +438,7 @@ make down
 Validate your HTTP client calls against the API contract:
 
 ```javascript
-const { ContractValidator } = require("@cvt/cvt-sdk");
+const { ContractValidator } = require("@cvt/sdk");
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("my-api", "./openapi.json");
@@ -459,8 +459,8 @@ Validate incoming requests to your API server:
 ```javascript
 // Express.js example
 import express from "express";
-import { ContractValidator } from "@cvt/cvt-sdk";
-import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
+import { ContractValidator } from "@cvt/sdk";
+import { createExpressMiddleware } from "@cvt/sdk/producer";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("my-api", "./openapi.json");
@@ -599,7 +599,7 @@ Validate incoming requests to your API:
 
 ```javascript
 // Node.js - Express middleware validates before routes execute
-import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
+import { createExpressMiddleware } from "@cvt/sdk/producer";
 app.use(
   createExpressMiddleware({ schemaId: "my-api", validator, mode: "strict" }),
 );
