@@ -52,6 +52,22 @@ Producer testing answers the question: **"Does my API match my spec?"**
 
 ---
 
+## Validation Approaches
+
+| Test Type             | Services Required | Speed  | Purpose                           |
+| --------------------- | ----------------- | ------ | --------------------------------- |
+| **Schema Compliance** | CVT only          | Fast   | Unit test handlers against schema |
+| **Middleware Modes**  | CVT only          | Fast   | Test Strict/Warn/Shadow behavior  |
+| **Consumer Registry** | CVT only          | Fast   | can-i-deploy checks               |
+| **HTTP Integration**  | Producer + CVT    | Medium | Full end-to-end validation        |
+
+- **Schema Compliance**: Test handlers directly without running a server. Fast feedback during development.
+- **Middleware Modes**: CVT middleware validates requests/responses in real-time. Three modes for different stages.
+- **Consumer Registry**: Track which endpoints consumers use. Enables `can-i-deploy` safety checks.
+- **HTTP Integration**: Real HTTP calls to running API. Tests complete stack including routing/serialization.
+
+---
+
 ## Schema Compliance Testing
 
 Schema compliance testing validates that your API handlers return responses matching your OpenAPI specification.
