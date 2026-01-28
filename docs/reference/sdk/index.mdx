@@ -5,9 +5,16 @@ sidebar_position: 1
 description: CVT SDK documentation for all supported languages
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # SDK Reference
 
-CVT provides native SDKs for the following languages:
+## What is the SDK Reference?
+
+This section provides documentation for CVT's language-specific SDKs. Each SDK offers the same core functionality, allowing you to choose the one that best fits your application's technology stack.
+
+## Available SDKs
 
 | Language | Package | Status |
 |----------|---------|--------|
@@ -54,50 +61,103 @@ All SDKs provide:
 
 ### Initialization
 
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
 ```typescript
-// Node.js
-const validator = new ContractValidator('localhost:9550');
+import { ContractValidator } from "@cvt/cvt-sdk";
+
+const validator = new ContractValidator("localhost:9550");
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
 
 ```python
-# Python
-validator = ContractValidator('localhost:9550')
+from cvt_sdk import ContractValidator
+
+validator = ContractValidator("localhost:9550")
 ```
+
+</TabItem>
+<TabItem value="go" label="Go">
 
 ```go
-// Go
-validator, _ := cvt.NewValidator("localhost:9550")
+import "github.com/sahina/cvt/sdks/go/cvt"
+
+validator, err := cvt.NewValidator("localhost:9550")
+if err != nil {
+    log.Fatal(err)
+}
+defer validator.Close()
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java
+import com.cvt.sdk.ContractValidator;
+
 ContractValidator validator = new ContractValidator("localhost:9550");
 ```
 
+</TabItem>
+</Tabs>
+
 ### Validation
 
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
 ```typescript
-// Node.js
 const result = await validator.validate(request, response);
+if (!result.valid) {
+  console.error("Errors:", result.errors);
+}
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
 
 ```python
-# Python
 result = validator.validate(request, response)
+if not result["valid"]:
+    print("Errors:", result["errors"])
 ```
+
+</TabItem>
+<TabItem value="go" label="Go">
 
 ```go
-// Go
-result, _ := validator.Validate(ctx, request, response)
+result, err := validator.Validate(ctx, request, response)
+if err != nil {
+    log.Fatal(err)
+}
+if !result.Valid {
+    fmt.Println("Errors:", result.Errors)
+}
 ```
 
+</TabItem>
+<TabItem value="java" label="Java">
+
 ```java
-// Java
 ValidationResult result = validator.validate(request, response);
+if (!result.isValid()) {
+    System.err.println("Errors: " + result.getErrors());
+}
 ```
+
+</TabItem>
+</Tabs>
 
 ## Choosing an SDK
 
 All SDKs have equivalent functionality. Choose based on your application's language.
 
-For detailed documentation, see the individual SDK guides.
+For detailed documentation, see the individual SDK guides:
+
+- **[Node.js SDK](./nodejs.md)** - For Node.js and TypeScript applications
+- **[Python SDK](./python.md)** - For Python applications
+- **[Go SDK](./go.md)** - For Go applications
+- **[Java SDK](./java.md)** - For Java and JVM applications
