@@ -1,0 +1,612 @@
+---
+title: Breaking Changes Guide
+sidebar_label: Breaking Changes
+sidebar_position: 4
+description: Understanding and detecting breaking changes in API schemas
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Breaking Changes Guide
+
+This guide covers how CVT detects breaking changes between API schema versions and how to use the `can-i-deploy` safety check.
+
+## What Are Breaking Changes?
+
+Breaking changes are modifications to an API that can cause existing consumers to fail. CVT detects these automatically when comparing schema versions.
+
+### Types of Breaking Changes
+
+| Type                       | Description                          | Example                                    |
+| -------------------------- | ------------------------------------ | ------------------------------------------ |
+| `ENDPOINT_REMOVED`         | An endpoint was removed              | `DELETE /pet/{petId}` no longer exists     |
+| `REQUIRED_FIELD_ADDED`     | A new required field in request body | Request now requires `category` field      |
+| `REQUIRED_PARAMETER_ADDED` | New required query/path/header param | `?apiVersion` now required                 |
+| `TYPE_CHANGED`             | Field type changed incompatibly      | `id` changed from `integer` to `string`    |
+| `RESPONSE_SCHEMA_CHANGED`  | Response structure changed           | Response no longer includes `status` field |
+| `ENUM_VALUE_REMOVED`       | Enum value was removed               | `status` no longer accepts `"pending"`     |
+
+### Non-Breaking Changes
+
+These changes are safe for existing consumers:
+
+| Change                     | Why It's Safe                          |
+| -------------------------- | -------------------------------------- |
+| Adding optional fields     | Consumers can ignore them              |
+| Adding new endpoints       | Existing calls aren't affected         |
+| Adding optional parameters | Existing calls work without them       |
+| Adding enum values         | Existing values still work             |
+| Relaxing validation        | Previously valid requests remain valid |
+| Improving descriptions     | Documentation-only                     |
+
+---
+
+## Schema Comparison
+
+### Using the CLI
+
+```bash
+# Compare two schema files
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
+
+# JSON output for scripting
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json --json
+```
+
+### Output Example
+
+```text
+Schema Comparison
+=================
+Old: ./v1/openapi.json
+New: ./v2/openapi.json
+
+Breaking changes detected: 2
+
+  1. [ENDPOINT_REMOVED] DELETE /pet/{petId}
+     The endpoint has been removed from the API
+
+  2. [REQUIRED_FIELD_ADDED] POST /pet
+     Required field 'category' added to request body
+
+Compatible changes: 3
+
+  1. [ENDPOINT_ADDED] GET /pet/{petId}/image
+  2. [OPTIONAL_FIELD_ADDED] GET /pet response: 'description'
+  3. [DESCRIPTION_CHANGED] PUT /pet/{petId}
+
+Result: INCOMPATIBLE (2 breaking changes)
+```
+
+### Using the SDK
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+```typescript
+import { ContractValidator } from "@cvt/cvt-sdk";
+
+const validator = new ContractValidator("localhost:9550");
+
+// Register both versions
+await validator.registerSchemaWithVersion("petstore", "./openapi-v1.json", "1.0.0");
+await validator.registerSchemaWithVersion("petstore", "./openapi-v2.json", "2.0.0");
+
+// Compare
+const result = await validator.compareSchemas("petstore", "1.0.0", "2.0.0");
+
+if (!result.compatible) {
+  console.error("Breaking changes detected:");
+  for (const change of result.breakingChanges) {
+    console.error(`- [${change.type}] ${change.method} ${change.path}`);
+    console.error(`  ${change.description}`);
+  }
+}
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from cvt_sdk import ContractValidator
+
+validator = ContractValidator("localhost:9550")
+
+# Register both versions
+validator.register_schema_with_version("petstore", "./openapi-v1.json", "1.0.0")
+validator.register_schema_with_version("petstore", "./openapi-v2.json", "2.0.0")
+
+# Compare
+result = validator.compare_schemas("petstore", "1.0.0", "2.0.0")
+
+if not result["compatible"]:
+    print("Breaking changes detected:")
+    for change in result["breaking_changes"]:
+        print(f"- [{change['type']}] {change['method']} {change['path']}")
+        print(f"  {change['description']}")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+validator, err := cvt.NewValidator("")
+if err != nil {
+    log.Fatal(err)
+}
+defer validator.Close()
+
+// Register both versions
+err = validator.RegisterSchemaWithVersion(ctx, "petstore", "./openapi-v1.json", "1.0.0")
+if err != nil {
+    log.Fatal(err)
+}
+err = validator.RegisterSchemaWithVersion(ctx, "petstore", "./openapi-v2.json", "2.0.0")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Compare
+result, err := validator.CompareSchemas(ctx, "petstore", "1.0.0", "2.0.0")
+if err != nil {
+    log.Fatal(err)
+}
+
+if !result.Compatible {
+    fmt.Println("Breaking changes detected:")
+    for _, change := range result.BreakingChanges {
+        fmt.Printf("- [%s] %s %s\n", change.Type, change.Method, change.Path)
+        fmt.Printf("  %s\n", change.Description)
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+ContractValidator validator = new ContractValidator("localhost:9550");
+
+// Register both versions
+validator.registerSchemaWithVersion("petstore", "./openapi-v1.json", "1.0.0");
+validator.registerSchemaWithVersion("petstore", "./openapi-v2.json", "2.0.0");
+
+// Compare
+CompareResult result = validator.compareSchemas("petstore", "1.0.0", "2.0.0");
+
+if (!result.isCompatible()) {
+    System.out.println("Breaking changes detected:");
+    for (BreakingChange change : result.getBreakingChanges()) {
+        System.out.printf("- [%s] %s %s%n", change.getType(), change.getMethod(), change.getPath());
+        System.out.printf("  %s%n", change.getDescription());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Deployment Safety (can-i-deploy)
+
+The `can-i-deploy` check combines breaking change detection with the consumer registry to determine if a new schema version is safe to deploy.
+
+### How It Works
+
+```text
+┌─────────────────────┐
+│  New Schema v2.0.0  │
+└─────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────┐
+│            CVT Server                       │
+│                                             │
+│  1. Detect breaking changes from v1.0.0     │
+│  2. Look up registered consumers            │
+│  3. Check which consumers use affected      │
+│     endpoints/fields                        │
+│  4. Return safety assessment                │
+└─────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────┐
+│   Safe / Unsafe     │
+│   + Affected list   │
+└─────────────────────┘
+```
+
+### CLI Usage
+
+```bash
+# Basic usage
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod
+
+# With server address
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod --server cvt.internal:9550
+
+# JSON output for CI/CD
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod --json
+```
+
+### SDK Usage
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+```typescript
+const result = await validator.canIDeploy("petstore", "2.0.0", "prod");
+
+if (result.safeToDeploy) {
+  console.log("Safe to deploy!");
+} else {
+  console.error("UNSAFE:", result.summary);
+
+  // Show breaking changes
+  for (const change of result.breakingChanges) {
+    console.error(`- [${change.type}] ${change.description}`);
+  }
+
+  // Show affected consumers
+  for (const consumer of result.affectedConsumers) {
+    if (consumer.willBreak) {
+      console.error(`Consumer ${consumer.consumerId} will break!`);
+      console.error(
+        `  Uses endpoints: ${consumer.relevantChanges.map((c) => c.path).join(", ")}`,
+      );
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+result = validator.can_i_deploy("petstore", "2.0.0", "prod")
+
+if result["safe_to_deploy"]:
+    print("Safe to deploy!")
+else:
+    print(f"UNSAFE: {result['summary']}")
+
+    # Show breaking changes
+    for change in result["breaking_changes"]:
+        print(f"- [{change['type']}] {change['description']}")
+
+    # Show affected consumers
+    for consumer in result["affected_consumers"]:
+        if consumer["will_break"]:
+            print(f"Consumer {consumer['consumer_id']} will break!")
+            paths = ", ".join(c["path"] for c in consumer["relevant_changes"])
+            print(f"  Uses endpoints: {paths}")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+result, err := validator.CanIDeploy(ctx, "petstore", "2.0.0", "prod")
+if err != nil {
+    log.Fatal(err)
+}
+
+if result.SafeToDeploy {
+    fmt.Println("Safe to deploy!")
+} else {
+    fmt.Println("UNSAFE:", result.Summary)
+
+    // Show breaking changes
+    for _, change := range result.BreakingChanges {
+        fmt.Printf("- [%s] %s\n", change.Type, change.Description)
+    }
+
+    // Show affected consumers
+    for _, consumer := range result.AffectedConsumers {
+        if consumer.WillBreak {
+            fmt.Printf("Consumer %s will break!\n", consumer.ConsumerID)
+            var paths []string
+            for _, c := range consumer.RelevantChanges {
+                paths = append(paths, c.Path)
+            }
+            fmt.Printf("  Uses endpoints: %s\n", strings.Join(paths, ", "))
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+CanIDeployResult result = validator.canIDeploy("petstore", "2.0.0", "prod");
+
+if (result.isSafeToDeploy()) {
+    System.out.println("Safe to deploy!");
+} else {
+    System.err.println("UNSAFE: " + result.getSummary());
+
+    // Show breaking changes
+    for (BreakingChange change : result.getBreakingChanges()) {
+        System.err.printf("- [%s] %s%n", change.getType(), change.getDescription());
+    }
+
+    // Show affected consumers
+    for (ConsumerImpact consumer : result.getAffectedConsumers()) {
+        if (consumer.isWillBreak()) {
+            System.err.printf("Consumer %s will break!%n", consumer.getConsumerId());
+            String paths = consumer.getRelevantChanges().stream()
+                .map(BreakingChange::getPath)
+                .collect(Collectors.joining(", "));
+            System.err.printf("  Uses endpoints: %s%n", paths);
+        }
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Output: Safe to Deploy
+
+```text
+Deployment Safety Check
+=======================
+Schema:      petstore
+Version:     2.0.0
+Environment: prod
+Server:      localhost:9550
+
+Result: SAFE TO DEPLOY
+
+No breaking changes detected that would affect registered consumers.
+Consumers checked: 3
+```
+
+### Output: Unsafe to Deploy
+
+```text
+Deployment Safety Check
+=======================
+Schema:      petstore
+Version:     2.0.0
+Environment: prod
+
+Result: UNSAFE TO DEPLOY
+
+Breaking changes in v2.0.0:
+  - FIELD_REMOVED: GET /pet/{petId} response removed 'status'
+  - ENDPOINT_REMOVED: DELETE /pet/{petId}
+
+Affected consumers in production:
+
+  order-service v2.1.0
+    Schema version: 1.0.0
+    Impact: BREAKING
+    Uses: GET /pet/{petId} (fields: id, name, status)
+    Affected by:
+      - FIELD_REMOVED: status field
+
+  notification-service v1.5.0
+    Schema version: 1.0.0
+    Impact: BREAKING
+    Uses: DELETE /pet/{petId}
+    Affected by:
+      - ENDPOINT_REMOVED: DELETE /pet/{petId}
+
+  billing-service v1.0.0
+    Schema version: 1.0.0
+    Impact: None
+    Uses: GET /pet/{petId} (fields: id, name)
+
+Summary:
+  Safe consumers:     1/3
+  Affected consumers: 2/3
+
+Recommendation: Coordinate with order-service and notification-service teams before deploying.
+```
+
+---
+
+## CI/CD Integration
+
+### PR Check for Schema Changes
+
+```yaml
+name: API Compatibility Check
+
+on:
+  pull_request:
+    paths:
+      - "api/openapi.json"
+
+jobs:
+  check-breaking-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get previous schema
+        run: git show origin/main:api/openapi.json > /tmp/old-schema.json
+
+      - name: Check for breaking changes
+        run: |
+          cvt compare --old /tmp/old-schema.json --new ./api/openapi.json
+```
+
+### Pre-Deploy Safety Gate
+
+```yaml
+deploy:
+  runs-on: ubuntu-latest
+  steps:
+    - name: Check deployment safety
+      run: |
+        result=$(cvt can-i-deploy \
+          --schema ${{ env.SCHEMA_ID }} \
+          --version ${{ github.sha }} \
+          --env prod \
+          --server ${{ secrets.CVT_SERVER }} \
+          --json)
+
+        if [ $(echo $result | jq '.safeToDeploy') != "true" ]; then
+          echo "DEPLOYMENT BLOCKED: Breaking changes would affect consumers"
+          echo $result | jq '.affectedConsumers[] | select(.willBreak) | .consumerId'
+          exit 1
+        fi
+
+    - name: Deploy
+      if: success()
+      run: ./deploy.sh
+```
+
+---
+
+## Handling Breaking Changes
+
+When you need to make a breaking change, you have several options:
+
+### 1. Coordinate with Consumers
+
+1. Run `can-i-deploy` to identify affected consumers
+2. Contact consumer teams with timeline
+3. Wait for consumers to update their code
+4. Deploy once all consumers are ready
+
+### 2. Version Your API
+
+Keep both versions available during transition:
+
+```yaml
+# Old version still available
+/api/v1/pet/{petId}
+
+# New version with breaking changes
+/api/v2/pet/{petId}
+```
+
+### 3. Feature Flags
+
+Gradually roll out changes:
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+```typescript
+app.get("/pet/:petId", (req, res) => {
+  const pet = getPet(req.params.petId);
+
+  if (req.headers["x-api-version"] === "2") {
+    // New format (breaking)
+    res.json({ id: pet.id, details: { name: pet.name, category: pet.category } });
+  } else {
+    // Old format (compatible)
+    res.json({ id: pet.id, name: pet.name, status: pet.status });
+  }
+});
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+@app.get("/pet/{pet_id}")
+def get_pet(pet_id: str, request: Request):
+    pet = get_pet_by_id(pet_id)
+
+    if request.headers.get("x-api-version") == "2":
+        # New format (breaking)
+        return {"id": pet.id, "details": {"name": pet.name, "category": pet.category}}
+    else:
+        # Old format (compatible)
+        return {"id": pet.id, "name": pet.name, "status": pet.status}
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func getPetHandler(w http.ResponseWriter, r *http.Request) {
+    pet := getPet(chi.URLParam(r, "petId"))
+
+    if r.Header.Get("X-API-Version") == "2" {
+        // New format (breaking)
+        json.NewEncoder(w).Encode(map[string]any{
+            "id": pet.ID,
+            "details": map[string]any{"name": pet.Name, "category": pet.Category},
+        })
+    } else {
+        // Old format (compatible)
+        json.NewEncoder(w).Encode(map[string]any{
+            "id": pet.ID, "name": pet.Name, "status": pet.Status,
+        })
+    }
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+@GetMapping("/pet/{petId}")
+public ResponseEntity<Map<String, Object>> getPet(
+    @PathVariable String petId,
+    @RequestHeader(value = "X-API-Version", required = false) String apiVersion
+) {
+    Pet pet = petService.getPet(petId);
+
+    if ("2".equals(apiVersion)) {
+        // New format (breaking)
+        return ResponseEntity.ok(Map.of(
+            "id", pet.getId(),
+            "details", Map.of("name", pet.getName(), "category", pet.getCategory())
+        ));
+    } else {
+        // Old format (compatible)
+        return ResponseEntity.ok(Map.of(
+            "id", pet.getId(), "name", pet.getName(), "status", pet.getStatus()
+        ));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### 4. Deprecation Period
+
+1. Add deprecation headers to old endpoints
+2. Set a sunset date
+3. Monitor usage metrics
+4. Remove after deprecation period
+
+---
+
+## Best Practices
+
+### For API Producers
+
+1. **Run comparisons in CI** - Catch breaking changes before they're merged
+2. **Use can-i-deploy before production** - Make it a required gate
+3. **Version your API** - Major versions for breaking changes
+4. **Communicate deprecations** - Give consumers time to adapt
+
+### For API Consumers
+
+1. **Register your dependencies** - Enable can-i-deploy checks
+2. **Specify used fields** - Help producers understand impact
+3. **Test against schema** - Catch issues before producers deploy
+4. **Monitor deprecation warnings** - Plan updates proactively
+
+---
+
+## Related Documentation
+
+- **[Consumer Testing Guide](./consumer-testing.mdx)** - Register as a consumer
+- **[Producer Testing Guide](./producer-testing.mdx)** - Validate your API
+- **[CLI Reference](../reference/cli.md)** - Command-line options
+- **[API Reference](../reference/api.md)** - Message types
