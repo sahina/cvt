@@ -2,28 +2,15 @@
 
 CVT (Contract Validator Toolkit) is an internal tool for consumer-based contract validation. We welcome contributions from all teams.
 
-## Getting Started
+## Quick Start
 
-### Prerequisites
-
-- Go 1.25+
-- Docker and Docker Compose
-- Node.js 18+ and npm (for Node SDK)
-- Python 3.11+ and uv (for Python SDK)
-- Java 17+ and Gradle (for Java SDK)
-
-### Setup
+For detailed development setup instructions, see the **[Development Guide](docs/development/contributing.md)**.
 
 ```bash
-# Clone the repository
+# Clone and setup
 git clone <repo-url>
 cd cvt
-
-# Start the server and dependencies
-make up
-
-# Verify everything is working
-make health
+make build
 make test
 ```
 
@@ -56,9 +43,6 @@ make test-node-sdk    # Node.js SDK tests
 make test-python-sdk  # Python SDK tests
 make test-go-sdk      # Go SDK tests
 make test-java-sdk    # Java SDK tests
-
-# Run with coverage
-make test-coverage
 ```
 
 ### 4. Submit a Pull Request
@@ -77,10 +61,7 @@ make test-coverage
 - Add tests for new functionality
 
 ```bash
-# Format Go code
 gofmt -w .
-
-# Run linter
 golangci-lint run
 ```
 
@@ -88,7 +69,6 @@ golangci-lint run
 
 - Use TypeScript strict mode
 - Run ESLint and Prettier before committing
-- Follow existing patterns in the codebase
 
 ```bash
 cd sdks/node
@@ -112,45 +92,17 @@ uv run ruff format .
 
 - Follow Google Java Style Guide
 - Run Checkstyle before committing
-- Use builder pattern for public APIs
 
 ```bash
 cd sdks/java
 ./gradlew checkstyleMain
 ```
 
-## Project Structure
-
-```shell
-cvt/
-├── api/protos/          # gRPC protocol definitions
-├── assets/              # Static assets (images, diagrams)
-├── certs/               # TLS certificates
-├── ci-templates/        # CI/CD pipeline templates
-├── cmd/cvt/             # CLI application
-├── config/              # Configuration files
-├── docs/                # Documentation
-├── examples/            # Example code and schemas
-├── internal/            # Internal packages (not exported)
-├── observability/       # Prometheus/Grafana configuration
-├── pkg/cvt/             # Embedded Go library
-├── server/              # gRPC server implementation
-│   ├── cvtservice/      # Core service logic
-│   └── storage/         # Persistence backends
-├── sdks/
-│   ├── go/              # Go SDK
-│   ├── java/            # Java SDK
-│   ├── node/            # Node.js SDK
-│   ├── python/          # Python SDK
-│   └── shared/          # Shared test schemas
-└── tools/               # Build and test scripts
-```
-
 ## Making Changes
 
 ### Modifying the Protocol (cvt.proto)
 
-If you change `api/protos/cvt.proto`, you must regenerate code for all SDKs:
+If you change `api/protos/cvt.proto`, regenerate code for all SDKs:
 
 ```bash
 make generate           # Go server
@@ -159,7 +111,7 @@ make generate-python    # Python SDK
 make generate-java-sdk  # Java SDK
 ```
 
-The Node SDK uses `ts-proto` and regenerates automatically during build.
+The Node SDK uses dynamic proto loading and doesn't require code generation.
 
 ### Adding a New Feature
 
@@ -167,7 +119,7 @@ The Node SDK uses `ts-proto` and regenerates automatically during build.
 2. **Proto changes**: If needed, update `api/protos/cvt.proto` and regenerate
 3. **SDK changes**: Update all relevant SDKs to expose the feature
 4. **Tests**: Add tests at all levels (server, SDK, integration)
-5. **Documentation**: Update READMEs and examples
+5. **Documentation**: Update docs and examples
 
 ### Fixing a Bug
 
@@ -184,14 +136,6 @@ The Node SDK uses `ts-proto` and regenerates automatically during build.
 - SDKs: 70% minimum coverage
 - All new code should include tests
 
-### Test Categories
-
-| Type              | Location                           | Command                 |
-| ----------------- | ---------------------------------- | ----------------------- |
-| Unit tests        | `*_test.go`, `*.test.ts`, etc.     | `make test-<component>` |
-| Integration tests | `server/` with `-tags=integration` | `make test-integration` |
-| End-to-end        | Via Docker Compose                 | `make up && make test`  |
-
 ### Writing Good Tests
 
 - Test both success and failure cases
@@ -201,27 +145,13 @@ The Node SDK uses `ts-proto` and regenerates automatically during build.
 
 ## Documentation
 
-### When to Update Docs
+Update documentation when:
 
-- Adding a new feature: Update relevant SDK README and add examples
-- Changing behavior: Update affected documentation
-- Breaking changes: Document in PR and update migration guide
+- Adding a new feature
+- Changing behavior
+- Making breaking changes
 
-### Documentation Locations
-
-| Content           | Location                         |
-| ----------------- | -------------------------------- |
-| Getting started   | `README.md`                      |
-| SDK usage         | `sdks/<sdk>/README.md`           |
-| Architecture      | `docs/prd.md`                    |
-| Development setup | `docs/DEVELOPMENT.md`            |
-| Observability     | `docs/OBSERVABILITY.md`          |
-| Adoption strategy | `docs/adoption-strategy.md`      |
-| Producer testing  | `docs/producer-testing.md`       |
-| Consumer testing  | `docs/consumer-testing-guide.md` |
-| Use cases         | `docs/use-cases.md`              |
-| Sequence diagrams | `docs/sequence-diagrams.md`      |
-| Operating modes   | `docs/modes.md`                  |
+See the [docs/](docs/) directory for all documentation.
 
 ## Getting Help
 
@@ -231,7 +161,7 @@ The Node SDK uses `ts-proto` and regenerates automatically during build.
 
 ## Code Review
 
-All changes require review from code owners (see `CODEOWNERS`). Reviews focus on:
+All changes require review from code owners. Reviews focus on:
 
 - Correctness and test coverage
 - Code style and consistency
@@ -241,7 +171,7 @@ All changes require review from code owners (see `CODEOWNERS`). Reviews focus on
 
 ## Release Process
 
-Releases are managed by @platform-team. The process:
+Releases are managed by @platform-team:
 
 1. Changes merged to `main`
 2. Version bumped in relevant files

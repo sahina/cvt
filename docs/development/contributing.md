@@ -1,13 +1,17 @@
 ---
 title: Development Guide
-sidebar_label: Contributing
+sidebar_label: Development
 sidebar_position: 1
 description: Local development setup for CVT server and SDKs
 ---
 
 # Development Guide
 
-This guide covers local development for CVT (Contract Validator Toolkit), including server development, SDK development, and testing.
+## What is the Development Guide?
+
+This guide provides detailed instructions for setting up a local CVT development environment, building and testing the server and SDKs, and working with the codebase.
+
+For contribution guidelines (code style, PR process, code review), see **[CONTRIBUTING.md](https://github.com/sahina/cvt/blob/main/CONTRIBUTING.md)**.
 
 ## Prerequisites
 
@@ -336,19 +340,6 @@ cd sdks/java
 
 ## Common Development Tasks
 
-### Linting
-
-```bash
-# Lint all components
-make lint
-
-# Lint individual components
-cd server && go fmt ./... && go vet ./...
-cd sdks/node && npm run lint
-cd sdks/python && uv run ruff check .
-cd sdks/java && ./gradlew check
-```
-
 ### Running CI Checks Locally
 
 ```bash
@@ -409,6 +400,7 @@ which protoc-gen-go-grpc
 
 ## Related Documentation
 
+- **[CONTRIBUTING.md](https://github.com/sahina/cvt/blob/main/CONTRIBUTING.md)** - Contribution guidelines and code style
 - **[Configuration Reference](../reference/configuration.md)** - Environment variables
 - **[API Reference](../reference/api.mdx)** - gRPC API details
 - **[Observability Guide](../operations/observability.md)** - Metrics and monitoring
