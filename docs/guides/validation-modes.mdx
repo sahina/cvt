@@ -10,7 +10,18 @@ import TabItem from '@theme/TabItem';
 
 # Validation Modes
 
-CVT producer middleware supports three validation modes that control how contract violations are handled. Choose based on your deployment stage and risk tolerance.
+## What are Validation Modes?
+
+When you add CVT validation middleware to your API server, you need to decide what happens when a request or response doesn't match your OpenAPI schema. Should invalid requests be rejected? Should violations be logged? Or should validation run silently in the background?
+
+**Validation modes** control this behavior. They let you start with zero-risk observability and gradually move toward full contract enforcement as you gain confidence.
+
+Adding contract validation to a production API can be risky. You might discover that:
+- Your OpenAPI spec doesn't match your actual implementation
+- Some clients send requests that don't match the documented format
+- Edge cases in your responses weren't captured in the schema
+
+Validation modes let you deploy safely by starting in observation mode, fixing issues, then enabling enforcement—without breaking existing clients.
 
 ## Mode Reference
 
