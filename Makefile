@@ -2,6 +2,7 @@
 .PHONY: up down restart logs status
 .PHONY: install-health-probe health check-health watch-health
 .PHONY: run-server run-example
+.PHONY: install install-server install-node-sdk install-python-sdk install-go-sdk install-java-sdk
 .PHONY: update update-server update-go-sdk update-java-sdk update-node-sdk update-python-sdk
 .PHONY: metrics grafana prometheus observability-status observability-logs
 .PHONY: lint lint-go lint-node lint-python lint-java ci check-coverage ci-full
@@ -62,6 +63,14 @@ help:
 	@echo "Development commands:"
 	@echo "  make run-server         - Run Go server locally (gRPC)"
 	@echo "  make run-example        - Run Node.js SDK example"
+	@echo ""
+	@echo "Install commands:"
+	@echo "  make install            - Install all dependencies (server + all SDKs)"
+	@echo "  make install-server     - Install Go server dependencies"
+	@echo "  make install-node-sdk   - Install Node.js SDK dependencies"
+	@echo "  make install-python-sdk - Install Python SDK dependencies"
+	@echo "  make install-go-sdk     - Install Go SDK dependencies"
+	@echo "  make install-java-sdk   - Install Java SDK dependencies"
 	@echo ""
 	@echo "Update commands:"
 	@echo "  make update             - Update all dependencies (server + all SDKs)"
@@ -125,6 +134,37 @@ build:
 	cd sdks/python && uv sync
 	# cd sdks/java && ./gradlew build
 	@echo "✅ Build complete!"
+
+# Install targets (install dependencies without building)
+install: install-server install-node-sdk install-python-sdk install-go-sdk install-java-sdk
+	@echo "✅ All dependencies installed!"
+
+install-server:
+	@echo "📦 Installing Go server dependencies..."
+	cd server && go mod download
+	cd pkg/cvt && go mod download
+	cd cmd/cvt && go mod download
+	@echo "✅ Go server dependencies installed!"
+
+install-node-sdk:
+	@echo "📦 Installing Node.js SDK dependencies..."
+	cd sdks/node && npm ci
+	@echo "✅ Node.js SDK dependencies installed!"
+
+install-python-sdk:
+	@echo "📦 Installing Python SDK dependencies..."
+	cd sdks/python && uv sync
+	@echo "✅ Python SDK dependencies installed!"
+
+install-go-sdk:
+	@echo "📦 Installing Go SDK dependencies..."
+	cd sdks/go && go mod download
+	@echo "✅ Go SDK dependencies installed!"
+
+install-java-sdk:
+	@echo "📦 Installing Java SDK dependencies..."
+	cd sdks/java && ./gradlew dependencies --quiet
+	@echo "✅ Java SDK dependencies installed!"
 
 # Test targets
 test:
