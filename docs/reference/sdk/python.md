@@ -7,19 +7,18 @@ description: CVT SDK for Python
 
 # Python SDK
 
-The Python SDK provides contract validation for Python applications with async support.
+## What is the Python SDK?
+
+The Python SDK provides contract validation for Python applications. It includes HTTP client adapters for automatic validation with the `requests` library, producer middleware for FastAPI and Flask, and a test kit for schema compliance testing.
 
 ## Installation
 
 ```bash
-# pip
-pip install cvt-sdk
+# From local clone (SDK not yet published to PyPI)
+pip install ./cvt/sdks/python
 
-# uv
-uv add cvt-sdk
-
-# poetry
-poetry add cvt-sdk
+# Or with uv
+uv pip install ./cvt/sdks/python
 ```
 
 ## Quick Start
@@ -27,19 +26,23 @@ poetry add cvt-sdk
 ```python
 from cvt_sdk import ContractValidator
 
-validator = ContractValidator('localhost:9550')
+validator = ContractValidator("localhost:9550")
 
-# Register a schema
-with open('openapi.json') as f:
-    validator.register_schema('user-api', f.read())
+# Register a schema (file path or URL)
+validator.register_schema("petstore", "./openapi.json")
 
 # Validate an interaction
 result = validator.validate(
-    request={'method': 'GET', 'path': '/users/123'},
-    response={'status_code': 200, 'body': '{"id": "123", "name": "John"}'}
+    request={"method": "GET", "path": "/pet/123"},
+    response={"status_code": 200, "body": {"id": 123, "name": "doggie", "status": "available"}}
 )
 
-print(result.valid)  # True or False
+print(result["valid"])  # True or False
+if not result["valid"]:
+    print("Errors:", result["errors"])
+
+# Clean up
+validator.close()
 ```
 
 ## API Reference
@@ -49,108 +52,147 @@ print(result.valid)  # True or False
 #### Constructor
 
 ```python
-ContractValidator(
-    address: str,
-    tls_root_certs: bytes = None,
-    tls_private_key: bytes = None,
-    tls_cert_chain: bytes = None,
-    api_key: str = None
-)
+# Simple usage (insecure connection)
+ContractValidator(address: str = "localhost:9550")
+
+# With options (TLS and API key)
+ContractValidator(options: ContractValidatorOptions)
 ```
 
-| Parameter         | Type    | Description                             |
-| ----------------- | ------- | --------------------------------------- |
-| `address`         | `str`   | Server address (e.g., `localhost:9550`) |
-| `tls_root_certs`  | `bytes` | CA certificate for TLS                  |
-| `tls_private_key` | `bytes` | Client private key for mTLS             |
-| `tls_cert_chain`  | `bytes` | Client certificate for mTLS             |
-| `api_key`         | `str`   | API key for authentication              |
+**Simple usage:**
+
+```python
+validator = ContractValidator("localhost:9550")
+```
+
+**With options:**
+
+```python
+from cvt_sdk import ContractValidator, ContractValidatorOptions, TLSOptions
+
+options = ContractValidatorOptions(
+    address="localhost:9550",
+    tls=TLSOptions(
+        enabled=True,
+        root_cert_path="./certs/ca.crt",
+    ),
+    api_key="your-api-key",
+)
+validator = ContractValidator(options)
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `address` | `str` | Server address (default: `localhost:9550`) |
+| `tls.enabled` | `bool` | Enable TLS |
+| `tls.root_cert_path` | `str` | Path to CA certificate |
+| `tls.cert_path` | `str` | Path to client certificate (for mTLS) |
+| `tls.key_path` | `str` | Path to client private key (for mTLS) |
+| `api_key` | `str` | API key for authentication |
 
 #### Methods
 
 ##### register_schema
 
+Registers an OpenAPI schema from a file path or URL.
+
 ```python
-def register_schema(
-    schema_id: str,
-    content: str,
-    version: str = None
-) -> RegisterSchemaResponse
+def register_schema(schema_id: str, schema_path: str) -> None
+```
+
+```python
+# From local file
+validator.register_schema("petstore", "./openapi.json")
+
+# From URL
+validator.register_schema("petstore", "https://petstore.swagger.io/v2/swagger.json")
+```
+
+##### register_schema_with_version
+
+Registers a schema with version information for comparison.
+
+```python
+def register_schema_with_version(schema_id: str, schema_path: str, version: str) -> None
 ```
 
 ##### validate
 
-```python
-def validate(
-    request: dict,
-    response: dict
-) -> ValidationResult
-```
-
-##### register_consumer
+Validates an HTTP request/response pair against the registered schema.
 
 ```python
-def register_consumer(
-    consumer_id: str,
-    consumer_version: str,
-    schema_id: str,
-    schema_version: str,
-    environment: str = 'dev',
-    used_endpoints: List[EndpointUsage] = None
-) -> RegisterConsumerResponse
+def validate(request: dict, response: dict) -> ValidationResult
 ```
 
-##### list_consumers
-
-```python
-def list_consumers(
-    schema_id: str,
-    environment: str = None
-) -> List[ConsumerInfo]
-```
-
-##### deregister_consumer
-
-```python
-def deregister_consumer(
-    consumer_id: str,
-    schema_id: str,
-    environment: str = None
-) -> None
-```
+Returns a dict with `valid` (bool) and `errors` (list of strings).
 
 ##### compare_schemas
 
-```python
-def compare_schemas(
-    schema_id: str,
-    old_version: str,
-    new_version: str
-) -> CompareSchemasResponse
-```
-
-##### can_i_deploy
+Compares two schema versions for breaking changes.
 
 ```python
-def can_i_deploy(
-    schema_id: str,
-    new_version: str,
-    environment: str = 'prod'
-) -> CanIDeployResponse
+def compare_schemas(schema_id: str, old_version: str = "", new_version: str = "") -> CompareResult
 ```
 
 ##### generate_fixture
 
+Generates test fixtures from the schema.
+
 ```python
-def generate_fixture(
-    schema_id: str,
-    method: str,
-    path: str,
-    status_code: int = None
-) -> GeneratedFixture
+def generate_fixture(method: str, path: str, options: GenerateOptions = None) -> GeneratedFixture
+```
+
+##### generate_response
+
+Generates a response fixture only.
+
+```python
+def generate_response(method: str, path: str, options: GenerateOptions = None) -> GeneratedResponse
+```
+
+##### list_endpoints
+
+Lists all endpoints in the registered schema.
+
+```python
+def list_endpoints() -> list[EndpointInfo]
+```
+
+##### register_consumer
+
+Registers a consumer with expected interactions.
+
+```python
+def register_consumer(options: RegisterConsumerOptions) -> ConsumerInfo
+```
+
+##### list_consumers
+
+Lists all consumers for a schema.
+
+```python
+def list_consumers(schema_id: str, environment: str = None) -> list[ConsumerInfo]
+```
+
+##### deregister_consumer
+
+Removes a consumer registration.
+
+```python
+def deregister_consumer(consumer_id: str, schema_id: str, environment: str = None) -> None
+```
+
+##### can_i_deploy
+
+Checks if a schema version can be safely deployed.
+
+```python
+def can_i_deploy(schema_id: str, new_version: str, environment: str = "prod") -> CanIDeployResult
 ```
 
 ##### close
+
+Closes the gRPC connection.
 
 ```python
 def close() -> None
@@ -160,41 +202,39 @@ def close() -> None
 
 ### Requests Adapter
 
+Use `ContractValidatingSession` as a drop-in replacement for `requests.Session`:
+
 ```python
-import requests
 from cvt_sdk import ContractValidator
-from cvt_sdk.adapters import create_requests_adapter
+from cvt_sdk.adapters import ContractValidatingSession
 
-validator = ContractValidator('localhost:9550')
-validator.register_schema('user-api', schema)
+validator = ContractValidator("localhost:9550")
+validator.register_schema("petstore", "./openapi.json")
 
-session = requests.Session()
-create_requests_adapter(
-    session=session,
-    validator=validator,
-    schema_id='user-api',
+# Create a validating session
+session = ContractValidatingSession(
+    validator,
     auto_validate=True,
-    on_validation_failure=lambda r: raise Exception(f"Contract violation: {r.errors}")
+    on_validation_failure=lambda result, req, resp: print(f"Contract violation: {result['errors']}"),
 )
 
 # All requests are now validated
-response = session.get('http://user-service/users/123')
+response = session.get("http://petstore-service/pet/123")
+
+# Check captured interactions
+interactions = session.get_interactions()
+print(interactions[0].validation_result["valid"])
 ```
 
-### HTTPX Adapter (Async)
+Or use the factory function:
 
 ```python
-import httpx
-from cvt_sdk.adapters import create_httpx_adapter
+from cvt_sdk.adapters import create_validating_session
 
-async with httpx.AsyncClient() as client:
-    create_httpx_adapter(
-        client=client,
-        validator=validator,
-        schema_id='user-api'
-    )
-
-    response = await client.get('http://user-service/users/123')
+session = create_validating_session(
+    validator,
+    auto_validate=True,
+)
 ```
 
 ## Producer Middleware
@@ -203,134 +243,172 @@ async with httpx.AsyncClient() as client:
 
 ```python
 from fastapi import FastAPI
+from cvt_sdk import ContractValidator
 from cvt_sdk.producer import ProducerConfig, ValidationMode
 from cvt_sdk.producer.adapters import ASGIMiddleware
 
 app = FastAPI()
 
+validator = ContractValidator("localhost:9550")
+validator.register_schema("petstore", "./openapi.json")
+
 config = ProducerConfig(
-    schema_id='my-api',
+    schema_id="petstore",
     validator=validator,
-    mode=ValidationMode.STRICT  # STRICT | WARN | SHADOW
+    mode=ValidationMode.STRICT,  # STRICT | WARN | SHADOW
 )
 
 app.add_middleware(ASGIMiddleware, config=config)
 
-@app.get('/users/{user_id}')
-async def get_user(user_id: str):
-    return {'id': user_id, 'name': 'John'}
+@app.get("/pet/{pet_id}")
+async def get_pet(pet_id: int):
+    return {"id": pet_id, "name": "doggie", "status": "available"}
 ```
 
 ### Flask
 
 ```python
-from flask import Flask
+from flask import Flask, jsonify
+from cvt_sdk import ContractValidator
+from cvt_sdk.producer import ProducerConfig, ValidationMode
 from cvt_sdk.producer.adapters import WSGIMiddleware
 
 app = Flask(__name__)
-app.wsgi_app = WSGIMiddleware(app.wsgi_app, config=config)
 
-@app.route('/users/<user_id>')
-def get_user(user_id):
-    return {'id': user_id, 'name': 'John'}
+validator = ContractValidator("localhost:9550")
+validator.register_schema("petstore", "./openapi.json")
+
+config = ProducerConfig(
+    schema_id="petstore",
+    validator=validator,
+    mode=ValidationMode.WARN,
+)
+
+app.wsgi_app = WSGIMiddleware(app.wsgi_app, config)
+
+@app.route("/pet/<int:pet_id>")
+def get_pet(pet_id):
+    return jsonify({"id": pet_id, "name": "doggie", "status": "available"})
 ```
 
 ## Producer Test Kit
 
+Test your API responses against your schema without real consumers:
+
 ```python
 import pytest
-from cvt_sdk.producer import ProducerTestKit, TestConfig
+from cvt_sdk.producer import ProducerTestKit, ProducerTestConfig
 
 @pytest.fixture
 def test_kit():
-    kit = ProducerTestKit(TestConfig(
-        schema_id='user-api',
-        server_address='localhost:9550'
+    kit = ProducerTestKit(ProducerTestConfig(
+        schema_id="petstore",
+        server_address="localhost:9550",
     ))
     yield kit
     kit.close()
 
-def test_returns_valid_response(test_kit):
+def test_get_pet_returns_valid_response(test_kit):
     result = test_kit.validate_response(
-        method='GET',
-        path='/users/123',
+        method="GET",
+        path="/pet/123",
         status_code=200,
-        body={'id': '123', 'name': 'John'}
+        body={"id": 123, "name": "doggie", "status": "available"},
     )
 
     assert result.valid
     assert len(result.errors) == 0
+
+def test_detects_invalid_response(test_kit):
+    result = test_kit.validate_response(
+        method="GET",
+        path="/pet/123",
+        status_code=200,
+        body={"id": "not-a-number"},  # Missing required fields
+    )
+
+    assert not result.valid
+    assert len(result.errors) > 0
 ```
 
 ## TLS Configuration
 
 ```python
-with open('./certs/ca.crt', 'rb') as f:
-    root_certs = f.read()
+from cvt_sdk import ContractValidator, ContractValidatorOptions, TLSOptions
 
-validator = ContractValidator(
-    'localhost:9550',
-    tls_root_certs=root_certs
-)
+validator = ContractValidator(ContractValidatorOptions(
+    address="localhost:9550",
+    tls=TLSOptions(
+        enabled=True,
+        root_cert_path="./certs/ca.crt",
+    ),
+))
+```
 
-# For mTLS:
-with open('./certs/client.key', 'rb') as f:
-    private_key = f.read()
-with open('./certs/client.crt', 'rb') as f:
-    cert_chain = f.read()
+### Mutual TLS (mTLS)
 
-validator = ContractValidator(
-    'localhost:9550',
-    tls_root_certs=root_certs,
-    tls_private_key=private_key,
-    tls_cert_chain=cert_chain
-)
+```python
+validator = ContractValidator(ContractValidatorOptions(
+    address="localhost:9550",
+    tls=TLSOptions(
+        enabled=True,
+        root_cert_path="./certs/ca.crt",
+        cert_path="./certs/client.crt",
+        key_path="./certs/client.key",
+    ),
+))
 ```
 
 ## API Key Authentication
 
 ```python
-validator = ContractValidator(
-    'localhost:9550',
-    api_key='your-api-key'
-)
-```
+from cvt_sdk import ContractValidator, ContractValidatorOptions
 
-## Async Support
-
-The SDK supports both sync and async usage:
-
-```python
-# Sync
-result = validator.validate(request, response)
-
-# Async
-result = await validator.validate_async(request, response)
-```
-
-## Context Manager
-
-```python
-with ContractValidator('localhost:9550') as validator:
-    validator.register_schema('my-api', schema)
-    result = validator.validate(request, response)
-# Connection automatically closed
+validator = ContractValidator(ContractValidatorOptions(
+    address="localhost:9550",
+    api_key="your-api-key",
+))
 ```
 
 ## Error Handling
 
 ```python
-from cvt_sdk.exceptions import SchemaNotFoundError, InvalidSchemaError
-
 try:
-    validator.register_schema('my-api', schema)
-except InvalidSchemaError as e:
-    print(f'Schema is not valid OpenAPI: {e}')
+    validator.register_schema("petstore", "./openapi.json")
+except FileNotFoundError:
+    print("Schema file not found")
+except ValueError as e:
+    print(f"Schema registration failed: {e}")
 
-try:
-    result = validator.validate(request, response)
-except SchemaNotFoundError as e:
-    print(f'Schema not registered: {e}')
+# Validation errors are returned in the result, not thrown
+result = validator.validate(request, response)
+if not result["valid"]:
+    print("Validation errors:", result["errors"])
+```
+
+## Type Definitions
+
+The SDK uses TypedDict for request/response types:
+
+```python
+from cvt_sdk import (
+    ContractValidator,
+    ContractValidatorOptions,
+    TLSOptions,
+    ValidationRequest,
+    ValidationResponse,
+    ValidationResult,
+    BreakingChange,
+    CompareResult,
+    GenerateOptions,
+    GeneratedFixture,
+    GeneratedRequest,
+    GeneratedResponse,
+    EndpointInfo,
+    RegisterConsumerOptions,
+    ConsumerInfo,
+    CanIDeployResult,
+)
 ```
 
 ## Related Documentation
