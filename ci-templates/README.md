@@ -183,7 +183,7 @@ Auto-generate fixtures for new endpoints:
 ### Jest (Node.js)
 
 ```typescript
-import { ContractValidator } from "@cvt/cvt-sdk";
+import { ContractValidator } from "@cvt/sdk";
 
 describe("API Contract Tests", () => {
   let validator: ContractValidator;

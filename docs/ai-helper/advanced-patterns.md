@@ -216,7 +216,7 @@ If you already have tests, add contract validation:
 ```typescript
 // jest.setup.ts
 import fs from 'fs';
-import { ContractValidator } from '@cvt/cvt-sdk';
+import { ContractValidator } from '@cvt/sdk';
 
 let validator: ContractValidator;
 

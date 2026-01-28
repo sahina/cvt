@@ -44,7 +44,7 @@ curl http://localhost:9551/metrics
 Create a test file `contract.test.ts`:
 
 ```typescript
-import { ContractValidator } from '@cvt/cvt-sdk';
+import { ContractValidator } from '@cvt/sdk';
 import * as path from 'path';
 
 describe('Petstore API Contract', () => {
@@ -349,7 +349,7 @@ Automatically validate all HTTP traffic:
 
 ```typescript
 import axios from 'axios';
-import { createAxiosAdapter } from '@cvt/cvt-sdk/adapters';
+import { createAxiosAdapter } from '@cvt/sdk/adapters';
 
 const api = axios.create({ baseURL: 'http://api.example.com' });
 const adapter = createAxiosAdapter({ axios: api, validator, autoValidate: true });

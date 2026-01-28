@@ -310,7 +310,7 @@ npm run build
 npm link
 
 # In your consumer project
-npm link @cvt/cvt-sdk
+npm link @cvt/sdk
 ```
 
 ### Python - Editable Install

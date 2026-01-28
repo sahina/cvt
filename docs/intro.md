@@ -67,7 +67,7 @@ See [Installation](./getting-started/installation.mdx) for detailed instructions
 Save the [Petstore OpenAPI schema](https://petstore.swagger.io/v2/swagger.json) as `./openapi.json`, then:
 
 ```typescript
-import { ContractValidator } from "@cvt/cvt-sdk";
+import { ContractValidator } from "@cvt/sdk";
 
 const validator = new ContractValidator("localhost:9550");
 

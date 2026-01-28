@@ -84,7 +84,7 @@ sequenceDiagram
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
+import { ProducerTestKit } from "@cvt/sdk/producer";
 
 describe("Petstore API", () => {
   let testKit: ProducerTestKit;
@@ -322,7 +322,7 @@ sequenceDiagram
 <TabItem value="express" label="Express">
 
 ```typescript
-import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
+import { createExpressMiddleware } from "@cvt/sdk/producer";
 
 app.use(
   createExpressMiddleware({
@@ -337,7 +337,7 @@ app.use(
 <TabItem value="fastify" label="Fastify">
 
 ```typescript
-import { createFastifyPlugin } from "@cvt/cvt-sdk/producer";
+import { createFastifyPlugin } from "@cvt/sdk/producer";
 
 fastify.register(createFastifyPlugin({ schemaId: "petstore", validator }));
 ```

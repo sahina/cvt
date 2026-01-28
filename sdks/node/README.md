@@ -21,7 +21,7 @@ npm install ../sdks/node
 For the published version (once available):
 
 ```bash
-npm install @cvt/cvt-sdk
+npm install @cvt/sdk
 ```
 
 ## Usage
@@ -31,7 +31,7 @@ npm install @cvt/cvt-sdk
 You can register a schema from a local file or a URL.
 
 ```typescript
-import { ContractValidator } from "@cvt/cvt-sdk";
+import { ContractValidator } from "@cvt/sdk";
 import * as path from "path";
 
 const validator = new ContractValidator();
@@ -60,7 +60,7 @@ import {
   ContractValidator,
   ValidationRequest,
   ValidationResponse,
-} from "@cvt/cvt-sdk";
+} from "@cvt/sdk";
 
 interface User {
   username: string;
@@ -108,7 +108,7 @@ The SDK includes an Axios adapter for automatic HTTP traffic validation:
 
 ```typescript
 import axios from "axios";
-import { ContractValidator, createAxiosAdapter } from "@cvt/cvt-sdk";
+import { ContractValidator, createAxiosAdapter } from "@cvt/sdk";
 
 const validator = new ContractValidator();
 await validator.registerSchema("petstore", "./openapi.json");
@@ -159,8 +159,8 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 ### Express Middleware
 
 ```typescript
-import { ContractValidator } from "@cvt/cvt-sdk";
-import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
+import { ContractValidator } from "@cvt/sdk";
+import { createExpressMiddleware } from "@cvt/sdk/producer";
 
 const validator = new ContractValidator();
 await validator.registerSchema("my-api", "./openapi.json");
@@ -178,7 +178,7 @@ app.use(
 ### Fastify Plugin
 
 ```typescript
-import { fastifyProducerPlugin } from "@cvt/cvt-sdk/producer";
+import { fastifyProducerPlugin } from "@cvt/sdk/producer";
 
 fastify.register(fastifyProducerPlugin, {
   schemaId: "my-api",
@@ -204,7 +204,7 @@ fastify.register(fastifyProducerPlugin, {
 Detect breaking changes between OpenAPI schema versions before deployment:
 
 ```typescript
-import { ContractValidator } from "@cvt/cvt-sdk";
+import { ContractValidator } from "@cvt/sdk";
 
 const validator = new ContractValidator();
 
@@ -253,7 +253,7 @@ Test that your API handlers return responses matching your OpenAPI specification
 ### ProducerTestKit
 
 ```typescript
-import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
+import { ProducerTestKit } from "@cvt/sdk/producer";
 
 const testKit = new ProducerTestKit({
   schemaId: "user-api",
