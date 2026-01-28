@@ -1,6 +1,6 @@
 # CVT (Contract Validator Toolkit)
 
-> Consumer-based contract validation platform for OpenAPI v2/v3 specifications. Validates HTTP request/response interactions against registered schemas via gRPC server with SDKs for Node.js, Python, Go, and a CLI for local validation.
+> Consumer-based contract validation platform for OpenAPI v2/v3 specifications. Validates HTTP request/response interactions against registered schemas via gRPC server with SDKs for Node.js, Python, Go, and Java, plus a CLI for local validation.
 
 CVT enables API contract testing by:
 - Validating HTTP interactions against OpenAPI schemas (v2/v3)

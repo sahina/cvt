@@ -24,9 +24,9 @@ CVT enables API contract testing by validating that HTTP interactions conform to
 
 ## Guides
 
-- [Consumer Testing Guide](/docs/guides/consumer-testing.md): Complete workflow for consumer contract testing
-- [Producer Testing](/docs/guides/producer-testing.md): Server-side validation patterns
-- [Validation Modes](/docs/guides/validation-modes.md): Shadow, warn, and strict modes for production rollout
+- [Consumer Testing Guide](/docs/guides/consumer-testing.mdx): Complete workflow for consumer contract testing
+- [Producer Testing](/docs/guides/producer-testing.mdx): Server-side validation patterns
+- [Validation Modes](/docs/guides/validation-modes.mdx): Shadow, warn, and strict modes for production rollout
 - [Observability](/docs/operations/observability.md): Prometheus metrics and Grafana dashboards
 
 ## Examples
