@@ -5,9 +5,10 @@ sidebar_position: 3
 description: CVT producer middleware validation modes - strict, warn, and shadow
 ---
 
-# Validation Modes
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
-**CONTENT TO BE VALIDATED**
+# Validation Modes
 
 CVT producer middleware supports three validation modes that control how contract violations are handled. Choose based on your deployment stage and risk tolerance.
 
@@ -98,51 +99,58 @@ Each SDK uses language-appropriate naming conventions:
 | **Go**      | `producer.ModeStrict`   | `producer.ModeWarn`   | `producer.ModeShadow`   |
 | **Java**    | `ValidationMode.STRICT` | `ValidationMode.WARN` | `ValidationMode.SHADOW` |
 
-### Node.js Example
+<Tabs groupId="sdk-language">
+  <TabItem value="nodejs" label="Node.js" default>
 
 ```typescript
 import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
 
 app.use(
   createExpressMiddleware({
-    schemaId: "my-api",
+    schemaId: "petstore",
     validator,
     mode: "strict", // or "warn" or "shadow"
   }),
 );
 ```
 
-### Go Example
-
-```go
-config := producer.Config{
-    SchemaID:  "my-api",
-    Validator: validator,
-    Mode:      producer.ModeStrict, // or ModeWarn or ModeShadow
-}
-```
-
-### Python Example
+  </TabItem>
+  <TabItem value="python" label="Python">
 
 ```python
 from cvt_sdk.producer import ProducerConfig, ValidationMode
 
 config = ProducerConfig(
-    schema_id="my-api",
+    schema_id="petstore",
     validator=validator,
     mode=ValidationMode.STRICT,  # or WARN or SHADOW
 )
 ```
 
-### Java Example
+  </TabItem>
+  <TabItem value="go" label="Go">
+
+```go
+config := producer.Config{
+    SchemaID:  "petstore",
+    Validator: validator,
+    Mode:      producer.ModeStrict, // or ModeWarn or ModeShadow
+}
+```
+
+  </TabItem>
+  <TabItem value="java" label="Java">
 
 ```java
 ProducerConfig config = ProducerConfig.builder()
-    .schemaId("my-api")
+    .schemaId("petstore")
     .validator(myValidator)
     .mode(ValidationMode.STRICT)  // or WARN or SHADOW
     .build();
 ```
+
+  </TabItem>
+</Tabs>
 
 ## Metrics Emitted
 

@@ -121,7 +121,7 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
 - **[Consumer Testing](./guides/consumer-testing.mdx)** - Test your API integrations
 - **[Producer Testing](./guides/producer-testing.mdx)** - Validate your APIs
 - **[Breaking Changes](./guides/breaking-changes.mdx)** - Detect schema incompatibilities
-- **[Validation Modes](./guides/validation-modes.md)** - Configure validation behavior
+- **[Validation Modes](./guides/validation-modes.mdx)** - Configure validation behavior
 
 ### Reference
 
