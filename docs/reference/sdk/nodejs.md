@@ -14,11 +14,11 @@ The Node.js SDK provides TypeScript-first contract validation for Node.js applic
 ## Installation
 
 ```bash
-# From local clone (SDK not yet published to npm)
+# From local clone (SDK not published to npm)
 npm install ./cvt/sdks/node
 
-# Or with yarn
-yarn add ./cvt/sdks/node
+# Or with pnpm
+pnpm add ./cvt/sdks/node
 ```
 
 ## Quick Start

@@ -14,14 +14,70 @@ import TabItem from '@theme/TabItem';
 
 This section provides documentation for CVT's language-specific SDKs. Each SDK offers the same core functionality, allowing you to choose the one that best fits your application's technology stack.
 
+:::note Local Installation Only
+CVT SDKs are **not published** to public package registries (npm, PyPI, Maven Central, etc.). Install SDKs directly from your local CVT clone or from your organization's internal artifact repository.
+:::
+
 ## Available SDKs
 
-| Language | Package | Status |
-|----------|---------|--------|
-| [Node.js](./nodejs.md) | `@cvt/cvt-sdk` | Production-ready |
-| [Python](./python.md) | `cvt-sdk` | Production-ready |
-| [Go](./go.md) | `github.com/sahina/cvt/sdks/go` | Production-ready |
-| [Java](./java.md) | `com.cvt:cvt-sdk` | Production-ready |
+| Language | Path | Status |
+|----------|------|--------|
+| [Node.js](./nodejs.md) | `sdks/node` | Production-ready |
+| [Python](./python.md) | `sdks/python` | Production-ready |
+| [Go](./go.md) | `sdks/go` | Production-ready |
+| [Java](./java.md) | `sdks/java` | Production-ready |
+
+## Installation
+
+Install SDKs from your local CVT clone:
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+```bash
+# Using npm
+npm install ./path/to/cvt/sdks/node
+
+# Using pnpm
+pnpm add ./path/to/cvt/sdks/node
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```bash
+# Using pip
+pip install ./path/to/cvt/sdks/python
+
+# Using uv
+uv pip install ./path/to/cvt/sdks/python
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```bash
+# Add to go.mod with replace directive
+go mod edit -replace github.com/sahina/cvt/sdks/go=./path/to/cvt/sdks/go
+
+# Or copy the SDK into your project
+cp -r ./path/to/cvt/sdks/go ./vendor/cvt
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```bash
+# Build and install to local Maven repository
+cd ./path/to/cvt/sdks/java
+./gradlew publishToMavenLocal
+
+# Then add to your build.gradle
+# implementation 'com.cvt:cvt-sdk:1.0.0'
+```
+
+</TabItem>
+</Tabs>
 
 ## Common Features
 
