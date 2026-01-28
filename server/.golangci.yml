@@ -7,6 +7,10 @@ linters:
   exclusions:
     paths:
       - pb  # Generated protobuf code
+  settings:
+    staticcheck:
+      checks:
+        - "all"  # Enable all checks including ST* (stylecheck)
 
 run:
   timeout: 5m

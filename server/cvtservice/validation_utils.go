@@ -1,4 +1,4 @@
-// Package main provides validation utilities for the Contract Validation Tool.
+// Package cvtservice provides validation utilities for the Contract Validation Tool.
 // This file contains validation functions for schema IDs, HTTP methods, paths,
 // status codes, and other request/response components.
 package cvtservice

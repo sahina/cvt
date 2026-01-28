@@ -13,7 +13,7 @@ This document outlines the challenges and strategies for driving internal adopti
 
 - CVT is a greenfield internal tool (not replacing Pact)
 - Goal: Become the standard for consumer and producer contract testing
-- Current state: Consumer/schema validation implemented, producer testing planned
+- Current state: Consumer and producer testing capabilities are available (schema validation, consumer registry, producer test kit, breaking change detection, can-i-deploy), with organizational adoption in progress
 
 ---
 
@@ -130,15 +130,18 @@ In microservices organizations, each team chooses their own tooling.
 **Current friction:**
 
 ```yaml
-# Too many steps = adoption friction
+# Multiple steps can feel like friction
 - name: Start CVT server
-  run: docker run -d cvt-server
-- name: Install SDK
-  run: npm install @cvt/cvt-sdk
-- name: Register schema
-  run: npx cvt register ./openapi.json
-- name: Run tests
-  run: npm test
+  run: docker compose up -d cvt-server
+- name: Wait for server health
+  run: |
+    until grpc-health-probe -addr=localhost:9550 2>/dev/null; do
+      sleep 1
+    done
+- name: Run contract tests
+  run: npm test  # SDK handles schema registration in test setup
+- name: Stop CVT server
+  run: docker compose down
 ```
 
 **Target state:**
@@ -253,70 +256,81 @@ Breaking changes detected before deployment
 
 ## Rollout Phases
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation ✅
 
-_Corresponds to: Roadmap Phase 1 (Consumer Validation) - Complete_
+_Status: Complete_
 
-**Goals:**
+**Delivered:**
 
-- Complete consumer validation implementation
-- Document ownership model and getting started guide
-- Identify early adopter teams
+- Consumer validation with schema registration
+- All SDKs (Node.js, Python, Go, Java)
+- Ownership model and getting started documentation
+- CI integration guides
 
-**Success criteria:**
+**Success criteria (met):**
 
-- 2-3 teams using CVT in production
 - CI integration takes < 30 minutes
 - Clear documentation for common scenarios
 
-**Known gap:** Developers must manually construct test responses without API access. Addressed in Phase 2.
+### Phase 2: Developer Experience ✅
 
-### Phase 2: Early Adoption
+_Status: Complete_
 
-_Corresponds to: Roadmap Phase 2 (Developer Experience)_
+**Delivered:**
 
-**Goals:**
+- Test fixture generator (`generateFixture`, `generateResponse` APIs)
+- CI/CD integration templates
+- Breaking change detection (`compareSchemas`)
+- CLI tools for local validation
 
-- Deploy test fixture generator (eliminates manual JSON construction)
-- Create CI/CD integration templates
-- Target high-pain integrations
-- Build internal case studies
+**Success criteria (met):**
 
-**Success criteria:**
-
-- Test fixture generator available and adopted
-- 10+ services using CVT
-- At least 3 documented "saves" (breaking changes caught)
+- Test fixture generator available in all SDKs
 - "Testing Without API Access" workflow fully supported
 
-### Phase 3: Broad Adoption
+### Phase 3: Producer Validation ✅
 
-_Corresponds to: Roadmap Phase 3 (Producer Validation)_
+_Status: Complete_
 
-**Goals:**
+**Delivered:**
+
+- Producer test kit for schema compliance testing
+- Producer middleware (Express, Fastify, FastAPI, Flask, Spring, Gin, net/http)
+- Consumer registry for tracking dependencies
+- `canIDeploy` for deployment safety checks
+
+**Adoption goals (ongoing):**
 
 - Organizational awareness
 - Optional but encouraged for all services
-- Producer validation available for API owners
 - Embed in service scaffolding
 
 **Success criteria:**
 
 - 50%+ of services with external integrations using CVT
 - Producer middleware adopted by API teams
-- Monthly metrics published
 - Self-service adoption (teams adopt without hand-holding)
 
 ### Phase 4: Standard Practice
 
-_Corresponds to: Roadmap Phase 4 (Platform Features)_
+_Status: In Progress_
+
+**Delivered:**
+
+- Persistent storage (SQLite, PostgreSQL)
+- Observability (Prometheus metrics, Grafana dashboards)
+- TLS/mTLS and API key authentication
+
+**Remaining:**
+
+- Admin dashboard for schema management
+- Broader organizational adoption
 
 **Goals:**
 
 - Contract testing is the norm
 - Mandate for critical services
 - Full consumer + producer coverage
-- Platform tooling (persistence, dashboard) available
 
 **Success criteria:**
 
@@ -369,8 +383,8 @@ _Corresponds to: Roadmap Phase 4 (Platform Features)_
 
 ## Next Steps
 
-1. **Finalize CI integration templates** - GitHub Actions, GitLab CI, etc.
-2. **Identify 2-3 pilot teams** - High-pain integrations, willing early adopters
-3. **Create getting started guide** - 15-minute path to first contract test
-4. **Establish schema ownership policy** - Organizational decision, documented
-5. **Set up metrics tracking** - Dashboard for adoption and value metrics
+1. **Identify pilot teams** - High-pain integrations, willing early adopters
+2. **Establish schema ownership policy** - Organizational decision, documented
+3. **Set up metrics tracking** - Dashboard for adoption and value metrics
+4. **Create GitHub Action / CI templates** - One-liner integration for teams
+5. **Build admin dashboard** - Visual schema management and monitoring

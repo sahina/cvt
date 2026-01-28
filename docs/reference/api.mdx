@@ -7,40 +7,49 @@ description: CVT gRPC API reference documentation
 
 # API Reference
 
-CVT exposes a gRPC API defined in the protocol buffer specification. This page provides a comprehensive reference for all available RPC methods and their message types.
+## What is the CVT gRPC API?
 
-## Proto Definition
+CVT exposes a gRPC API that SDKs use to communicate with the validation server. While most users interact with CVT through language-specific SDKs, understanding the underlying API helps when:
+
+- Building custom integrations or tooling
+- Debugging SDK behavior
+- Contributing to CVT development
 
 The complete API is defined in [`api/protos/cvt.proto`](https://github.com/sahina/cvt/blob/main/api/protos/cvt.proto).
 
 ## Service Methods
 
-### Phase 1: Schema & Validation
+### Schema Management
 
-| Method | Description |
-|--------|-------------|
-| `RegisterSchema` | Register an OpenAPI v2/v3 schema for validation |
-| `ValidateInteraction` | Validate an HTTP request/response pair against a registered schema |
-| `GetSchema` | Get metadata and content for a registered schema |
-| `ListSchemas` | List all registered schemas with optional filtering |
-| `ValidateProducerResponse` | Producer-side response validation |
-| `CompareSchemas` | Compare two schema versions for breaking changes |
-| `GenerateFixture` | Generate test fixtures from schemas |
-| `ListEndpoints` | List all endpoints in a registered schema |
+| Method                    | Description                                              |
+| ------------------------- | -------------------------------------------------------- |
+| `RegisterSchema`          | Register an OpenAPI v2/v3 schema for validation          |
+| `GetSchema`               | Get metadata and content for a registered schema         |
+| `ListSchemas`             | List all registered schemas with optional filtering      |
+| `ListEndpoints`           | List all endpoints in a registered schema                |
+| `CompareSchemas`          | Compare two schema versions for breaking changes         |
+| `GenerateFixture`         | Generate test fixtures from schemas                      |
 
-### Phase 2: Consumer Registry
+### Validation
 
-| Method | Description |
-|--------|-------------|
-| `RegisterConsumer` | Register a consumer with expected interactions |
-| `ListConsumers` | List all registered consumers for a schema |
-| `DeregisterConsumer` | Remove a consumer registration |
+| Method                    | Description                                              |
+| ------------------------- | -------------------------------------------------------- |
+| `ValidateInteraction`     | Validate an HTTP request/response pair against a schema  |
+| `ValidateProducerResponse`| Producer-side response validation                        |
 
-### Phase 3: Deployment Safety
+### Consumer Registry
 
-| Method | Description |
-|--------|-------------|
-| `CanIDeploy` | Check if schema changes will break registered consumers |
+| Method               | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `RegisterConsumer`   | Register a consumer with expected interactions |
+| `ListConsumers`      | List all registered consumers for a schema     |
+| `DeregisterConsumer` | Remove a consumer registration                 |
+
+### Deployment Safety
+
+| Method       | Description                                              |
+| ------------ | -------------------------------------------------------- |
+| `CanIDeploy` | Check if schema changes will break registered consumers  |
 
 ---
 
@@ -466,17 +475,40 @@ message ConsumerImpact {
 
 ---
 
-## Error Codes
+## Error Handling
 
-| Code | Description |
-|------|-------------|
-| `SCHEMA_NOT_FOUND` | The requested schema ID is not registered |
-| `INVALID_SCHEMA` | The provided schema is not valid OpenAPI |
-| `VALIDATION_FAILED` | The interaction does not match the schema |
-| `PATH_NOT_FOUND` | The request path does not match any schema endpoint |
-| `METHOD_NOT_ALLOWED` | The HTTP method is not allowed for this endpoint |
-| `VERSION_NOT_FOUND` | The requested schema version does not exist |
-| `CONSUMER_NOT_FOUND` | The requested consumer is not registered |
+CVT returns errors in two ways:
+
+### Response-Level Errors
+
+Most methods return errors in the response message rather than as gRPC errors. Check the `success` or `valid` field:
+
+```typescript
+const result = await validator.validate(request, response);
+if (!result.valid) {
+  console.error("Validation failed:", result.errors);
+}
+```
+
+Common error messages include:
+
+| Error Message                  | Cause                                           |
+| ------------------------------ | ----------------------------------------------- |
+| `Schema not found: {id}`       | The requested schema ID is not registered       |
+| `Invalid schema: {details}`    | The provided schema is not valid OpenAPI        |
+| `Path not found: {path}`       | The request path does not match any endpoint    |
+| `schema version not found`     | The requested schema version does not exist     |
+| `consumer not found`           | The requested consumer is not registered        |
+
+### gRPC Status Errors
+
+Authentication and transport errors are returned as gRPC status codes:
+
+| gRPC Code          | Cause                                      |
+| ------------------ | ------------------------------------------ |
+| `UNAUTHENTICATED`  | Missing or invalid API key (if auth enabled) |
+| `UNAVAILABLE`      | Server is not reachable                    |
+| `DEADLINE_EXCEEDED`| Request timed out                          |
 
 ---
 
@@ -484,18 +516,18 @@ message ConsumerImpact {
 
 Some fields have default values when not explicitly specified:
 
-| Field | Default |
-|-------|---------|
-| `RegisterConsumerRequest.environment` | `"dev"` |
-| `DeregisterConsumerRequest.environment` | `"dev"` |
-| `CanIDeployRequest.environment` | `"prod"` |
-| `ListSchemasRequest.page_size` | `100` |
-| `GenerateFixtureRequest.content_type` | `"application/json"` |
+| Field                                  | Default               |
+| -------------------------------------- | --------------------- |
+| `RegisterConsumerRequest.environment`  | `"dev"`               |
+| `DeregisterConsumerRequest.environment`| `"dev"`               |
+| `CanIDeployRequest.environment`        | `"prod"`              |
+| `ListSchemasRequest.page_size`         | `100`                 |
+| `GenerateFixtureRequest.content_type`  | `"application/json"`  |
 
 ---
 
 ## Related Documentation
 
-- **[CLI Reference](./cli.md)** - Command-line interface for CVT
+- **[CLI Reference](./cli.mdx)** - Command-line interface for CVT
 - **[Configuration Reference](./configuration.md)** - Environment variables and settings
 - **[SDK Documentation](./sdk/)** - Language-specific SDK guides

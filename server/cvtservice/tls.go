@@ -1,4 +1,4 @@
-// Package main provides TLS configuration for the CVT server.
+// Package cvtservice provides TLS configuration for the CVT server.
 package cvtservice
 
 import (

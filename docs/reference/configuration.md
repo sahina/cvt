@@ -7,7 +7,9 @@ description: CVT environment variables and configuration options
 
 # Configuration Reference
 
-CVT is configured primarily through environment variables. This document provides a comprehensive reference for all configuration options.
+## What is the Configuration Reference?
+
+This document provides a comprehensive reference for all CVT environment variables and configuration options. CVT is configured primarily through environment variables, making it easy to customize behavior across different deployment environments.
 
 ## Quick Reference
 
@@ -116,16 +118,26 @@ cvt serve
     {
       "key": "sk_live_abc123",
       "name": "Production Key",
-      "permissions": ["read", "write"]
+      "scopes": ["*"]
     },
     {
       "key": "sk_test_xyz789",
       "name": "Test Key",
-      "permissions": ["read"]
+      "scopes": ["read"]
     }
   ]
 }
 ```
+
+Each key can have the following fields:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `key` | Yes | The API key value |
+| `name` | No | Human-readable name for the key |
+| `scopes` | No | Array of permission scopes (e.g., `["*"]` for all) |
+| `created_at` | No | ISO 8601 timestamp of creation |
+| `expires_at` | No | ISO 8601 timestamp when the key expires |
 
 ### Sending API Keys
 
@@ -372,6 +384,6 @@ CVT_TLS_KEY_FILE=/etc/cvt/certs/server.key
 
 ## Related Documentation
 
-- **[CLI Reference](./cli.md)** - Command-line options
+- **[CLI Reference](./cli.mdx)** - Command-line options
 - **[Observability Guide](../operations/observability.md)** - Metrics and monitoring
 - **[Development Guide](../development/contributing.md)** - Local development setup

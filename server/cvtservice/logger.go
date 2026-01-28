@@ -1,4 +1,4 @@
-// Package main provides structured logging functionality for the Contract Validation Tool.
+// Package cvtservice provides structured logging functionality for the Contract Validation Tool.
 // This file wraps the zap logging library with convenience functions and configures
 // logging for both development and production environments.
 package cvtservice

@@ -5,11 +5,23 @@ sidebar_position: 3
 description: CVT producer middleware validation modes - strict, warn, and shadow
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Validation Modes
 
-**CONTENT TO BE VALIDATED**
+## What are Validation Modes?
 
-CVT producer middleware supports three validation modes that control how contract violations are handled. Choose based on your deployment stage and risk tolerance.
+When you add CVT validation middleware to your API server, you need to decide what happens when a request or response doesn't match your OpenAPI schema. Should invalid requests be rejected? Should violations be logged? Or should validation run silently in the background?
+
+**Validation modes** control this behavior. They let you start with zero-risk observability and gradually move toward full contract enforcement as you gain confidence.
+
+Adding contract validation to a production API can be risky. You might discover that:
+- Your OpenAPI spec doesn't match your actual implementation
+- Some clients send requests that don't match the documented format
+- Edge cases in your responses weren't captured in the schema
+
+Validation modes let you deploy safely by starting in observation mode, fixing issues, then enabling enforcement—without breaking existing clients.
 
 ## Mode Reference
 
@@ -98,51 +110,58 @@ Each SDK uses language-appropriate naming conventions:
 | **Go**      | `producer.ModeStrict`   | `producer.ModeWarn`   | `producer.ModeShadow`   |
 | **Java**    | `ValidationMode.STRICT` | `ValidationMode.WARN` | `ValidationMode.SHADOW` |
 
-### Node.js Example
+<Tabs groupId="sdk-language">
+  <TabItem value="nodejs" label="Node.js" default>
 
 ```typescript
 import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
 
 app.use(
   createExpressMiddleware({
-    schemaId: "my-api",
+    schemaId: "petstore",
     validator,
     mode: "strict", // or "warn" or "shadow"
   }),
 );
 ```
 
-### Go Example
-
-```go
-config := producer.Config{
-    SchemaID:  "my-api",
-    Validator: validator,
-    Mode:      producer.ModeStrict, // or ModeWarn or ModeShadow
-}
-```
-
-### Python Example
+  </TabItem>
+  <TabItem value="python" label="Python">
 
 ```python
 from cvt_sdk.producer import ProducerConfig, ValidationMode
 
 config = ProducerConfig(
-    schema_id="my-api",
+    schema_id="petstore",
     validator=validator,
     mode=ValidationMode.STRICT,  # or WARN or SHADOW
 )
 ```
 
-### Java Example
+  </TabItem>
+  <TabItem value="go" label="Go">
+
+```go
+config := producer.Config{
+    SchemaID:  "petstore",
+    Validator: validator,
+    Mode:      producer.ModeStrict, // or ModeWarn or ModeShadow
+}
+```
+
+  </TabItem>
+  <TabItem value="java" label="Java">
 
 ```java
 ProducerConfig config = ProducerConfig.builder()
-    .schemaId("my-api")
+    .schemaId("petstore")
     .validator(myValidator)
     .mode(ValidationMode.STRICT)  // or WARN or SHADOW
     .build();
 ```
+
+  </TabItem>
+</Tabs>
 
 ## Metrics Emitted
 
@@ -189,6 +208,6 @@ This is by design: by the time we validate the response, it's already been sent 
 
 ## Related Documentation
 
-- **[Producer Testing Guide](./producer-testing.md)** - Full producer testing workflow
+- **[Producer Testing Guide](./producer-testing.mdx)** - Full producer testing workflow
 - **[Observability Guide](../operations/observability.md)** - Metrics and monitoring
 - **[Configuration Reference](../reference/configuration.md)** - Environment variables

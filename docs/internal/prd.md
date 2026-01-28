@@ -7,6 +7,15 @@ description: Complete product, architectural, and implementation requirements fo
 
 # Contract Validator Toolkit (CVT)
 
+:::info Historical Document
+This PRD captures the **original vision and requirements** that guided CVT development. Some implementation details may have evolved since this document was written. For current information, see:
+
+- **[API Reference](../reference/api.mdx)** - Current gRPC service definition
+- **[SDK Documentation](../reference/sdk/index.mdx)** - SDK installation and usage
+- **[Configuration Reference](../reference/configuration.md)** - Environment variables
+- **[Development Guide](../development/contributing.md)** - Building and testing
+:::
+
 ## 1. Overview
 
 This document defines the product, architectural, and implementation requirements for the **Contract Validator Toolkit (CVT)** — a consumer- and producer-based contract validation platform for OpenAPI v2 and v3 specifications. CVT is built using **Go**, exposes a **gRPC-first interface**, and runs entirely via **Docker**

@@ -1,4 +1,4 @@
-// Package main provides gRPC interceptors for the CVT server.
+// Package cvtservice provides gRPC interceptors for the CVT server.
 package cvtservice
 
 import (

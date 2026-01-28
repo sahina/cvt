@@ -1,4 +1,4 @@
-// Package main provides health check functionality for the Contract Validation Tool.
+// Package cvtservice provides health check functionality for the Contract Validation Tool.
 // This implements the standard gRPC Health Checking Protocol (GRPC Health v1).
 package cvtservice
 

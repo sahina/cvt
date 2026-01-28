@@ -1,4 +1,4 @@
-// Package main provides audit logging functionality for the CVT server.
+// Package cvtservice provides audit logging functionality for the CVT server.
 // This file implements structured audit logging for schema operations.
 package cvtservice
 

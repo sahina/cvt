@@ -1,4 +1,4 @@
-// Package main provides schema metadata management for the CVT server.
+// Package cvtservice provides schema metadata management for the CVT server.
 package cvtservice
 
 import (

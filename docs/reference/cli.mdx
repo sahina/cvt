@@ -1,0 +1,483 @@
+---
+title: CLI Reference
+sidebar_label: CLI Reference
+sidebar_position: 2
+description: CVT command-line interface reference
+---
+
+# CLI Reference
+
+## What is the CVT CLI?
+
+The CVT CLI lets you validate contracts locally without running a server. Use it for:
+
+- Quick one-off validations during development
+- CI/CD pipelines that need schema comparison
+- Generating test fixtures from OpenAPI schemas
+- Starting a CVT server for remote validation
+
+## Installation
+
+```bash
+# Build from source
+go build -o cvt ./cmd/cvt
+
+# Or install globally
+go install github.com/sahina/cvt/cmd/cvt@latest
+```
+
+## Commands Overview
+
+| Command        | Description                                          |
+| -------------- | ---------------------------------------------------- |
+| `validate`     | Validate an interaction against a schema             |
+| `compare`      | Compare schemas for breaking changes                 |
+| `generate`     | Generate test fixtures from schemas                  |
+| `can-i-deploy` | Check deployment safety against registered consumers |
+| `serve`        | Start the gRPC server                                |
+| `version`      | Show version information                             |
+
+---
+
+## validate
+
+Validate an HTTP request/response interaction against an OpenAPI schema.
+
+### Usage
+
+```bash
+cvt validate --schema <path> [options]
+```
+
+### Options
+
+| Flag              | Short | Description                              | Required                              |
+| ----------------- | ----- | ---------------------------------------- | ------------------------------------- |
+| `--schema`        | `-s`  | Path to OpenAPI schema file (JSON/YAML)  | Yes                                   |
+| `--interaction`   | `-i`  | Path to combined interaction JSON file   | No (alternative to request/response)  |
+| `--request`       |       | Path to request JSON file                | No (use with --response)              |
+| `--response`      |       | Path to response JSON file               | No (use with --request)               |
+| `--method`        | `-m`  | HTTP method (GET, POST, etc.)            | No (alternative to files)             |
+| `--path`          | `-p`  | Request path (e.g., /pets/123)           | No (use with --method)                |
+| `--request-body`  |       | Request body as JSON string              | No                                    |
+| `--status-code`   |       | Response status code (default: 200)      | No                                    |
+| `--response-body` |       | Response body as JSON string             | No                                    |
+| `--json`          |       | Output results as JSON                   | No                                    |
+
+### Input Methods
+
+You can provide interaction data in three ways:
+
+**1. Combined interaction file:**
+```bash
+cvt validate --schema ./openapi.json --interaction interaction.json
+```
+
+**2. Separate request/response files:**
+```bash
+cvt validate --schema ./openapi.json --request req.json --response resp.json
+```
+
+**3. Command-line flags (for simple cases):**
+```bash
+cvt validate --schema ./openapi.json \
+  --method GET --path /pets/123 \
+  --status-code 200 --response-body '{"id": 123, "name": "doggie"}'
+```
+
+### Request File Format
+
+```json
+{
+  "method": "GET",
+  "path": "/pets/123",
+  "headers": {
+    "Accept": "application/json"
+  },
+  "body": null
+}
+```
+
+### Response File Format
+
+```json
+{
+  "status_code": 200,
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"id\": 123, \"name\": \"doggie\"}"
+}
+```
+
+### Interaction File Format
+
+```json
+{
+  "request": {
+    "method": "GET",
+    "path": "/pets/123",
+    "headers": {"Accept": "application/json"}
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {"Content-Type": "application/json"},
+    "body": {"id": 123, "name": "doggie"}
+  }
+}
+```
+
+### Exit Codes
+
+| Code | Meaning                                    |
+| ---- | ------------------------------------------ |
+| 0    | Validation passed                          |
+| 1    | Validation failed (errors printed)         |
+
+---
+
+## compare
+
+Compare two OpenAPI schema versions to detect breaking changes.
+
+### Usage
+
+```bash
+cvt compare --old <path> --new <path> [options]
+```
+
+### Options
+
+| Flag     | Description                     | Required |
+| -------- | ------------------------------- | -------- |
+| `--old`  | Path to old/previous schema     | Yes      |
+| `--new`  | Path to new schema              | Yes      |
+| `--json` | Output results as JSON          | No       |
+
+### Examples
+
+```bash
+# Compare schemas
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
+
+# JSON output for CI/CD integration
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json --json
+```
+
+### Output
+
+```
+✗ Found 2 breaking change(s):
+
+  [ENDPOINT_REMOVED] DELETE /users/{id} was removed
+    Old: DELETE /users/{id}
+
+  [REQUIRED_FIELD_ADDED] Required field 'phone' added to POST /users request
+    New: phone (required)
+```
+
+### Exit Codes
+
+| Code | Meaning                              |
+| ---- | ------------------------------------ |
+| 0    | Schemas are compatible               |
+| 1    | Breaking changes detected            |
+
+---
+
+## generate
+
+Generate test fixtures from an OpenAPI schema.
+
+### Usage
+
+```bash
+cvt generate --schema <path> [options]
+```
+
+### Options
+
+| Flag             | Short | Description                                        | Default            |
+| ---------------- | ----- | -------------------------------------------------- | ------------------ |
+| `--schema`       | `-s`  | Path to OpenAPI schema file                        | (required)         |
+| `--list`         | `-l`  | List all available endpoints and exit              | false              |
+| `--method`       | `-m`  | HTTP method (GET, POST, PUT, DELETE, etc.)         | (required for gen) |
+| `--path`         | `-p`  | API path (e.g., `/users`, `/users/{id}`)           | (required for gen) |
+| `--output-type`  | `-t`  | What to generate: `fixture`, `request`, `response` | `fixture`          |
+| `--status-code`  |       | Response status code (0 = first successful)        | 0                  |
+| `--use-examples` |       | Use schema examples when available                 | true               |
+| `--content-type` |       | Content type for request/response                  | application/json   |
+| `--output`       | `-o`  | Output file path (default: stdout)                 | stdout             |
+
+### Examples
+
+```bash
+# List all endpoints in the schema
+cvt generate --schema ./openapi.json --list
+
+# Generate complete request/response fixture
+cvt generate --schema ./openapi.json --method GET --path /pets/{petId}
+
+# Generate only request body
+cvt generate --schema ./openapi.json --method POST --path /pets --output-type request
+
+# Generate response with specific status code
+cvt generate --schema ./openapi.json --method GET --path /pets --output-type response --status-code 200
+
+# Save output to file
+cvt generate --schema ./openapi.json --method GET --path /pets/{petId} -o fixture.json
+```
+
+### Output (Fixture)
+
+```json
+{
+  "request": {
+    "method": "GET",
+    "path": "/pets/123",
+    "headers": {
+      "Accept": "application/json"
+    }
+  },
+  "response": {
+    "status_code": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"id\":123,\"name\":\"doggie\",\"status\":\"available\"}"
+  }
+}
+```
+
+### Endpoint List Output
+
+```
+Available endpoints:
+  GET /pets
+  GET /pets/{petId}
+  POST /pets
+  PUT /pets/{petId}
+  DELETE /pets/{petId}
+```
+
+---
+
+## can-i-deploy
+
+Check if a schema version can be safely deployed without breaking registered consumers.
+
+### Usage
+
+```bash
+cvt can-i-deploy --schema <id> --version <version> --env <environment> [options]
+```
+
+### Options
+
+| Flag        | Description                            | Required | Default          |
+| ----------- | -------------------------------------- | -------- | ---------------- |
+| `--schema`  | Schema ID to check                     | Yes      |                  |
+| `--version` | New version to deploy                  | Yes      |                  |
+| `--env`     | Target environment (dev, staging, prod)| Yes      |                  |
+| `--server`  | CVT server address                     | No       | localhost:9550   |
+| `--json`    | Output results as JSON                 | No       | false            |
+| `--timeout` | Connection timeout in seconds          | No       | 30               |
+
+### Examples
+
+```bash
+# Check deployment safety against local server
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod
+
+# Check against a remote server
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod --server cvt.internal:9550
+
+# JSON output for CI/CD
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod --json
+
+# Custom timeout
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod --timeout 60
+```
+
+### Output (Safe)
+
+```
+Deployment Safety Check
+=======================
+Schema:      petstore
+Version:     2.0.0
+Environment: prod
+
+✅ SAFE TO DEPLOY
+
+No breaking changes detected that would affect registered consumers.
+```
+
+### Output (Unsafe)
+
+```
+Deployment Safety Check
+=======================
+Schema:      petstore
+Version:     2.0.0
+Environment: prod
+
+❌ UNSAFE TO DEPLOY
+
+Breaking changes in v2.0.0:
+  - ENDPOINT_REMOVED: DELETE /pets/{petId}
+    Endpoint was removed from the API
+
+Affected consumers in prod:
+├── order-service v2.1.0
+│   Schema version: 1.0.0
+│   Impact: BREAKING
+│   Affected by:
+│     - DELETE /pets/{petId}
+│
+└── billing-service v1.0.0
+    Schema version: 1.0.0
+    Impact: None
+
+Safe consumers:     1/2
+Affected consumers: 1/2
+
+Recommendation: Coordinate with order-service team before deploying.
+```
+
+### Exit Codes
+
+| Code | Meaning                                              |
+| ---- | ---------------------------------------------------- |
+| 0    | Safe to deploy                                       |
+| 1    | Unsafe to deploy (breaking changes affect consumers) |
+
+---
+
+## serve
+
+Start the CVT gRPC server.
+
+### Usage
+
+```bash
+cvt serve [options]
+```
+
+### Options
+
+| Flag             | Short | Description                  | Default |
+| ---------------- | ----- | ---------------------------- | ------- |
+| `--port`         | `-p`  | gRPC server port             | 9550    |
+| `--metrics-port` |       | Prometheus metrics port      | 9551    |
+| `--tls`          |       | Enable TLS                   | false   |
+| `--cert`         |       | Path to TLS certificate      |         |
+| `--key`          |       | Path to TLS private key      |         |
+| `--api-key-auth` |       | Enable API key authentication| false   |
+
+### Examples
+
+```bash
+# Start with defaults
+cvt serve
+
+# Custom ports
+cvt serve --port 50051 --metrics-port 50052
+
+# Enable TLS
+cvt serve --tls --cert ./certs/server.crt --key ./certs/server.key
+
+# Enable API key authentication
+cvt serve --api-key-auth
+```
+
+### Environment Variables
+
+The serve command also respects environment variables. See [Configuration Reference](./configuration.md) for the complete list.
+
+---
+
+## version
+
+Display version information.
+
+### Usage
+
+```bash
+cvt version
+```
+
+### Output
+
+```
+CVT version 1.0.0
+  Commit:  abc1234
+  Built:   2024-01-15T10:30:00Z
+```
+
+---
+
+## Global Options
+
+These options work with all commands:
+
+| Flag         | Description          |
+| ------------ | -------------------- |
+| `--help`, `-h` | Show help for command |
+
+---
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+- name: Check for breaking changes
+  run: |
+    cvt compare --old ./main-schema.json --new ./pr-schema.json --json
+    if [ $? -ne 0 ]; then
+      echo "Breaking changes detected!"
+      exit 1
+    fi
+
+- name: Check deployment safety
+  run: |
+    cvt can-i-deploy \
+      --schema my-api \
+      --version ${{ github.sha }} \
+      --env prod \
+      --server ${{ secrets.CVT_SERVER }} \
+      --json > deploy-check.json
+
+    if [ $(jq '.safe_to_deploy' deploy-check.json) != "true" ]; then
+      echo "Unsafe to deploy!"
+      jq '.affected_consumers' deploy-check.json
+      exit 1
+    fi
+```
+
+### GitLab CI
+
+```yaml
+check-breaking-changes:
+  script:
+    - cvt compare --old $CI_MERGE_REQUEST_TARGET_BRANCH_SHA:openapi.json --new ./openapi.json --json
+  allow_failure: false
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - openapi.json
+
+deployment-safety:
+  script:
+    - cvt can-i-deploy --schema $SCHEMA_ID --version $CI_COMMIT_SHA --env prod --json
+  allow_failure: false
+```
+
+---
+
+## Related Documentation
+
+- **[API Reference](./api.mdx)** - gRPC API details
+- **[Configuration Reference](./configuration.md)** - Environment variables
+- **[Breaking Changes Guide](../guides/breaking-changes.mdx)** - Understanding schema compatibility

@@ -7,35 +7,43 @@ description: CVT SDK for Node.js and TypeScript
 
 # Node.js SDK
 
-The Node.js SDK provides TypeScript-first contract validation for Node.js applications.
+## What is the Node.js SDK?
+
+The Node.js SDK provides TypeScript-first contract validation for Node.js applications. It includes HTTP client adapters for automatic validation, producer middleware for Express and Fastify, and a test kit for schema compliance testing.
 
 ## Installation
 
 ```bash
-# npm
-npm install @cvt/cvt-sdk
+# From local clone (SDK not published to npm)
+npm install ./cvt/sdks/node
 
-# yarn
-yarn add @cvt/cvt-sdk
+# Or with pnpm
+pnpm add ./cvt/sdks/node
 ```
 
 ## Quick Start
 
 ```typescript
-import { ContractValidator } from '@cvt/cvt-sdk';
+import { ContractValidator } from "@cvt/cvt-sdk";
 
-const validator = new ContractValidator('localhost:9550');
+const validator = new ContractValidator("localhost:9550");
 
-// Register a schema
-await validator.registerSchema('user-api', fs.readFileSync('openapi.json', 'utf-8'));
+// Register a schema (file path or URL)
+await validator.registerSchema("petstore", "./openapi.json");
 
 // Validate an interaction
 const result = await validator.validate(
-  { method: 'GET', path: '/users/123' },
-  { statusCode: 200, body: JSON.stringify({ id: '123', name: 'John' }) }
+  { method: "GET", path: "/pet/123" },
+  { statusCode: 200, body: { id: 123, name: "doggie", status: "available" } },
 );
 
 console.log(result.valid); // true or false
+if (!result.valid) {
+  console.error("Errors:", result.errors);
+}
+
+// Clean up
+validator.close();
 ```
 
 ## API Reference
@@ -45,36 +53,118 @@ console.log(result.valid); // true or false
 #### Constructor
 
 ```typescript
-new ContractValidator(address: string, options?: ValidatorOptions)
+// Simple usage (insecure connection)
+new ContractValidator(address?: string)
+
+// With options (TLS and API key)
+new ContractValidator(options: ContractValidatorOptions)
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `address` | `string` | Server address (e.g., `localhost:9550`) |
-| `options.tls` | `TLSConfig` | TLS configuration |
-| `options.metadata` | `Record<string, string>` | gRPC metadata (e.g., API key) |
+**Simple usage:**
+
+```typescript
+const validator = new ContractValidator("localhost:9550");
+```
+
+**With options:**
+
+```typescript
+const validator = new ContractValidator({
+  address: "localhost:9550",
+  tls: {
+    enabled: true,
+    rootCertPath: "./certs/ca.crt",
+  },
+  apiKey: "your-api-key",
+});
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `address` | `string` | Server address (default: `localhost:9550`) |
+| `tls.enabled` | `boolean` | Enable TLS |
+| `tls.rootCertPath` | `string` | Path to CA certificate |
+| `tls.certPath` | `string` | Path to client certificate (for mTLS) |
+| `tls.keyPath` | `string` | Path to client private key (for mTLS) |
+| `apiKey` | `string` | API key for authentication |
 
 #### Methods
 
 ##### registerSchema
 
+Registers an OpenAPI schema from a file path or URL.
+
 ```typescript
-registerSchema(schemaId: string, content: string, version?: string): Promise<RegisterSchemaResponse>
+registerSchema(schemaId: string, schemaPath: string): Promise<void>
+```
+
+```typescript
+// From local file
+await validator.registerSchema("petstore", "./openapi.json");
+
+// From URL
+await validator.registerSchema("petstore", "https://petstore.swagger.io/v2/swagger.json");
+```
+
+##### registerSchemaWithVersion
+
+Registers a schema with version information for comparison.
+
+```typescript
+registerSchemaWithVersion(schemaId: string, schemaPath: string, version: string): Promise<void>
 ```
 
 ##### validate
 
+Validates an HTTP request/response pair against the registered schema.
+
 ```typescript
-validate(request: RequestData, response: ResponseData): Promise<ValidationResult>
+validate(request: ValidationRequest, response: ValidationResponse): Promise<ValidationResult>
+```
+
+##### compareSchemas
+
+Compares two schema versions for breaking changes.
+
+```typescript
+compareSchemas(schemaId: string, oldVersion?: string, newVersion?: string): Promise<CompareResult>
+```
+
+##### generateFixture
+
+Generates test fixtures from the schema.
+
+```typescript
+generateFixture(method: string, path: string, options?: GenerateOptions): Promise<GeneratedFixture>
+```
+
+##### generateResponse
+
+Generates a response fixture only.
+
+```typescript
+generateResponse(method: string, path: string, options?: GenerateOptions): Promise<GeneratedResponse>
+```
+
+##### listEndpoints
+
+Lists all endpoints in the registered schema.
+
+```typescript
+listEndpoints(): Promise<EndpointInfo[]>
 ```
 
 ##### registerConsumer
 
+Registers a consumer with expected interactions.
+
 ```typescript
-registerConsumer(options: RegisterConsumerOptions): Promise<RegisterConsumerResponse>
+registerConsumer(options: RegisterConsumerOptions): Promise<ConsumerInfo>
 ```
 
 ##### listConsumers
+
+Lists all consumers for a schema.
 
 ```typescript
 listConsumers(schemaId: string, environment?: string): Promise<ConsumerInfo[]>
@@ -82,29 +172,23 @@ listConsumers(schemaId: string, environment?: string): Promise<ConsumerInfo[]>
 
 ##### deregisterConsumer
 
+Removes a consumer registration.
+
 ```typescript
 deregisterConsumer(consumerId: string, schemaId: string, environment?: string): Promise<void>
 ```
 
-##### compareSchemas
-
-```typescript
-compareSchemas(schemaId: string, oldVersion: string, newVersion: string): Promise<CompareSchemasResponse>
-```
-
 ##### canIDeploy
 
-```typescript
-canIDeploy(options: CanIDeployOptions): Promise<CanIDeployResponse>
-```
-
-##### generateFixture
+Checks if a schema version can be safely deployed.
 
 ```typescript
-generateFixture(options: GenerateFixtureOptions): Promise<GeneratedFixture>
+canIDeploy(schemaId: string, newVersion: string, environment?: string): Promise<CanIDeployResult>
 ```
 
 ##### close
+
+Closes the gRPC connection.
 
 ```typescript
 close(): void
@@ -117,40 +201,55 @@ close(): void
 Automatically validate all Axios requests:
 
 ```typescript
-import axios from 'axios';
-import { ContractValidator, createAxiosAdapter } from '@cvt/cvt-sdk';
+import axios from "axios";
+import { ContractValidator } from "@cvt/cvt-sdk";
+import { createAxiosAdapter } from "@cvt/cvt-sdk/adapters";
 
-const validator = new ContractValidator('localhost:9550');
-await validator.registerSchema('user-api', schema);
+const validator = new ContractValidator("localhost:9550");
+await validator.registerSchema("petstore", "./openapi.json");
 
-const api = axios.create({ baseURL: 'http://user-service' });
+const api = axios.create({ baseURL: "http://petstore-service" });
 
-createAxiosAdapter({
+const adapter = createAxiosAdapter({
   axios: api,
   validator,
-  schemaId: 'user-api',
   autoValidate: true,
   onValidationFailure: (result) => {
-    throw new Error(`Contract violation: ${result.errors.join(', ')}`);
-  }
+    throw new Error(`Contract violation: ${result.errors.join(", ")}`);
+  },
 });
 
 // All requests are now validated
-const user = await api.get('/users/123');
+const response = await api.get("/pet/123");
+
+// Check captured interactions
+const interactions = adapter.getInteractions();
+console.log(interactions[0].validationResult?.valid);
+
+// Clean up
+adapter.detach();
 ```
 
 ### Fetch Adapter
 
 ```typescript
-import { createFetchAdapter } from '@cvt/cvt-sdk';
+import { ContractValidator } from "@cvt/cvt-sdk";
+import { createFetchAdapter } from "@cvt/cvt-sdk/adapters";
 
-const validatedFetch = createFetchAdapter({
+const validator = new ContractValidator("localhost:9550");
+await validator.registerSchema("petstore", "./openapi.json");
+
+const adapter = createFetchAdapter({
   validator,
-  schemaId: 'user-api',
-  baseUrl: 'http://user-service'
+  baseURL: "http://petstore-service",
 });
 
-const response = await validatedFetch('/users/123');
+// Use the adapter's fetch method
+const response = await adapter.fetch("/pet/123");
+const data = await response.json();
+
+// Check captured interactions
+const interactions = adapter.getInteractions();
 ```
 
 ## Producer Middleware
@@ -158,64 +257,92 @@ const response = await validatedFetch('/users/123');
 ### Express
 
 ```typescript
-import express from 'express';
-import { createExpressMiddleware } from '@cvt/cvt-sdk/producer';
+import express from "express";
+import { ContractValidator } from "@cvt/cvt-sdk";
+import { createExpressMiddleware } from "@cvt/cvt-sdk/producer";
 
 const app = express();
+app.use(express.json());
 
-app.use(createExpressMiddleware({
-  schemaId: 'my-api',
-  validator,
-  mode: 'strict', // 'strict' | 'warn' | 'shadow'
-  excludePaths: ['/health', '/metrics']
-}));
+const validator = new ContractValidator("localhost:9550");
+await validator.registerSchema("petstore", "./openapi.json");
 
-app.get('/users/:id', (req, res) => {
-  res.json({ id: req.params.id, name: 'John' });
+app.use(
+  createExpressMiddleware({
+    schemaId: "petstore",
+    validator,
+    mode: "strict", // "strict" | "warn" | "shadow"
+    excludePaths: ["/health", "/metrics"],
+  }),
+);
+
+app.get("/pet/:petId", (req, res) => {
+  res.json({ id: parseInt(req.params.petId), name: "doggie", status: "available" });
 });
 ```
 
 ### Fastify
 
 ```typescript
-import Fastify from 'fastify';
-import { createFastifyPlugin } from '@cvt/cvt-sdk/producer';
+import Fastify from "fastify";
+import { ContractValidator } from "@cvt/cvt-sdk";
+import { createFastifyPlugin } from "@cvt/cvt-sdk/producer";
 
 const fastify = Fastify();
+const validator = new ContractValidator("localhost:9550");
+await validator.registerSchema("petstore", "./openapi.json");
 
 fastify.register(createFastifyPlugin({
-  schemaId: 'my-api',
+  schemaId: "petstore",
   validator,
-  mode: 'strict'
+  mode: "strict",
 }));
 ```
 
 ## Producer Test Kit
 
-```typescript
-import { ProducerTestKit } from '@cvt/cvt-sdk/producer';
+Test your API responses against your schema without real consumers:
 
-describe('User API', () => {
+```typescript
+import { ProducerTestKit } from "@cvt/cvt-sdk/producer";
+
+describe("Pet API", () => {
   let testKit: ProducerTestKit;
 
   beforeAll(async () => {
     testKit = new ProducerTestKit({
-      schemaId: 'user-api',
-      serverAddress: 'localhost:9550'
+      schemaId: "petstore",
+      serverAddress: "localhost:9550",
     });
   });
 
   afterAll(() => testKit.close());
 
-  it('returns valid response', async () => {
+  it("returns valid response for GET /pet/{petId}", async () => {
     const result = await testKit.validateResponse({
-      method: 'GET',
-      path: '/users/123',
-      statusCode: 200,
-      body: { id: '123', name: 'John' }
+      method: "GET",
+      path: "/pet/123",
+      response: {
+        statusCode: 200,
+        body: { id: 123, name: "doggie", status: "available" },
+      },
     });
 
     expect(result.valid).toBe(true);
+  });
+
+  it("detects invalid response", async () => {
+    const result = await testKit.validateResponse({
+      method: "GET",
+      path: "/pet/123",
+      response: {
+        statusCode: 200,
+        body: { id: "not-a-number" }, // Missing required fields
+      },
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
   });
 });
 ```
@@ -223,25 +350,35 @@ describe('User API', () => {
 ## TLS Configuration
 
 ```typescript
-import * as fs from 'fs';
-
-const validator = new ContractValidator('localhost:9550', {
+const validator = new ContractValidator({
+  address: "localhost:9550",
   tls: {
-    rootCerts: fs.readFileSync('./certs/ca.crt'),
-    // For mTLS:
-    privateKey: fs.readFileSync('./certs/client.key'),
-    certChain: fs.readFileSync('./certs/client.crt')
-  }
+    enabled: true,
+    rootCertPath: "./certs/ca.crt",
+  },
+});
+```
+
+### Mutual TLS (mTLS)
+
+```typescript
+const validator = new ContractValidator({
+  address: "localhost:9550",
+  tls: {
+    enabled: true,
+    rootCertPath: "./certs/ca.crt",
+    certPath: "./certs/client.crt",
+    keyPath: "./certs/client.key",
+  },
 });
 ```
 
 ## API Key Authentication
 
 ```typescript
-const validator = new ContractValidator('localhost:9550', {
-  metadata: {
-    'x-api-key': 'your-api-key'
-  }
+const validator = new ContractValidator({
+  address: "localhost:9550",
+  apiKey: "your-api-key",
 });
 ```
 
@@ -252,32 +389,46 @@ The SDK exports all TypeScript types:
 ```typescript
 import {
   ContractValidator,
-  RequestData,
-  ResponseData,
+  ContractValidatorOptions,
+  TLSOptions,
+  ValidationRequest,
+  ValidationResponse,
   ValidationResult,
+  BreakingChange,
+  CompareResult,
+  GenerateOptions,
+  GeneratedFixture,
+  GeneratedRequest,
+  GeneratedResponse,
+  EndpointInfo,
   RegisterConsumerOptions,
   ConsumerInfo,
-  BreakingChange,
-  CanIDeployResponse
-} from '@cvt/cvt-sdk';
+  CanIDeployResult,
+} from "@cvt/cvt-sdk";
 ```
 
 ## Error Handling
 
 ```typescript
 try {
-  await validator.registerSchema('my-api', schema);
+  await validator.registerSchema("petstore", "./openapi.json");
 } catch (error) {
-  if (error.code === 'INVALID_SCHEMA') {
-    console.error('Schema is not valid OpenAPI');
-  } else if (error.code === 'UNAVAILABLE') {
-    console.error('CVT server is not reachable');
+  if (error.code === "UNAVAILABLE") {
+    console.error("CVT server is not reachable");
+  } else {
+    console.error("Registration failed:", error.message);
   }
+}
+
+// Validation errors are returned in the result, not thrown
+const result = await validator.validate(request, response);
+if (!result.valid) {
+  console.error("Validation errors:", result.errors);
 }
 ```
 
 ## Related Documentation
 
 - **[Consumer Testing Guide](../../guides/consumer-testing.mdx)** - Testing your API integrations
-- **[Producer Testing Guide](../../guides/producer-testing.md)** - Validating your APIs
-- **[API Reference](../api.md)** - Full gRPC API documentation
+- **[Producer Testing Guide](../../guides/producer-testing.mdx)** - Validating your APIs
+- **[API Reference](../api.mdx)** - Full gRPC API documentation
