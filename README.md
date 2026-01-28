@@ -413,7 +413,7 @@ if (!result.safeToDeploy) {
 }
 ```
 
-**See [docs/guides/producer-testing.md](docs/guides/producer-testing.mdx) for complete producer testing documentation.**
+**See [docs/guides/producer-testing.mdx](docs/guides/producer-testing.mdx) for complete producer testing documentation.**
 
 ## Quick Start
 

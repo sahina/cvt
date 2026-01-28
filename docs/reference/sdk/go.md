@@ -332,6 +332,7 @@ Wrap `http.Client` for automatic validation:
 ```go
 import "github.com/sahina/cvt/sdks/go/cvt/adapters"
 
+ctx := context.Background()
 validator, _ := cvt.NewValidator("localhost:9550")
 validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
@@ -360,6 +361,7 @@ Generate responses from schema without a real API:
 ```go
 import "github.com/sahina/cvt/sdks/go/cvt/adapters"
 
+ctx := context.Background()
 validator, _ := cvt.NewValidator("localhost:9550")
 validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 

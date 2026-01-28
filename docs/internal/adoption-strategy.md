@@ -13,7 +13,7 @@ This document outlines the challenges and strategies for driving internal adopti
 
 - CVT is a greenfield internal tool (not replacing Pact)
 - Goal: Become the standard for consumer and producer contract testing
-- Current state: Full consumer and producer testing implemented, including schema validation, consumer registry, producer test kit, breaking change detection, and can-i-deploy checks
+- Current state: Consumer and producer testing capabilities are available (schema validation, consumer registry, producer test kit, breaking change detection, can-i-deploy), with organizational adoption in progress
 
 ---
 
@@ -133,8 +133,11 @@ In microservices organizations, each team chooses their own tooling.
 # Multiple steps can feel like friction
 - name: Start CVT server
   run: docker compose up -d cvt-server
-- name: Wait for server
-  run: sleep 5
+- name: Wait for server health
+  run: |
+    until grpc-health-probe -addr=localhost:9550 2>/dev/null; do
+      sleep 1
+    done
 - name: Run contract tests
   run: npm test  # SDK handles schema registration in test setup
 - name: Stop CVT server
