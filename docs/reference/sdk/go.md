@@ -7,12 +7,16 @@ description: CVT SDK for Go
 
 # Go SDK
 
-The Go SDK provides contract validation for Go applications with full type safety.
+## What is the Go SDK?
+
+The Go SDK provides contract validation for Go applications with full type safety. It includes HTTP client adapters for automatic validation, mock response generation, producer middleware for popular frameworks (net/http, Gin, Chi), and a test kit for schema compliance testing.
 
 ## Installation
 
 ```bash
-go get github.com/sahina/cvt/sdks/go
+# From local clone (SDK not published to public registries)
+# Add to go.mod with replace directive
+go mod edit -replace github.com/sahina/cvt/sdks/go=./path/to/cvt/sdks/go
 ```
 
 ## Quick Start
@@ -23,6 +27,7 @@ package main
 import (
     "context"
     "fmt"
+    "log"
 
     "github.com/sahina/cvt/sdks/go/cvt"
 )
@@ -32,78 +37,218 @@ func main() {
 
     validator, err := cvt.NewValidator("localhost:9550")
     if err != nil {
-        panic(err)
+        log.Fatal(err)
     }
     defer validator.Close()
 
-    // Register a schema
-    err = validator.RegisterSchema(ctx, "user-api", schemaContent)
+    // Register a schema (file path or URL)
+    err = validator.RegisterSchema(ctx, "petstore", "./openapi.json")
     if err != nil {
-        panic(err)
+        log.Fatal(err)
     }
 
     // Validate an interaction
     result, err := validator.Validate(ctx,
-        cvt.Request{Method: "GET", Path: "/users/123"},
-        cvt.Response{StatusCode: 200, Body: `{"id": "123", "name": "John"}`},
+        cvt.ValidationRequest{Method: "GET", Path: "/pet/123"},
+        cvt.ValidationResponse{StatusCode: 200, Body: map[string]any{"id": 123, "name": "doggie", "status": "available"}},
     )
     if err != nil {
-        panic(err)
+        log.Fatal(err)
     }
 
     fmt.Println("Valid:", result.Valid)
+    if !result.Valid {
+        fmt.Println("Errors:", result.Errors)
+    }
 }
 ```
 
 ## API Reference
 
-### NewValidator
+### ContractValidator
+
+#### Constructor
 
 ```go
-func NewValidator(address string, opts ...Option) (*Validator, error)
+// Simple usage (insecure connection)
+func NewValidator(address string) (*Validator, error)
+
+// With options (TLS and API key)
+func NewValidatorWithOptions(opts ValidatorOptions) (*Validator, error)
 ```
 
-#### Options
+**Simple usage:**
 
 ```go
-cvt.WithTLS(certFile, keyFile, caFile string)
-cvt.WithAPIKey(key string)
-cvt.WithTimeout(d time.Duration)
-cvt.WithInsecure()  // Skip TLS verification (dev only)
+validator, err := cvt.NewValidator("localhost:9550")
+if err != nil {
+    log.Fatal(err)
+}
+defer validator.Close()
 ```
+
+**With options:**
+
+```go
+validator, err := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
+    Address: "localhost:9550",
+    TLS: &cvt.TLSOptions{
+        Enabled:      true,
+        RootCertPath: "./certs/ca.crt",
+    },
+    APIKey: "your-api-key",
+})
+if err != nil {
+    log.Fatal(err)
+}
+defer validator.Close()
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `Address` | `string` | Server address (default: `localhost:9550`) |
+| `TLS.Enabled` | `bool` | Enable TLS |
+| `TLS.RootCertPath` | `string` | Path to CA certificate |
+| `TLS.CertPath` | `string` | Path to client certificate (for mTLS) |
+| `TLS.KeyPath` | `string` | Path to client private key (for mTLS) |
+| `APIKey` | `string` | API key for authentication |
 
 ### Validator Methods
 
 #### RegisterSchema
 
+Registers an OpenAPI schema from a file path or URL.
+
 ```go
-func (v *Validator) RegisterSchema(
-    ctx context.Context,
-    schemaID string,
-    content string,
-    opts ...RegisterOption,
-) error
+func (v *Validator) RegisterSchema(ctx context.Context, schemaID, schemaPath string) error
 ```
 
 ```go
-// With version
-err := validator.RegisterSchema(ctx, "my-api", content,
-    cvt.WithSchemaVersion("1.0.0"),
-    cvt.WithOwnership(cvt.Ownership{Owner: "team-a"}),
-)
+// From local file
+err := validator.RegisterSchema(ctx, "petstore", "./openapi.json")
+
+// From URL
+err := validator.RegisterSchema(ctx, "petstore", "https://petstore.swagger.io/v2/swagger.json")
+```
+
+#### RegisterSchemaWithVersion
+
+Registers a schema with version information for comparison.
+
+```go
+func (v *Validator) RegisterSchemaWithVersion(ctx context.Context, schemaID, schemaPath, version string) error
+```
+
+```go
+err := validator.RegisterSchemaWithVersion(ctx, "petstore", "./openapi.json", "1.0.0")
 ```
 
 #### Validate
 
+Validates an HTTP request/response pair against the registered schema.
+
 ```go
 func (v *Validator) Validate(
     ctx context.Context,
-    request Request,
-    response Response,
+    request ValidationRequest,
+    response ValidationResponse,
 ) (*ValidationResult, error)
 ```
 
+```go
+result, err := validator.Validate(ctx,
+    cvt.ValidationRequest{
+        Method:  "GET",
+        Path:    "/pet/123",
+        Headers: map[string]string{"Accept": "application/json"},
+    },
+    cvt.ValidationResponse{
+        StatusCode: 200,
+        Body:       map[string]any{"id": 123, "name": "doggie"},
+    },
+)
+if err != nil {
+    log.Fatal(err)
+}
+if !result.Valid {
+    fmt.Println("Errors:", result.Errors)
+}
+```
+
+#### CompareSchemas
+
+Compares two schema versions for breaking changes.
+
+```go
+func (v *Validator) CompareSchemas(
+    ctx context.Context,
+    schemaID, oldVersion, newVersion string,
+) (*CompareResult, error)
+```
+
+```go
+result, err := validator.CompareSchemas(ctx, "petstore", "1.0.0", "2.0.0")
+if err != nil {
+    log.Fatal(err)
+}
+if !result.Compatible {
+    for _, change := range result.BreakingChanges {
+        fmt.Printf("- %s: %s\n", change.Type, change.Description)
+    }
+}
+```
+
+#### GenerateFixture
+
+Generates test fixtures from the schema.
+
+```go
+func (v *Validator) GenerateFixture(
+    ctx context.Context,
+    method, path string,
+    opts *GenerateOptions,
+) (*GeneratedFixture, error)
+```
+
+```go
+fixture, err := validator.GenerateFixture(ctx, "GET", "/pet/{petId}", nil)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Request: %+v\n", fixture.Request)
+fmt.Printf("Response: %+v\n", fixture.Response)
+```
+
+#### GenerateResponse
+
+Generates a response fixture only.
+
+```go
+func (v *Validator) GenerateResponse(
+    ctx context.Context,
+    method, path string,
+    opts *GenerateOptions,
+) (*GeneratedResponse, error)
+```
+
+#### ListEndpoints
+
+Lists all endpoints in the registered schema.
+
+```go
+func (v *Validator) ListEndpoints(ctx context.Context) ([]EndpointInfo, error)
+```
+
+```go
+endpoints, err := validator.ListEndpoints(ctx)
+for _, ep := range endpoints {
+    fmt.Printf("%s %s - %s\n", ep.Method, ep.Path, ep.Summary)
+}
+```
+
 #### RegisterConsumer
+
+Registers a consumer with expected interactions.
 
 ```go
 func (v *Validator) RegisterConsumer(
@@ -112,17 +257,40 @@ func (v *Validator) RegisterConsumer(
 ) (*ConsumerInfo, error)
 ```
 
+```go
+consumer, err := validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
+    ConsumerID:      "order-service",
+    ConsumerVersion: "2.1.0",
+    SchemaID:        "petstore",
+    SchemaVersion:   "1.0.0",
+    Environment:     "prod",
+    UsedEndpoints: []cvt.EndpointUsage{
+        {Method: "GET", Path: "/pet/{petId}", UsedFields: []string{"id", "name", "status"}},
+    },
+})
+```
+
 #### ListConsumers
+
+Lists all consumers for a schema.
 
 ```go
 func (v *Validator) ListConsumers(
     ctx context.Context,
-    schemaID string,
-    environment string,
+    schemaID, environment string,
 ) ([]ConsumerInfo, error)
 ```
 
+```go
+consumers, err := validator.ListConsumers(ctx, "petstore", "prod")
+for _, c := range consumers {
+    fmt.Printf("%s v%s\n", c.ConsumerID, c.ConsumerVersion)
+}
+```
+
 #### DeregisterConsumer
+
+Removes a consumer registration.
 
 ```go
 func (v *Validator) DeregisterConsumer(
@@ -131,36 +299,33 @@ func (v *Validator) DeregisterConsumer(
 ) error
 ```
 
-#### CompareSchemas
-
-```go
-func (v *Validator) CompareSchemas(
-    ctx context.Context,
-    schemaID, oldVersion, newVersion string,
-) (*CompareSchemasResponse, error)
-```
-
 #### CanIDeploy
+
+Checks if a schema version can be safely deployed.
 
 ```go
 func (v *Validator) CanIDeploy(
     ctx context.Context,
     schemaID, newVersion, environment string,
-) (*CanIDeployResponse, error)
+) (*CanIDeployResult, error)
 ```
 
-#### GenerateFixture
-
 ```go
-func (v *Validator) GenerateFixture(
-    ctx context.Context,
-    opts GenerateFixtureOptions,
-) (*GeneratedFixture, error)
+result, err := validator.CanIDeploy(ctx, "petstore", "2.0.0", "prod")
+if err != nil {
+    log.Fatal(err)
+}
+if !result.SafeToDeploy {
+    fmt.Println("Unsafe:", result.Summary)
+    for _, c := range result.AffectedConsumers {
+        fmt.Printf("- %s will break\n", c.ConsumerID)
+    }
+}
 ```
 
 ## HTTP Adapters
 
-### RoundTripper Adapter
+### ValidatingRoundTripper
 
 Wrap `http.Client` for automatic validation:
 
@@ -168,36 +333,56 @@ Wrap `http.Client` for automatic validation:
 import "github.com/sahina/cvt/sdks/go/cvt/adapters"
 
 validator, _ := cvt.NewValidator("localhost:9550")
-validator.RegisterSchema(ctx, "user-api", schema)
+validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
-client := &http.Client{
-    Transport: adapters.NewValidatingRoundTripper(
-        http.DefaultTransport,
-        validator,
-        "user-api",
-        adapters.WithOnValidationFailure(func(r *cvt.ValidationResult) error {
-            return fmt.Errorf("contract violation: %v", r.Errors)
-        }),
-    ),
-}
+rt := adapters.NewValidatingRoundTripper(adapters.RoundTripperConfig{
+    Validator:    validator,
+    AutoValidate: true,
+    OnValidationFailure: func(result *cvt.ValidationResult, req *http.Request, resp *http.Response) error {
+        return fmt.Errorf("contract violation: %v", result.Errors)
+    },
+})
+
+client := &http.Client{Transport: rt}
 
 // All requests are now validated
-resp, _ := client.Get("http://user-service/users/123")
+resp, err := client.Get("http://petstore-service/pet/123")
+
+// Check captured interactions
+interactions := rt.GetInteractions()
+fmt.Println(interactions[0].ValidationResult.Valid)
 ```
 
-### Mock RoundTripper
+### MockingRoundTripper
 
 Generate responses from schema without a real API:
 
 ```go
+import "github.com/sahina/cvt/sdks/go/cvt/adapters"
+
+validator, _ := cvt.NewValidator("localhost:9550")
+validator.RegisterSchema(ctx, "petstore", "./openapi.json")
+
+// Simple API
 mock := adapters.NewMock(validator, adapters.WithCache())
-mockClient := mock.Client()
+client := mock.Client()
 
 // Responses are auto-generated from schema
-resp, _ := mockClient.Do(req)
+resp, _ := client.Get("http://mock.petstore/pet/123")
 
 // Get recorded interactions for consumer registration
 interactions := mock.GetInteractions()
+```
+
+Or use the direct constructor for more control:
+
+```go
+rt := adapters.NewMockingRoundTripper(adapters.MockingRoundTripperConfig{
+    Validator:        validator,
+    ValidateRequests: true,
+    CacheResponses:   true,
+})
+client := &http.Client{Transport: rt}
 ```
 
 ## Producer Middleware
@@ -208,7 +393,7 @@ interactions := mock.GetInteractions()
 import "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
 
 config := producer.Config{
-    SchemaID:  "my-api",
+    SchemaID:  "petstore",
     Validator: validator,
     Mode:      producer.ModeStrict, // ModeStrict | ModeWarn | ModeShadow
 }
@@ -226,8 +411,8 @@ import "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
 router := gin.Default()
 router.Use(adapters.GinMiddleware(config))
 
-router.GET("/users/:id", func(c *gin.Context) {
-    c.JSON(200, gin.H{"id": c.Param("id"), "name": "John"})
+router.GET("/pet/:petId", func(c *gin.Context) {
+    c.JSON(200, gin.H{"id": c.Param("petId"), "name": "doggie", "status": "available"})
 })
 ```
 
@@ -243,12 +428,14 @@ router.Use(adapters.ChiMiddleware(config))
 
 ## Producer Test Kit
 
+Test your API responses against your schema without real consumers:
+
 ```go
 import "github.com/sahina/cvt/sdks/go/cvt/producer"
 
-func TestUserHandler(t *testing.T) {
+func TestPetHandler(t *testing.T) {
     testKit, err := producer.NewProducerTestKit(producer.TestConfig{
-        SchemaID:      "user-api",
+        SchemaID:      "petstore",
         ServerAddress: "localhost:9550",
     })
     require.NoError(t, err)
@@ -256,16 +443,38 @@ func TestUserHandler(t *testing.T) {
 
     t.Run("returns valid response", func(t *testing.T) {
         result, err := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
-            Method:     "GET",
-            Path:       "/users/123",
-            StatusCode: 200,
-            Body:       map[string]interface{}{"id": "123", "name": "John"},
+            Method: "GET",
+            Path:   "/pet/123",
+            Response: producer.TestResponseData{
+                StatusCode: 200,
+                Body:       map[string]any{"id": 123, "name": "doggie", "status": "available"},
+            },
         })
 
         require.NoError(t, err)
         assert.True(t, result.Valid)
     })
 }
+```
+
+### ForEndpoint Helper
+
+Test multiple scenarios for the same endpoint:
+
+```go
+getPetEndpoint := testKit.ForEndpoint("GET", "/pet/{petId}")
+
+// Test valid response
+result, err := getPetEndpoint.ValidateResponse(ctx, producer.TestResponseData{
+    StatusCode: 200,
+    Body:       map[string]any{"id": 123, "name": "doggie", "status": "available"},
+}, map[string]string{"petId": "123"})
+
+// Test not found
+result, err = getPetEndpoint.ValidateResponse(ctx, producer.TestResponseData{
+    StatusCode: 404,
+    Body:       map[string]any{"message": "Pet not found"},
+}, map[string]string{"petId": "999"})
 ```
 
 ## Auto-Registration
@@ -276,9 +485,14 @@ Build consumer info from captured interactions:
 import "github.com/sahina/cvt/sdks/go/cvt"
 
 // From MockingRoundTripper
-interactions := mock.GetInteractions()
+mock := adapters.NewMock(validator)
+client := mock.Client()
 
-consumerInfo, err := validator.RegisterConsumerFromInteractions(ctx, interactions, cvt.AutoRegisterConfig{
+// Run your tests
+resp, _ := client.Get("http://mock.petstore/pet/123")
+
+// Auto-register consumer from captured interactions
+consumerInfo, err := validator.RegisterConsumerFromInteractions(ctx, mock.GetInteractions(), cvt.AutoRegisterConfig{
     ConsumerID:      "order-service",
     ConsumerVersion: "2.1.0",
     Environment:     "dev",
@@ -286,62 +500,84 @@ consumerInfo, err := validator.RegisterConsumerFromInteractions(ctx, interaction
 })
 ```
 
+Or preview before registering:
+
+```go
+opts, err := validator.BuildConsumerFromInteractions(ctx, mock.GetInteractions(), cvt.AutoRegisterConfig{
+    ConsumerID:      "order-service",
+    ConsumerVersion: "2.1.0",
+    Environment:     "dev",
+    SchemaVersion:   "1.0.0",
+})
+fmt.Printf("Would register %d endpoints\n", len(opts.UsedEndpoints))
+```
+
 ## TLS Configuration
 
 ```go
-// TLS
-validator, _ := cvt.NewValidator("localhost:9550",
-    cvt.WithTLS("./certs/ca.crt", "", ""),
-)
+// TLS with CA certificate
+validator, err := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
+    Address: "localhost:9550",
+    TLS: &cvt.TLSOptions{
+        Enabled:      true,
+        RootCertPath: "./certs/ca.crt",
+    },
+})
 
-// mTLS
-validator, _ := cvt.NewValidator("localhost:9550",
-    cvt.WithTLS(
-        "./certs/ca.crt",
-        "./certs/client.crt",
-        "./certs/client.key",
-    ),
-)
+// Mutual TLS (mTLS)
+validator, err := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
+    Address: "localhost:9550",
+    TLS: &cvt.TLSOptions{
+        Enabled:      true,
+        RootCertPath: "./certs/ca.crt",
+        CertPath:     "./certs/client.crt",
+        KeyPath:      "./certs/client.key",
+    },
+})
 ```
 
 ## API Key Authentication
 
 ```go
-validator, _ := cvt.NewValidator("localhost:9550",
-    cvt.WithAPIKey("your-api-key"),
-)
+validator, err := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
+    Address: "localhost:9550",
+    APIKey:  "your-api-key",
+})
 ```
 
 ## Types
 
 ```go
-type Request struct {
+type ValidationRequest struct {
     Method  string
     Path    string
     Headers map[string]string
-    Body    string
+    Body    any
 }
 
-type Response struct {
+type ValidationResponse struct {
     StatusCode int
     Headers    map[string]string
-    Body       string
+    Body       any
 }
 
 type ValidationResult struct {
-    Valid                   bool
-    Errors                  []string
-    ValidatedAgainstVersion string
-    ValidatedAgainstHash    string
+    Valid  bool
+    Errors []string
 }
 
 type BreakingChange struct {
-    Type        BreakingChangeType
+    Type        string
     Path        string
     Method      string
     Description string
     OldValue    string
     NewValue    string
+}
+
+type CompareResult struct {
+    Compatible      bool
+    BreakingChanges []BreakingChange
 }
 
 type ConsumerInfo struct {
@@ -350,7 +586,22 @@ type ConsumerInfo struct {
     SchemaID        string
     SchemaVersion   string
     Environment     string
+    RegisteredAt    int64
+    LastValidatedAt int64
     UsedEndpoints   []EndpointUsage
+}
+
+type EndpointUsage struct {
+    Method     string
+    Path       string
+    UsedFields []string
+}
+
+type CanIDeployResult struct {
+    SafeToDeploy      bool
+    Summary           string
+    BreakingChanges   []BreakingChange
+    AffectedConsumers []ConsumerImpact
 }
 ```
 
@@ -359,12 +610,14 @@ type ConsumerInfo struct {
 ```go
 result, err := validator.Validate(ctx, request, response)
 if err != nil {
-    if errors.Is(err, cvt.ErrSchemaNotFound) {
-        log.Println("Schema not registered")
-    } else if errors.Is(err, cvt.ErrConnectionFailed) {
-        log.Println("Cannot connect to CVT server")
-    }
+    // Connection or transport errors
+    log.Printf("Validation failed: %v", err)
     return err
+}
+
+// Validation errors are returned in the result, not as errors
+if !result.Valid {
+    log.Printf("Contract violations: %v", result.Errors)
 }
 ```
 
