@@ -1,13 +1,15 @@
 ---
-title: Observability Guide
+title: Observability
 sidebar_label: Observability
 sidebar_position: 1
 description: Metrics, monitoring, and dashboards for CVT
 ---
 
-# CVT Observability Guide
+# Observability Guide
 
-This document describes the observability features available in the Contract Validator Toolkit (CVT), including metrics, monitoring, and dashboards.
+## What is CVT Observability?
+
+CVT provides comprehensive observability features to monitor the health, performance, and usage of your contract validation infrastructure. This includes Prometheus metrics for real-time monitoring, Grafana dashboards for visualization, and structured logging for debugging and audit trails.
 
 ## Overview
 
@@ -124,6 +126,48 @@ make observability-logs
 - `DeregisterConsumer`
 - `CanIDeploy`
 
+### Schema Versioning Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `cvt_breaking_changes_detected_total` | Counter | `change_type` | Breaking changes detected by type |
+| `cvt_schema_versions_total` | Gauge | `schema_id` | Number of versions per schema |
+
+**Change Types:**
+
+- `ENDPOINT_REMOVED`
+- `REQUIRED_FIELD_ADDED`
+- `TYPE_CHANGED`
+- `REQUIRED_PARAMETER_ADDED`
+- `RESPONSE_SCHEMA_CHANGED`
+- `ENUM_VALUE_REMOVED`
+
+### Authentication Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `cvt_auth_success_total` | Counter | - | Total successful authentications |
+| `cvt_auth_failure_total` | Counter | `reason` | Authentication failures by reason |
+
+**Failure Reasons:**
+
+- `missing_key`: No API key provided
+- `invalid_key`: Invalid API key
+
+### Governance Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `cvt_schemas_by_owner` | Gauge | `owner` | Number of schemas per owner |
+| `cvt_schemas_by_team` | Gauge | `team` | Number of schemas per team |
+| `cvt_read_only_violations_total` | Counter | - | Attempts to modify read-only schemas |
+
+### Audit Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `cvt_audit_events_total` | Counter | `event_type` | Total audit events by type |
+
 ## Grafana Dashboard
 
 The CVT Grafana dashboard provides real-time visualization of:
@@ -205,6 +249,18 @@ histogram_quantile(0.95, sum(rate(cvt_validation_duration_seconds_bucket[5m])) b
 
 ```promql
 sum by (error_category) (rate(cvt_validation_errors_total[5m]))
+```
+
+#### Breaking Changes by Type
+
+```promql
+sum by (change_type) (rate(cvt_breaking_changes_detected_total[5m]))
+```
+
+#### Authentication Failure Rate
+
+```promql
+sum by (reason) (rate(cvt_auth_failure_total[5m]))
 ```
 
 ## Custom Metrics Endpoint
