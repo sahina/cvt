@@ -490,6 +490,6 @@ deployment-safety:
 
 ## Related Documentation
 
-- **[API Reference](./api.md)** - gRPC API details
+- **[API Reference](./api.mdx)** - gRPC API details
 - **[Configuration Reference](./configuration.md)** - Environment variables
 - **[Breaking Changes Guide](../guides/breaking-changes.mdx)** - Understanding schema compatibility

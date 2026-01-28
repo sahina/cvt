@@ -410,5 +410,5 @@ which protoc-gen-go-grpc
 ## Related Documentation
 
 - **[Configuration Reference](../reference/configuration.md)** - Environment variables
-- **[API Reference](../reference/api.md)** - gRPC API details
+- **[API Reference](../reference/api.mdx)** - gRPC API details
 - **[Observability Guide](../operations/observability.md)** - Metrics and monitoring

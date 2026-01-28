@@ -390,4 +390,4 @@ try (ContractValidator validator = new ContractValidator("localhost:9550")) {
 
 - **[Consumer Testing Guide](../../guides/consumer-testing.mdx)** - Testing your API integrations
 - **[Producer Testing Guide](../../guides/producer-testing.mdx)** - Validating your APIs
-- **[API Reference](../api.md)** - Full gRPC API documentation
+- **[API Reference](../api.mdx)** - Full gRPC API documentation
