@@ -484,13 +484,13 @@ This section walks you through common use cases from start to finish.
 
 **Use Cases:**
 
-| Use Case                          | Description                                                | Link                                                                                    |
-| --------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| **1. Adding Contract Tests**      | Validate your HTTP calls match upstream API contracts      | [Consumer Testing Guide](docs/guides/consumer-testing.mdx)                              |
+| Use Case                          | Description                                                | Link                                                                                     |
+| --------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **1. Adding Contract Tests**      | Validate your HTTP calls match upstream API contracts      | [Consumer Testing Guide](docs/guides/consumer-testing.mdx)                               |
 | **2. Detecting Breaking Changes** | Ensure API updates don't break existing consumers          | [Breaking Changes Guide](docs/guides/breaking-changes.mdx)                               |
 | **3. Local Development**          | Fast feedback without Docker using CLI or embedded library | [CLI Reference](docs/reference/cli.mdx)                                                  |
 | **4. Testing Without API Access** | Validate integration code before you have API access       | [Consumer Testing Guide](docs/guides/consumer-testing.mdx#mock-adapters-offline-testing) |
-| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [Producer Testing Guide](docs/guides/producer-testing.mdx)                              |
+| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [Producer Testing Guide](docs/guides/producer-testing.mdx)                               |
 
 **See the guides above for complete step-by-step instructions with code examples.**
 
