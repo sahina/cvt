@@ -19,20 +19,25 @@ The complete API is defined in [`api/protos/cvt.proto`](https://github.com/sahin
 
 ## Service Methods
 
-### Phase 1: Schema & Validation
+### Schema Management
 
 | Method                    | Description                                              |
 | ------------------------- | -------------------------------------------------------- |
 | `RegisterSchema`          | Register an OpenAPI v2/v3 schema for validation          |
-| `ValidateInteraction`     | Validate an HTTP request/response pair against a schema  |
 | `GetSchema`               | Get metadata and content for a registered schema         |
 | `ListSchemas`             | List all registered schemas with optional filtering      |
-| `ValidateProducerResponse`| Producer-side response validation                        |
+| `ListEndpoints`           | List all endpoints in a registered schema                |
 | `CompareSchemas`          | Compare two schema versions for breaking changes         |
 | `GenerateFixture`         | Generate test fixtures from schemas                      |
-| `ListEndpoints`           | List all endpoints in a registered schema                |
 
-### Phase 2: Consumer Registry
+### Validation
+
+| Method                    | Description                                              |
+| ------------------------- | -------------------------------------------------------- |
+| `ValidateInteraction`     | Validate an HTTP request/response pair against a schema  |
+| `ValidateProducerResponse`| Producer-side response validation                        |
+
+### Consumer Registry
 
 | Method               | Description                                    |
 | -------------------- | ---------------------------------------------- |
@@ -40,7 +45,7 @@ The complete API is defined in [`api/protos/cvt.proto`](https://github.com/sahin
 | `ListConsumers`      | List all registered consumers for a schema     |
 | `DeregisterConsumer` | Remove a consumer registration                 |
 
-### Phase 3: Deployment Safety
+### Deployment Safety
 
 | Method       | Description                                              |
 | ------------ | -------------------------------------------------------- |
