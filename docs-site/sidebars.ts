@@ -79,8 +79,6 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         'internal/prd',
-        'internal/consumer-testing-plan',
-        'internal/producer-testing-plan',
         'internal/adoption-strategy',
       ],
     },
