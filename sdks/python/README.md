@@ -105,7 +105,7 @@ response = session.post("https://api.example.com/pets", json={"name": "Fluffy"})
 
 Validate incoming requests and outgoing responses against your OpenAPI contract on the server side.
 
-> **Full documentation:** See [Validation Modes](../../docs/guides/validation-modes.md) for detailed behavior, rollout strategy, and metrics information.
+> **Full documentation:** See [Validation Modes](../../docs/guides/validation-modes.mdx) for detailed behavior, rollout strategy, and metrics information.
 
 ### Validation Modes
 
@@ -115,7 +115,7 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `ValidationMode.WARN`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `ValidationMode.SHADOW` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `SHADOW` → `WARN` → `STRICT`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.md#recommended-rollout-strategy).
+**Recommended rollout:** `SHADOW` → `WARN` → `STRICT`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.mdx#recommended-rollout-strategy).
 
 ### FastAPI / ASGI Middleware
 
