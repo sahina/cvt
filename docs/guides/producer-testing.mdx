@@ -337,9 +337,9 @@ app.use(
 <TabItem value="fastify" label="Fastify">
 
 ```typescript
-import { createFastifyPlugin } from "@cvt/sdk/producer";
+import { fastifyProducerPlugin } from "@cvt/sdk/producer";
 
-fastify.register(createFastifyPlugin({ schemaId: "petstore", validator }));
+fastify.register(fastifyProducerPlugin, { schemaId: "petstore", validator });
 ```
 
 </TabItem>

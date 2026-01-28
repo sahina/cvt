@@ -286,17 +286,17 @@ app.get("/pet/:petId", (req, res) => {
 ```typescript
 import Fastify from "fastify";
 import { ContractValidator } from "@cvt/sdk";
-import { createFastifyPlugin } from "@cvt/sdk/producer";
+import { fastifyProducerPlugin } from "@cvt/sdk/producer";
 
 const fastify = Fastify();
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
 
-fastify.register(createFastifyPlugin({
+fastify.register(fastifyProducerPlugin, {
   schemaId: "petstore",
   validator,
   mode: "strict",
-}));
+});
 ```
 
 ## Producer Test Kit
