@@ -186,6 +186,28 @@ class PetstoreContractTest {
 
 CVT supports multiple ways to validate your API interactions.
 
+### Approach Comparison
+
+| Approach         | Control | Needs Producer | Best For           |
+| ---------------- | ------- | -------------- | ------------------ |
+| **Manual**       | Full    | Yes            | Edge cases, errors |
+| **HTTP Adapter** | Medium  | Yes            | Existing tests     |
+| **Mock Client**  | Low     | No             | CI/CD, unit tests  |
+
+- **Manual**: Call `validate()` explicitly. Full control for edge cases and error scenarios.
+- **HTTP Adapter**: Wraps your HTTP client. Automatic validation. Drop-in for existing tests.
+- **Mock Client**: No real HTTP calls. CVT generates responses from schema. Fast and deterministic.
+
+### Choosing an Approach
+
+| Scenario                              | Recommended Approach |
+| ------------------------------------- | -------------------- |
+| CI/CD pipeline without services       | Mock Client          |
+| Adding validation to existing tests   | HTTP Adapter         |
+| Testing specific error responses      | Manual Validation    |
+| Unit testing consumer logic           | Mock Client          |
+| Integration testing with real API     | HTTP Adapter         |
+
 ### Approach 1: Manual Validation
 
 Build request/response objects and validate them directly:
