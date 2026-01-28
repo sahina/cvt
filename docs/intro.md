@@ -126,7 +126,7 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
 ### Reference
 
 - **[API Reference](./reference/api.mdx)** - gRPC API documentation
-- **[CLI Reference](./reference/cli.md)** - Command-line interface
+- **[CLI Reference](./reference/cli.mdx)** - Command-line interface
 - **[Configuration](./reference/configuration.md)** - Environment variables
 - **[SDK Documentation](./reference/sdk/)** - Language-specific guides
 

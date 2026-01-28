@@ -372,6 +372,6 @@ CVT_TLS_KEY_FILE=/etc/cvt/certs/server.key
 
 ## Related Documentation
 
-- **[CLI Reference](./cli.md)** - Command-line options
+- **[CLI Reference](./cli.mdx)** - Command-line options
 - **[Observability Guide](../operations/observability.md)** - Metrics and monitoring
 - **[Development Guide](../development/contributing.md)** - Local development setup
