@@ -273,6 +273,7 @@ The Node.js SDK uses dynamic proto loading and doesn't require code generation.
 ```
 
 This creates:
+
 - `ca.crt`, `ca.key` - Certificate Authority
 - `server.crt`, `server.key` - Server certificate
 - `client.crt`, `client.key` - Client certificate (for mTLS)

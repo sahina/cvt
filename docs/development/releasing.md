@@ -25,6 +25,7 @@ make release TAG=1.0.0
 ```
 
 This will:
+
 - Create git tag `v1.0.0`
 - Push the tag to origin
 - Trigger the release workflow
@@ -37,11 +38,11 @@ Pre-releases are for alpha, beta, and release candidate versions. They do **not*
 
 ### Pre-Release Types
 
-| Type | Example | Use Case |
-|------|---------|----------|
-| Alpha | `1.0.0-alpha.1` | Early development, unstable |
-| Beta | `1.0.0-beta.1` | Feature complete, testing |
-| Release Candidate | `1.0.0-rc.1` | Ready for release, final testing |
+| Type              | Example         | Use Case                         |
+| ----------------- | --------------- | -------------------------------- |
+| Alpha             | `1.0.0-alpha.1` | Early development, unstable      |
+| Beta              | `1.0.0-beta.1`  | Feature complete, testing        |
+| Release Candidate | `1.0.0-rc.1`    | Ready for release, final testing |
 
 ### Creating Pre-Releases
 
@@ -57,6 +58,7 @@ make prerelease TAG=1.0.0-rc.1
 ```
 
 This will:
+
 - Create git tag `v1.0.0-rc.1`
 - Push the tag to origin
 - Trigger the release workflow
@@ -108,7 +110,7 @@ make release TAG=1.0.0
 
 Released images are available at:
 
-```
+```text
 ghcr.io/sahina/cvt-server:latest     # Latest stable release
 ghcr.io/sahina/cvt-server:1.0.0      # Specific version
 ghcr.io/sahina/cvt-server:1.0.0-rc.1 # Pre-release version
@@ -130,16 +132,17 @@ docker pull ghcr.io/sahina/cvt-server:1.0.0-rc.1
 ### Platform Support
 
 All images are built for multiple platforms:
+
 - `linux/amd64` - Standard x86-64 servers, CI runners
 - `linux/arm64` - ARM servers (AWS Graviton, Apple Silicon)
 
 ## Makefile Commands
 
-| Command | Description |
-|---------|-------------|
-| `make tag TAG=x.y.z` | Create a local git tag |
-| `make tag-push TAG=x.y.z` | Create and push a git tag |
-| `make release TAG=x.y.z` | Alias for `tag-push` |
+| Command                            | Description                       |
+| ---------------------------------- | --------------------------------- |
+| `make tag TAG=x.y.z`               | Create a local git tag            |
+| `make tag-push TAG=x.y.z`          | Create and push a git tag         |
+| `make release TAG=x.y.z`           | Alias for `tag-push`              |
 | `make prerelease TAG=x.y.z-suffix` | Create and push a pre-release tag |
 
 ## Troubleshooting
