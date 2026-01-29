@@ -7,6 +7,7 @@
 .PHONY: metrics grafana prometheus observability-status observability-logs
 .PHONY: lint lint-go lint-node lint-python lint-java ci check-coverage ci-full
 .PHONY: docs-dev docs-build docs-serve docs-deploy docs-install
+.PHONY: tag tag-push release prerelease _check_tag _check_tag_prerelease
 
 # Default target
 all: build
@@ -92,6 +93,12 @@ help:
 	@echo "  make docs-build         - Build documentation site for production"
 	@echo "  make docs-serve         - Serve built documentation locally"
 	@echo "  make docs-deploy        - Deploy documentation to GitHub Pages"
+	@echo ""
+	@echo "Release commands:"
+	@echo "  make tag TAG=x.y.z      - Create git tag vx.y.z"
+	@echo "  make tag-push TAG=x.y.z - Create and push git tag vx.y.z (triggers release)"
+	@echo "  make release TAG=x.y.z  - Alias for tag-push"
+	@echo "  make prerelease TAG=x.y.z-rc.1 - Create and push pre-release tag"
 
 # Code generation
 generate:
@@ -547,3 +554,73 @@ docs-deploy: docs-build
 	@echo "🚀 Deploying documentation to GitHub Pages..."
 	cd docs-site && npm run deploy
 	@echo "✅ Documentation deployed!"
+
+# Release commands - helper targets for TAG validation
+_check_tag:
+ifndef TAG
+	$(error TAG is required. Usage: make $(MAKECMDGOALS) TAG=x.y.z)
+endif
+
+_check_tag_prerelease: _check_tag
+	@if echo "$(TAG)" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "❌ Pre-release TAG must include suffix like -alpha.1, -beta.1, or -rc.1"; \
+		echo "   Example: make prerelease TAG=1.0.0-rc.1"; \
+		exit 1; \
+	fi
+
+# Create a local git tag (idempotent - won't fail if tag exists at HEAD)
+tag: _check_tag
+	@EXISTING=$$(git rev-parse -q --verify "refs/tags/v$(TAG)" 2>/dev/null || true); \
+	if [ -n "$$EXISTING" ]; then \
+		if [ "$$EXISTING" = "$$(git rev-parse HEAD)" ]; then \
+			echo "✅ Tag v$(TAG) already exists at HEAD"; \
+		else \
+			echo "❌ Tag v$(TAG) already exists but points to a different commit"; \
+			echo "   Tag points to: $$EXISTING"; \
+			echo "   HEAD is:       $$(git rev-parse HEAD)"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "🏷️  Creating tag v$(TAG)..."; \
+		git tag v$(TAG); \
+		echo "✅ Tag v$(TAG) created locally"; \
+	fi
+	@echo "💡 Run 'make tag-push TAG=$(TAG)' to push and trigger release"
+
+# Create and push a git tag (safe - verifies tag matches HEAD before pushing)
+tag-push: _check_tag
+	@echo "🏷️  Creating and pushing tag v$(TAG)..."
+	@EXISTING=$$(git rev-parse -q --verify "refs/tags/v$(TAG)" 2>/dev/null || true); \
+	if [ -n "$$EXISTING" ] && [ "$$EXISTING" != "$$(git rev-parse HEAD)" ]; then \
+		echo "❌ Tag v$(TAG) already exists but points to a different commit"; \
+		echo "   Tag points to: $$EXISTING"; \
+		echo "   HEAD is:       $$(git rev-parse HEAD)"; \
+		echo "   To re-release, first delete the tag: git tag -d v$(TAG) && git push origin :refs/tags/v$(TAG)"; \
+		exit 1; \
+	fi; \
+	if [ -z "$$EXISTING" ]; then \
+		git tag v$(TAG); \
+	fi; \
+	git push origin v$(TAG)
+	@echo "✅ Tag v$(TAG) pushed to origin"
+	@echo "🚀 Release workflow will build and push Docker image to ghcr.io/sahina/cvt-server"
+
+release: tag-push
+
+# Create and push a pre-release tag (validates pre-release suffix)
+prerelease: _check_tag_prerelease
+	@echo "🏷️  Creating and pushing pre-release tag v$(TAG)..."
+	@EXISTING=$$(git rev-parse -q --verify "refs/tags/v$(TAG)" 2>/dev/null || true); \
+	if [ -n "$$EXISTING" ] && [ "$$EXISTING" != "$$(git rev-parse HEAD)" ]; then \
+		echo "❌ Tag v$(TAG) already exists but points to a different commit"; \
+		echo "   Tag points to: $$EXISTING"; \
+		echo "   HEAD is:       $$(git rev-parse HEAD)"; \
+		echo "   To re-release, first delete the tag: git tag -d v$(TAG) && git push origin :refs/tags/v$(TAG)"; \
+		exit 1; \
+	fi; \
+	if [ -z "$$EXISTING" ]; then \
+		git tag v$(TAG); \
+	fi; \
+	git push origin v$(TAG)
+	@echo "✅ Pre-release tag v$(TAG) pushed to origin"
+	@echo "🚀 Release workflow will build Docker image (will NOT update :latest tag)"

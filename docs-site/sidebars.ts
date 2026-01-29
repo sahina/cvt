@@ -71,6 +71,7 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         'development/contributing',
+        'development/releasing',
       ],
     },
     {
