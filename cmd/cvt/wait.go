@@ -90,7 +90,7 @@ func checkHealth(serverAddr string) error {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
+		return fmt.Errorf("failed to connect to server %s: %w", serverAddr, err)
 	}
 	defer func() { _ = conn.Close() }()
 
