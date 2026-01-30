@@ -81,9 +81,6 @@ Examples:
 			}
 
 			// Connect to server
-			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-			defer cancel()
-
 			conn, err := grpc.NewClient(serverAddr,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
@@ -109,6 +106,11 @@ Examples:
 					Team:  team,
 				}
 			}
+
+			// Create timeout context specifically for the gRPC call
+			// (file I/O is already complete at this point)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+			defer cancel()
 
 			resp, err := client.RegisterSchema(ctx, req)
 			if err != nil {
