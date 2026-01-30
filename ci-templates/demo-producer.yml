@@ -1,0 +1,241 @@
+# =============================================================================
+# CVT Demo Workflow: Producer (API Provider)
+# =============================================================================
+#
+# PURPOSE:
+# This workflow demonstrates how an API producer (provider) validates that
+# schema changes won't break existing consumers. It's the producer's
+# responsibility to ensure backward compatibility.
+#
+# WHEN TO USE:
+# - Before deploying API changes to production
+# - When updating your OpenAPI schema
+# - As part of your CI/CD pipeline for schema changes
+#
+# HOW IT WORKS:
+# 1. Validates your OpenAPI schema is syntactically correct
+# 2. Registers the new schema version with the CVT server
+# 3. Checks if the new version would break any registered consumers
+# 4. Fails the workflow if breaking changes are detected
+#
+# PREREQUISITES:
+# - A running CVT server (self-hosted or managed)
+# - Consumers must have already registered their interactions with the server
+#   (see demo-consumer.yml for how consumers register)
+#
+# CUSTOMIZATION:
+# - Change trigger from workflow_dispatch to push/pull_request for automation
+# - Add authentication via CVT_API_KEY secret (see comments below)
+# - Adjust failure behavior by modifying the can-i-deploy step
+#
+# =============================================================================
+
+name: "CVT Demo: Producer Validation"
+
+# -----------------------------------------------------------------------------
+# TRIGGER CONFIGURATION
+# -----------------------------------------------------------------------------
+# Manual trigger for demo purposes. In production, you might want:
+#
+#   on:
+#     push:
+#       branches: [main]
+#       paths: ['api/**', 'openapi.yaml', 'openapi.json']
+#     pull_request:
+#       branches: [main]
+#       paths: ['api/**', 'openapi.yaml', 'openapi.json']
+#
+on:
+  workflow_dispatch:
+    inputs:
+      schema_url:
+        description: 'Path to OpenAPI schema (file path or URL)'
+        required: true
+        default: './openapi.yaml'
+      server_url:
+        description: 'CVT server address (host:port)'
+        required: true
+        default: 'localhost:9550'
+      schema_id:
+        description: 'Unique identifier for this API schema'
+        required: true
+        default: 'my-api'
+      schema_version:
+        description: 'Version being registered (semver recommended)'
+        required: true
+        default: '1.0.0'
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT VARIABLES
+# -----------------------------------------------------------------------------
+# These can be set at the repository or organization level as secrets/variables
+#
+env:
+  CVT_SCHEMA_URL: ${{ github.event.inputs.schema_url }}
+  CVT_SERVER_URL: ${{ github.event.inputs.server_url }}
+  CVT_SCHEMA_ID: ${{ github.event.inputs.schema_id }}
+  CVT_SCHEMA_VERSION: ${{ github.event.inputs.schema_version }}
+
+  # -----------------------------------------------------------------------------
+  # AUTHENTICATION (Optional)
+  # -----------------------------------------------------------------------------
+  # Uncomment and set CVT_API_KEY as a repository secret to enable auth:
+  #
+  # CVT_API_KEY: ${{ secrets.CVT_API_KEY }}
+  #
+  # The CVT CLI will automatically use this environment variable when set.
+
+jobs:
+  producer-validation:
+    name: Validate Producer Schema
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------------------------------------------------------
+      # STEP 1: Checkout Code
+      # -------------------------------------------------------------------------
+      # Fetch the repository so we can access the schema file.
+      # fetch-depth: 0 is needed if you want to compare against previous versions.
+      #
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -------------------------------------------------------------------------
+      # STEP 2: Validate Schema Syntax
+      # -------------------------------------------------------------------------
+      # Before registering, verify the schema is valid OpenAPI.
+      # This catches syntax errors early and provides clear error messages.
+      #
+      # HOW IT WORKS:
+      # - cvt generate --list parses the schema and lists all endpoints
+      # - If the schema is invalid, this step fails with detailed errors
+      # - This uses LOCAL validation (no server required)
+      #
+      - name: Validate OpenAPI schema syntax
+        run: |
+          echo "Validating schema at: $CVT_SCHEMA_URL"
+          echo ""
+
+          # Run CVT CLI from Docker image
+          # The --list flag parses the schema and outputs all endpoints
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            ghcr.io/your-org/cvt:latest \
+            cvt generate --schema "$CVT_SCHEMA_URL" --list
+
+          echo ""
+          echo "Schema is valid OpenAPI!"
+
+      # -------------------------------------------------------------------------
+      # STEP 3: Register Schema with CVT Server
+      # -------------------------------------------------------------------------
+      # Register the new schema version with the CVT server.
+      #
+      # HOW IT WORKS:
+      # - The schema is uploaded to the CVT server
+      # - CVT parses and stores the schema with its version
+      # - This version will be compared against consumer expectations
+      #
+      # IMPORTANT:
+      # - Each version is stored separately (versions are immutable)
+      # - Consumers register against specific versions
+      # - The server tracks which consumers depend on which versions
+      #
+      - name: Register schema with CVT server
+        run: |
+          echo "Registering schema with CVT server..."
+          echo "  Schema ID: $CVT_SCHEMA_ID"
+          echo "  Version: $CVT_SCHEMA_VERSION"
+          echo "  Server: $CVT_SERVER_URL"
+          echo ""
+
+          docker run --rm \
+            --network host \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            ghcr.io/your-org/cvt:latest \
+            cvt register-schema "$CVT_SCHEMA_ID" "$CVT_SCHEMA_URL" \
+              --version "$CVT_SCHEMA_VERSION" \
+              --server "$CVT_SERVER_URL"
+
+          echo ""
+          echo "Schema registered successfully!"
+
+      # -------------------------------------------------------------------------
+      # STEP 4: Check Deployment Safety (can-i-deploy)
+      # -------------------------------------------------------------------------
+      # The critical step: check if this schema version would break consumers.
+      #
+      # HOW IT WORKS:
+      # 1. CVT retrieves all consumers registered for this schema_id
+      # 2. For each consumer, CVT finds the schema version they tested against
+      # 3. CVT compares the OLD version (consumer's) with NEW version (yours)
+      # 4. CVT detects breaking changes:
+      #    - Removed endpoints
+      #    - New required parameters
+      #    - Changed field types
+      #    - Removed enum values
+      #    - Changed response schemas
+      # 5. Only changes affecting each consumer's used endpoints are reported
+      #
+      # FAILURE BEHAVIOR:
+      # - This step FAILS if breaking changes are detected
+      # - To make it a warning instead, add: continue-on-error: true
+      #
+      - name: Check deployment safety (can-i-deploy)
+        id: can_i_deploy
+        run: |
+          echo "Checking if schema changes will break consumers..."
+          echo ""
+
+          # Run can-i-deploy check
+          # --json flag outputs machine-readable results
+          docker run --rm \
+            --network host \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            ghcr.io/your-org/cvt:latest \
+            cvt can-i-deploy \
+              --schema "$CVT_SCHEMA_URL" \
+              --server "$CVT_SERVER_URL"
+
+      # -------------------------------------------------------------------------
+      # STEP 5: Generate Summary Report
+      # -------------------------------------------------------------------------
+      # Output results to GitHub Step Summary for easy viewing.
+      # This creates a nice formatted report in the Actions UI.
+      #
+      - name: Generate summary report
+        if: always()
+        run: |
+          echo "## Producer Validation Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Schema ID | \`$CVT_SCHEMA_ID\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | \`$CVT_SCHEMA_VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Schema URL | \`$CVT_SCHEMA_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Server | \`$CVT_SERVER_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.can_i_deploy.outcome }}" == "success" ]; then
+            echo "### Result: Safe to Deploy" >> $GITHUB_STEP_SUMMARY
+            echo "No breaking changes detected for registered consumers." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Result: Breaking Changes Detected" >> $GITHUB_STEP_SUMMARY
+            echo "This schema version would break one or more consumers." >> $GITHUB_STEP_SUMMARY
+            echo "Review the can-i-deploy output above for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Endpoints in Schema" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            ghcr.io/your-org/cvt:latest \
+            cvt generate --schema "$CVT_SCHEMA_URL" --list >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

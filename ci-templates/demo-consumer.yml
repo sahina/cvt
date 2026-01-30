@@ -1,0 +1,268 @@
+# =============================================================================
+# CVT Demo Workflow: Consumer (API Client)
+# =============================================================================
+#
+# PURPOSE:
+# This workflow demonstrates how an API consumer runs contract tests that
+# automatically register their API usage with the CVT server. This enables
+# producers to know exactly which endpoints and response fields you depend on.
+#
+# WHEN TO USE:
+# - As part of your CI/CD pipeline for running tests
+# - When you want to register your API dependencies with CVT
+# - Before deploying changes that depend on external APIs
+#
+# HOW IT WORKS:
+# 1. Your test suite runs with CVT SDK configured
+# 2. The SDK intercepts HTTP calls and validates them against the schema
+# 3. The SDK automatically registers your "consumer contract" with the server
+# 4. This contract includes: which endpoints you call, what responses you expect
+# 5. Producers can then check if their changes break your contract
+#
+# WHAT GETS REGISTERED:
+# - Consumer ID (your service name)
+# - Consumer version (your service version)
+# - Schema ID (which API you depend on)
+# - Schema version (which version you tested against)
+# - Used endpoints (which paths/methods you call)
+# - Expected response fields (what data you actually use)
+#
+# PREREQUISITES:
+# - A running CVT server
+# - Tests that use the CVT SDK (Node.js example shown here)
+# - The producer's schema must be registered first
+#
+# CUSTOMIZATION:
+# - Replace Jest/Node.js with your test framework (pytest, go test, etc.)
+# - Add authentication via CVT_API_KEY secret
+# - Change trigger to push/pull_request for automation
+#
+# =============================================================================
+
+name: "CVT Demo: Consumer Contract Tests"
+
+# -----------------------------------------------------------------------------
+# TRIGGER CONFIGURATION
+# -----------------------------------------------------------------------------
+# Manual trigger for demo purposes. In production, you might want:
+#
+#   on:
+#     push:
+#       branches: [main, develop]
+#     pull_request:
+#       branches: [main]
+#
+on:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: 'CVT server address (host:port)'
+        required: true
+        default: 'localhost:9550'
+      consumer_id:
+        description: 'Your service/consumer name'
+        required: true
+        default: 'my-consumer-service'
+      consumer_version:
+        description: 'Your service version'
+        required: true
+        default: '1.0.0'
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT VARIABLES
+# -----------------------------------------------------------------------------
+# These are passed to the test runner and picked up by the CVT SDK
+#
+env:
+  CVT_SERVER_URL: ${{ github.event.inputs.server_url }}
+  CVT_CONSUMER_ID: ${{ github.event.inputs.consumer_id }}
+  CVT_CONSUMER_VERSION: ${{ github.event.inputs.consumer_version }}
+
+  # -----------------------------------------------------------------------------
+  # AUTHENTICATION (Optional)
+  # -----------------------------------------------------------------------------
+  # Uncomment to enable API key authentication:
+  #
+  # CVT_API_KEY: ${{ secrets.CVT_API_KEY }}
+
+jobs:
+  consumer-contract-tests:
+    name: Run Consumer Contract Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------------------------------------------------------
+      # STEP 1: Checkout Code
+      # -------------------------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------------------------
+      # STEP 2: Setup Node.js
+      # -------------------------------------------------------------------------
+      # This example uses Node.js with Jest. Adapt for your stack:
+      #
+      # Python:
+      #   - name: Setup Python
+      #     uses: actions/setup-python@v5
+      #     with:
+      #       python-version: '3.11'
+      #
+      # Go:
+      #   - name: Setup Go
+      #     uses: actions/setup-go@v5
+      #     with:
+      #       go-version: '1.21'
+      #
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # -------------------------------------------------------------------------
+      # STEP 3: Install Dependencies
+      # -------------------------------------------------------------------------
+      # Install your project dependencies including the CVT SDK.
+      #
+      # The CVT SDK should be in your package.json:
+      #   "dependencies": {
+      #     "@your-org/cvt-sdk": "^1.0.0"
+      #   }
+      #
+      - name: Install dependencies
+        run: npm ci
+
+      # -------------------------------------------------------------------------
+      # STEP 4: Run Contract Tests
+      # -------------------------------------------------------------------------
+      # Run your test suite with CVT environment variables set.
+      #
+      # HOW THE SDK WORKS:
+      # 1. You configure the SDK with server URL and consumer details
+      # 2. The SDK wraps your HTTP client (fetch, axios, etc.)
+      # 3. For each HTTP call, the SDK:
+      #    a. Records the request (method, path, headers, body)
+      #    b. Records the response (status, headers, body)
+      #    c. Validates both against the registered schema
+      #    d. Tracks which response fields your code actually uses
+      # 4. At test completion, the SDK registers all interactions with CVT server
+      #
+      # EXAMPLE TEST CODE (Jest + CVT SDK):
+      # ```javascript
+      # import { ContractValidator, createMockAdapter } from '@your-org/cvt-sdk';
+      #
+      # const validator = new ContractValidator({
+      #   address: process.env.CVT_SERVER_URL,
+      # });
+      #
+      # let mock;
+      #
+      # beforeAll(async () => {
+      #   await validator.registerSchema('user-api', './openapi.json');
+      #   mock = createMockAdapter({ validator, cache: true });
+      # });
+      #
+      # afterAll(async () => {
+      #   // Register consumer with captured interactions
+      #   await validator.registerConsumer({
+      #     consumerId: process.env.CVT_CONSUMER_ID,
+      #     consumerVersion: process.env.CVT_CONSUMER_VERSION,
+      #     schemaId: 'user-api',
+      #     schemaVersion: '1.0.0',
+      #     environment: 'test',
+      #     usedEndpoints: mock.getInteractions().map(i => ({
+      #       method: i.request.method,
+      #       path: i.request.path,
+      #     })),
+      #   });
+      #   validator.close();
+      # });
+      #
+      # test('fetches user by ID', async () => {
+      #   const response = await mock.fetch('http://mock.user-api/users/123');
+      #   const user = await response.json();
+      #   expect(user.name).toBeDefined();
+      # });
+      # ```
+      #
+      - name: Run contract tests
+        run: |
+          echo "Running contract tests with CVT SDK..."
+          echo "  CVT Server: $CVT_SERVER_URL"
+          echo "  Consumer: $CVT_CONSUMER_ID @ $CVT_CONSUMER_VERSION"
+          echo ""
+
+          # Run your test suite
+          # The CVT SDK will automatically register interactions on completion
+          npm test
+
+          echo ""
+          echo "Contract tests completed!"
+
+      # -------------------------------------------------------------------------
+      # STEP 5: Verify Consumer Registration
+      # -------------------------------------------------------------------------
+      # After tests complete, verify that the consumer was registered successfully.
+      # This confirms the SDK communicated with the server correctly.
+      #
+      # HOW IT WORKS:
+      # - cvt list-consumers queries the server for registered consumers
+      # - You should see your consumer ID in the output
+      # - If not present, check SDK configuration and server connectivity
+      #
+      - name: Verify consumer registration
+        run: |
+          echo "Verifying consumer registration..."
+          echo ""
+
+          # List all registered consumers for verification
+          docker run --rm \
+            --network host \
+            ghcr.io/your-org/cvt:latest \
+            cvt list-consumers --server "$CVT_SERVER_URL"
+
+          echo ""
+          echo "Look for '$CVT_CONSUMER_ID' in the list above."
+
+      # -------------------------------------------------------------------------
+      # STEP 6: Generate Summary Report
+      # -------------------------------------------------------------------------
+      # Output results to GitHub Step Summary for visibility.
+      #
+      - name: Generate summary report
+        if: always()
+        run: |
+          echo "## Consumer Contract Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Consumer ID | \`$CVT_CONSUMER_ID\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Consumer Version | \`$CVT_CONSUMER_VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| CVT Server | \`$CVT_SERVER_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### Result: Tests Passed" >> $GITHUB_STEP_SUMMARY
+            echo "Consumer contract has been registered with the CVT server." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The producer can now run \`can-i-deploy\` to check if their changes" >> $GITHUB_STEP_SUMMARY
+            echo "will break your service before deploying." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Result: Tests Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Contract tests failed. Check the test output for details." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Common issues:" >> $GITHUB_STEP_SUMMARY
+            echo "- Schema validation errors (your requests don't match the API spec)" >> $GITHUB_STEP_SUMMARY
+            echo "- Response validation errors (API response doesn't match spec)" >> $GITHUB_STEP_SUMMARY
+            echo "- CVT server connectivity issues" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### What Happens Next?" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Now that your consumer is registered:" >> $GITHUB_STEP_SUMMARY
+          echo "1. The API producer knows your service depends on their API" >> $GITHUB_STEP_SUMMARY
+          echo "2. Before deploying changes, the producer runs \`can-i-deploy\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. CVT checks if their changes break your registered contract" >> $GITHUB_STEP_SUMMARY
+          echo "4. If breaking changes are detected, the producer's deploy is blocked" >> $GITHUB_STEP_SUMMARY

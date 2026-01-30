@@ -145,14 +145,22 @@ Clients must include the API key in the `x-api-key` metadata header:
 
 ```typescript
 // Node.js SDK
-const client = new CVTClient('localhost:9550', {
-  metadata: { 'x-api-key': 'your-api-key-here' }
+import { ContractValidator } from '@your-org/cvt-sdk';
+
+const validator = new ContractValidator({
+  address: 'localhost:9550',
+  apiKey: 'your-api-key-here',
 });
 ```
 
 ```python
 # Python SDK
-client = CVTClient('localhost:9550', api_key='your-api-key-here')
+from cvt_sdk import ContractValidator, ContractValidatorOptions
+
+validator = ContractValidator(ContractValidatorOptions(
+    address='localhost:9550',
+    api_key='your-api-key-here',
+))
 ```
 
 ---
