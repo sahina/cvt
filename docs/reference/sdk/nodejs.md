@@ -28,8 +28,10 @@ import { ContractValidator } from "@cvt/sdk";
 
 const validator = new ContractValidator("localhost:9550");
 
-// Register a schema (file path or URL)
+// Register a schema from file
 await validator.registerSchema("petstore", "./openapi.json");
+// Or register from URL:
+// await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
 
 // Validate an interaction
 const result = await validator.validate(
@@ -103,7 +105,7 @@ registerSchema(schemaId: string, schemaPath: string): Promise<void>
 await validator.registerSchema("petstore", "./openapi.json");
 
 // From URL
-await validator.registerSchema("petstore", "https://petstore.swagger.io/v2/swagger.json");
+await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
 ```
 
 ##### registerSchemaWithVersion

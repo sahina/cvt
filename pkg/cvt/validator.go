@@ -100,7 +100,7 @@ func (v *Validator) RegisterSchemaFromURL(schemaID, schemaURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch schema from URL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("failed to fetch schema: HTTP %d", resp.StatusCode)

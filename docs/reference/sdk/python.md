@@ -28,8 +28,10 @@ from cvt_sdk import ContractValidator
 
 validator = ContractValidator("localhost:9550")
 
-# Register a schema (file path or URL)
+# Register a schema from file
 validator.register_schema("petstore", "./openapi.json")
+# Or register from URL:
+# validator.register_schema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json")
 
 # Validate an interaction
 result = validator.validate(
@@ -105,7 +107,7 @@ def register_schema(schema_id: str, schema_path: str) -> None
 validator.register_schema("petstore", "./openapi.json")
 
 # From URL
-validator.register_schema("petstore", "https://petstore.swagger.io/v2/swagger.json")
+validator.register_schema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json")
 ```
 
 ##### register_schema_with_version

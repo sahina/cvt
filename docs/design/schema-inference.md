@@ -1227,7 +1227,7 @@ The following areas need detailed design and implementation:
 - [Consumer Testing Guide](../guides/consumer-testing.mdx)
 - [Producer Testing Guide](../guides/producer-testing.mdx)
 - [Breaking Changes Guide](../guides/breaking-changes.mdx)
-- [Server README](../../server/README.md)
+- [API Reference](../reference/api.mdx)
 
 ---
 

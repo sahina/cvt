@@ -64,15 +64,17 @@ See [Installation](./getting-started/installation.mdx) for detailed instructions
 
 ### 3. Validate an Interaction
 
-Save the [Petstore OpenAPI schema](https://petstore.swagger.io/v2/swagger.json) as `./openapi.json`, then:
+Save the [Petstore OpenAPI schema](https://petstore3.swagger.io/api/v3/openapi.json) as `./openapi.json`, then:
 
 ```typescript
 import { ContractValidator } from "@cvt/sdk";
 
 const validator = new ContractValidator("localhost:9550");
 
-// Register your schema
+// Register your schema from file
 await validator.registerSchema("petstore", "./openapi.json");
+// Or register from URL:
+// await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
 
 // Validate an interaction
 const result = await validator.validate(

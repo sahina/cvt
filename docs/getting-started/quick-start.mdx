@@ -18,8 +18,8 @@ This guide walks you through your first contract test in under 5 minutes.
 - An OpenAPI schema to test against (we'll use the included Petstore schema)
 
 You can either:
-- Save the [Petstore OpenAPI schema](https://petstore.swagger.io/v2/swagger.json) as `./openapi.json` in your project directory, OR
-- Use the URL directly: `https://petstore.swagger.io/v2/swagger.json`
+- Save the [Petstore OpenAPI schema](https://petstore3.swagger.io/api/v3/openapi.json) as `./openapi.json` in your project directory, OR
+- Use the URL directly: `https://petstore3.swagger.io/api/v3/openapi.json`
 
 All `registerSchema` methods accept both file paths and URLs. The examples below use a local file path, but you can substitute a URL.
 
@@ -60,6 +60,8 @@ describe('Petstore API Contract', () => {
     // Register the Petstore schema from file
     const schemaPath = path.resolve(__dirname, './openapi.json');
     await validator.registerSchema('petstore', schemaPath);
+    // Or register from URL:
+    // await validator.registerSchema('petstore', 'https://petstore3.swagger.io/api/v3/openapi.json');
   });
 
   afterAll(() => validator.close());
@@ -118,6 +120,8 @@ def validator():
 
     # Register the Petstore schema from file
     v.register_schema('petstore', './openapi.json')
+    # Or register from URL:
+    # v.register_schema('petstore', 'https://petstore3.swagger.io/api/v3/openapi.json')
 
     yield v
     v.close()
@@ -182,6 +186,8 @@ func TestPetstoreAPIContract(t *testing.T) {
 
     // Register the Petstore schema from file
     err = validator.RegisterSchema(ctx, "petstore", "./openapi.json")
+    // Or register from URL:
+    // err = validator.RegisterSchema(ctx, "petstore", "https://petstore3.swagger.io/api/v3/openapi.json")
     require.NoError(t, err)
 
     t.Run("validates correct pet response", func(t *testing.T) {
@@ -249,6 +255,8 @@ class PetstoreAPIContractTest {
 
         // Register the Petstore schema from file
         validator.registerSchema("petstore", "./openapi.json");
+        // Or register from URL:
+        // validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
     }
 
     @AfterAll
@@ -344,7 +352,7 @@ Now that you've validated your first interaction, explore:
 
 ```typescript
 // Register schema directly from URL
-await validator.registerSchema('petstore', 'https://petstore.swagger.io/v2/swagger.json');
+await validator.registerSchema('petstore', 'https://petstore3.swagger.io/api/v3/openapi.json');
 ```
 
 ### Using HTTP Adapters
