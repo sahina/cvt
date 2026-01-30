@@ -234,10 +234,11 @@ cvt wait -S localhost:9550 -t 120 -i 1      # Short flags
 cvt wait -q                                 # Quiet mode for CI/CD
 ```
 
-**register-schema** - Register an OpenAPI schema with the server:
+**register-schema** - Register an OpenAPI schema with the server (file path or URL):
 
 ```bash
-cvt register-schema my-api ./openapi.yaml                    # Basic registration
+cvt register-schema my-api ./openapi.yaml                    # Basic registration from file
+cvt register-schema my-api https://api.example.com/openapi.json  # Register from URL
 cvt register-schema my-api ./openapi.yaml --version 2.0.0    # With specific version
 cvt register-schema my-api ./openapi.yaml -v 2.0.0           # Short flag for version
 cvt register-schema my-api ./openapi.yaml --check-compatibility  # Check for breaking changes

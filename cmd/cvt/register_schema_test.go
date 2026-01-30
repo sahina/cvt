@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -323,5 +325,71 @@ func TestOutputRegisterHuman_Failure(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error for failed registration")
+	}
+}
+
+func TestFetchSchemaFromURL_Success(t *testing.T) {
+	expectedContent := `{"openapi": "3.0.0", "info": {"title": "Test API", "version": "1.0.0"}}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(expectedContent))
+	}))
+	defer server.Close()
+
+	content, err := fetchSchemaFromURL(server.URL)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if string(content) != expectedContent {
+		t.Errorf("expected content %q, got %q", expectedContent, string(content))
+	}
+}
+
+func TestFetchSchemaFromURL_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	_, err := fetchSchemaFromURL(server.URL)
+	if err == nil {
+		t.Error("expected error for 404 response")
+	}
+
+	expectedMsg := "failed to fetch schema from URL: server returned 404 Not Found"
+	if err.Error() != expectedMsg {
+		t.Errorf("expected error %q, got %q", expectedMsg, err.Error())
+	}
+}
+
+func TestFetchSchemaFromURL_ServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	_, err := fetchSchemaFromURL(server.URL)
+	if err == nil {
+		t.Error("expected error for 500 response")
+	}
+
+	expectedMsg := "failed to fetch schema from URL: server returned 500 Internal Server Error"
+	if err.Error() != expectedMsg {
+		t.Errorf("expected error %q, got %q", expectedMsg, err.Error())
+	}
+}
+
+func TestFetchSchemaFromURL_InvalidURL(t *testing.T) {
+	_, err := fetchSchemaFromURL("http://localhost:99999/nonexistent")
+	if err == nil {
+		t.Error("expected error for invalid URL")
+	}
+
+	// Error should mention "failed to fetch schema from URL"
+	if !bytes.Contains([]byte(err.Error()), []byte("failed to fetch schema from URL")) {
+		t.Errorf("expected error to contain 'failed to fetch schema from URL', got %q", err.Error())
 	}
 }

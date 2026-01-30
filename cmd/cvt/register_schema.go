@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	pb "github.com/sahina/cvt/server/pb"
@@ -31,12 +34,16 @@ func registerSchemaCmd() *cobra.Command {
 		Short: "Register an OpenAPI schema with the CVT server",
 		Long: `Register an OpenAPI schema with the CVT server for validation and tracking.
 
-The schema file can be in YAML or JSON format. Once registered, the schema
-can be used for validation, consumer registration, and deployment safety checks.
+The schema can be a local file path or a URL. Supports YAML or JSON format.
+Once registered, the schema can be used for validation, consumer registration,
+and deployment safety checks.
 
 Examples:
-  # Register a schema
+  # Register a schema from a local file
   cvt register-schema my-api ./openapi.yaml
+
+  # Register a schema from a URL
+  cvt register-schema my-api https://api.example.com/openapi.json
 
   # Register with a specific version
   cvt register-schema my-api ./openapi.yaml --version 2.0.0
@@ -57,10 +64,20 @@ Examples:
 			schemaID := args[0]
 			schemaFile := args[1]
 
-			// Read schema file
-			content, err := os.ReadFile(schemaFile)
-			if err != nil {
-				return fmt.Errorf("failed to read schema file: %w", err)
+			// Read schema content from file or URL
+			var content []byte
+			var err error
+
+			if strings.HasPrefix(schemaFile, "http://") || strings.HasPrefix(schemaFile, "https://") {
+				content, err = fetchSchemaFromURL(schemaFile)
+				if err != nil {
+					return err
+				}
+			} else {
+				content, err = os.ReadFile(schemaFile)
+				if err != nil {
+					return fmt.Errorf("failed to read schema file: %w", err)
+				}
 			}
 
 			// Connect to server
@@ -117,6 +134,25 @@ Examples:
 	cmd.Flags().StringVar(&team, "team", "", "Owning team name")
 
 	return cmd
+}
+
+func fetchSchemaFromURL(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch schema from URL: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch schema from URL: server returned %s", resp.Status)
+	}
+
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read schema from URL response: %w", err)
+	}
+
+	return content, nil
 }
 
 func outputRegisterJSON(resp *pb.RegisterSchemaResponse, failOnBreaking bool) error {
