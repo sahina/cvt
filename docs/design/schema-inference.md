@@ -90,7 +90,7 @@ Current approaches to bootstrapping schemas:
 | ------------------------ | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | **Capture approach**     | Go sidecar (explicit proxy)            | Single implementation, language-agnostic. Eliminates need to maintain Node, Python, Java, Go SDKs for capture.       |
 | **Traffic interception** | Explicit proxy (HTTP_PROXY)            | Simpler than iptables-based transparent proxy. Easier debugging. Can add transparent mode later.                     |
-| **Sampling strategy**    | Adapter pattern, head-based default    | Pluggable strategies without complexity. Head-based is simplest and sufficient for most cases.                       |
+| **Sampling strategy**    | Adapter pattern, head-based default    | Pluggable strategies without complexity. [Head-based](https://opentelemetry.io/docs/concepts/sampling/#head-sampling) (random sampling decision made upfront, before request processing) is simplest and sufficient for most cases. |
 | **Inference location**   | Server-side only                       | Keep sidecar lightweight and fast. Heavy processing happens centrally.                                               |
 | **PII handling**         | Server-side redaction                  | Middleware captures raw traffic; redaction happens before inference to centralize policy.                            |
 | **Buffering**            | In-memory + periodic flush             | Start simple. Transport adapters allow future options (Kafka, SQS) without sidecar changes.                          |
