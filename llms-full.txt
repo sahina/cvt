@@ -307,6 +307,30 @@ Closes gRPC connection.
 validator.close();
 ```
 
+#### buildConsumerFromInteractions(interactions, options)
+Builds consumer registration from recorded interactions.
+
+```typescript
+const consumerData = validator.buildConsumerFromInteractions(
+  [
+    { request: { method: "GET", path: "/users/123" }, response: { statusCode: 200, body: { id: "123" } } }
+  ],
+  { consumerId: "order-service", consumerVersion: "1.0.0", schemaId: "user-api", environment: "dev" }
+);
+```
+
+#### registerConsumerFromInteractions(interactions, options)
+Registers consumer directly from recorded interactions.
+
+```typescript
+await validator.registerConsumerFromInteractions(
+  [
+    { request: { method: "GET", path: "/users/123" }, response: { statusCode: 200, body: { id: "123" } } }
+  ],
+  { consumerId: "order-service", consumerVersion: "1.0.0", schemaId: "user-api", schemaVersion: "1.0.0", environment: "dev" }
+);
+```
+
 ## Python SDK
 
 ### Installation
@@ -451,6 +475,30 @@ if not result["safe_to_deploy"]:
 
 ```python
 validator.close()
+```
+
+#### build_consumer_from_interactions(interactions, options)
+Builds consumer registration from recorded interactions.
+
+```python
+consumer_data = validator.build_consumer_from_interactions(
+    interactions=[
+        {"request": {"method": "GET", "path": "/users/123"}, "response": {"status_code": 200, "body": {"id": "123"}}}
+    ],
+    options={"consumer_id": "order-service", "consumer_version": "1.0.0", "schema_id": "user-api", "environment": "dev"}
+)
+```
+
+#### register_consumer_from_interactions(interactions, options)
+Registers consumer directly from recorded interactions.
+
+```python
+validator.register_consumer_from_interactions(
+    interactions=[
+        {"request": {"method": "GET", "path": "/users/123"}, "response": {"status_code": 200, "body": {"id": "123"}}}
+    ],
+    options={"consumer_id": "order-service", "consumer_version": "1.0.0", "schema_id": "user-api", "schema_version": "1.0.0", "environment": "dev"}
+)
 ```
 
 ## Go Embedded Library
@@ -724,6 +772,37 @@ try (ContractValidator validator = new ContractValidator("localhost:9550")) {
 }
 ```
 
+#### buildConsumerFromInteractions(interactions, options)
+Builds consumer registration from recorded interactions.
+
+```java
+ConsumerData consumerData = validator.buildConsumerFromInteractions(
+    List.of(new RecordedInteraction(request, response)),
+    ConsumerOptions.builder()
+        .consumerId("order-service")
+        .consumerVersion("1.0.0")
+        .schemaId("user-api")
+        .environment("dev")
+        .build()
+);
+```
+
+#### registerConsumerFromInteractions(interactions, options)
+Registers consumer directly from recorded interactions.
+
+```java
+validator.registerConsumerFromInteractions(
+    List.of(new RecordedInteraction(request, response)),
+    ConsumerOptions.builder()
+        .consumerId("order-service")
+        .consumerVersion("1.0.0")
+        .schemaId("user-api")
+        .schemaVersion("1.0.0")
+        .environment("dev")
+        .build()
+);
+```
+
 ## CLI Reference
 
 ### validate
@@ -740,6 +819,12 @@ cvt validate --schema ./openapi.json --interaction interaction.json
 cvt validate --schema ./openapi.json \
   --method GET --path /users/123 \
   --status-code 200 --response-body '{"id":"123","name":"John"}'
+
+# Inline with request body
+cvt validate --schema ./openapi.json \
+  --method POST --path /users \
+  --request-body '{"name":"John"}' \
+  --status-code 201 --response-body '{"id":"1","name":"John"}'
 
 # JSON output
 cvt validate --schema ./openapi.json --interaction interaction.json --json
@@ -782,6 +867,10 @@ cvt generate --schema ./openapi.json --method GET --path /users/{id} --use-examp
 
 # Save to file
 cvt generate --schema ./openapi.json --method POST --path /users -o fixture.json
+
+# Specify status code and content type
+cvt generate --schema ./openapi.json --method GET --path /users/{id} --status-code 404
+cvt generate --schema ./openapi.json --method POST --path /users --content-type application/json
 ```
 
 ### serve
@@ -801,6 +890,7 @@ Check deployment safety.
 cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
 cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --server localhost:9550
 cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --json
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --timeout 30s
 ```
 
 ### version
