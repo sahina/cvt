@@ -90,14 +90,14 @@ func checkHealth(serverAddr string) error {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect: %w", err)
 	}
 	defer func() { _ = conn.Close() }()
 
 	client := grpc_health_v1.NewHealthClient(conn)
 	resp, err := client.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
 	if err != nil {
-		return err
+		return fmt.Errorf("health check failed: %w", err)
 	}
 
 	if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
