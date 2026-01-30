@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -17,6 +19,7 @@ func waitCmd() *cobra.Command {
 		timeout    int
 		interval   int
 		quiet      bool
+		outputJSON bool
 	)
 
 	cmd := &cobra.Command{
@@ -39,12 +42,15 @@ Examples:
   cvt wait --interval 1
 
   # Quiet mode for CI/CD
-  cvt wait -q`,
+  cvt wait -q
+
+  # JSON output for scripting
+  cvt wait --json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			timeoutDuration := time.Duration(timeout) * time.Second
 			intervalDuration := time.Duration(interval) * time.Second
 
-			if !quiet {
+			if !quiet && !outputJSON {
 				fmt.Printf("Waiting for CVT server at %s (timeout: %ds)...\n", serverAddr, timeout)
 			}
 
@@ -55,13 +61,16 @@ Examples:
 				attempt++
 
 				if err := checkHealth(serverAddr); err == nil {
+					if outputJSON {
+						return outputWaitJSON(serverAddr, "ready", attempt, nil)
+					}
 					if !quiet {
 						fmt.Printf("✓ CVT server is ready (after %d attempts)\n", attempt)
 					}
 					return nil
 				}
 
-				if !quiet {
+				if !quiet && !outputJSON {
 					remaining := time.Until(deadline).Truncate(time.Second)
 					fmt.Printf("  Attempt %d: server not ready, retrying in %ds (%s remaining)...\n",
 						attempt, interval, remaining)
@@ -70,7 +79,11 @@ Examples:
 				time.Sleep(intervalDuration)
 			}
 
-			return fmt.Errorf("timeout: CVT server at %s did not become ready within %ds", serverAddr, timeout)
+			timeoutErr := fmt.Errorf("timeout: CVT server at %s did not become ready within %ds", serverAddr, timeout)
+			if outputJSON {
+				return outputWaitJSON(serverAddr, "timeout", attempt, timeoutErr)
+			}
+			return timeoutErr
 		},
 	}
 
@@ -78,8 +91,37 @@ Examples:
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 60, "Maximum time to wait in seconds")
 	cmd.Flags().IntVarP(&interval, "interval", "i", 2, "Polling interval in seconds")
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress output except errors")
+	cmd.Flags().BoolVarP(&outputJSON, "json", "j", false, "Output result as JSON")
 
 	return cmd
+}
+
+func outputWaitJSON(serverAddr, status string, attempts int, err error) error {
+	result := struct {
+		Status   string `json:"status"`
+		Server   string `json:"server"`
+		Attempts int    `json:"attempts"`
+		Error    string `json:"error,omitempty"`
+	}{
+		Status:   status,
+		Server:   serverAddr,
+		Attempts: attempts,
+	}
+
+	if err != nil {
+		result.Error = err.Error()
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if encErr := enc.Encode(result); encErr != nil {
+		return fmt.Errorf("failed to encode result: %w", encErr)
+	}
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func checkHealth(serverAddr string) error {

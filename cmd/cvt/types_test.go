@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -53,16 +54,16 @@ func TestBreakingChangeOutput_OmitEmpty(t *testing.T) {
 
 	// Check that empty fields are omitted
 	jsonStr := string(data)
-	if contains(jsonStr, "path") {
+	if strings.Contains(jsonStr, "path") {
 		t.Error("expected empty path to be omitted from JSON")
 	}
-	if contains(jsonStr, "method") {
+	if strings.Contains(jsonStr, "method") {
 		t.Error("expected empty method to be omitted from JSON")
 	}
-	if contains(jsonStr, "old_value") {
+	if strings.Contains(jsonStr, "old_value") {
 		t.Error("expected empty old_value to be omitted from JSON")
 	}
-	if contains(jsonStr, "new_value") {
+	if strings.Contains(jsonStr, "new_value") {
 		t.Error("expected empty new_value to be omitted from JSON")
 	}
 }
@@ -120,21 +121,7 @@ func TestConsumerImpactOutput_EmptyRelevantChanges(t *testing.T) {
 
 	// Check that empty relevant_changes is omitted
 	jsonStr := string(data)
-	if contains(jsonStr, "relevant_changes") {
+	if strings.Contains(jsonStr, "relevant_changes") {
 		t.Error("expected empty relevant_changes to be omitted from JSON")
 	}
-}
-
-// Helper function to check if a string contains a substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

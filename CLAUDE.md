@@ -232,6 +232,7 @@ cvt wait --server localhost:9550            # Specific server address
 cvt wait --timeout 120 --interval 1         # Custom timeout and polling interval
 cvt wait -S localhost:9550 -t 120 -i 1      # Short flags
 cvt wait -q                                 # Quiet mode for CI/CD
+cvt wait --json                             # JSON output for scripting
 ```
 
 **register-schema** - Register an OpenAPI schema with the server (file path or URL):
