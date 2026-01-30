@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"gopkg.in/yaml.v3"
 )
 
 func registerSchemaCmd() *cobra.Command {
@@ -77,6 +80,14 @@ Examples:
 				content, err = os.ReadFile(schemaFile)
 				if err != nil {
 					return fmt.Errorf("failed to read schema file: %w", err)
+				}
+			}
+
+			// Convert YAML to JSON if needed
+			if isYAML(schemaFile, content) {
+				content, err = yamlToJSON(content)
+				if err != nil {
+					return fmt.Errorf("failed to convert YAML to JSON: %w", err)
 				}
 			}
 
@@ -244,4 +255,52 @@ func outputRegisterHuman(resp *pb.RegisterSchemaResponse, schemaID, schemaFile s
 	}
 
 	return nil
+}
+
+// isYAML detects if the content is YAML based on file extension or content inspection.
+func isYAML(filename string, content []byte) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	if ext == ".yaml" || ext == ".yml" {
+		return true
+	}
+	// Also check if content starts with non-JSON characters (not { or [)
+	trimmed := bytes.TrimSpace(content)
+	return len(trimmed) > 0 && trimmed[0] != '{' && trimmed[0] != '['
+}
+
+// yamlToJSON converts YAML content to JSON.
+func yamlToJSON(yamlContent []byte) ([]byte, error) {
+	var data any
+	if err := yaml.Unmarshal(yamlContent, &data); err != nil {
+		return nil, err
+	}
+	// Convert map[string]any keys recursively (YAML uses map[string]any, but nested maps are map[any]any)
+	data = convertMapKeys(data)
+	return json.Marshal(data)
+}
+
+// convertMapKeys recursively converts map[any]any to map[string]any for JSON compatibility.
+func convertMapKeys(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(val))
+		for k, v := range val {
+			result[k] = convertMapKeys(v)
+		}
+		return result
+	case map[any]any:
+		result := make(map[string]any, len(val))
+		for k, v := range val {
+			result[fmt.Sprintf("%v", k)] = convertMapKeys(v)
+		}
+		return result
+	case []any:
+		result := make([]any, len(val))
+		for i, v := range val {
+			result[i] = convertMapKeys(v)
+		}
+		return result
+	default:
+		return v
+	}
 }

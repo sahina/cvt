@@ -393,3 +393,227 @@ func TestFetchSchemaFromURL_InvalidURL(t *testing.T) {
 		t.Errorf("expected error to contain 'failed to fetch schema from URL', got %q", err.Error())
 	}
 }
+
+func TestIsYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		content  []byte
+		expected bool
+	}{
+		{
+			name:     "YAML file extension",
+			filename: "schema.yaml",
+			content:  []byte(`openapi: "3.0.0"`),
+			expected: true,
+		},
+		{
+			name:     "YML file extension",
+			filename: "schema.yml",
+			content:  []byte(`openapi: "3.0.0"`),
+			expected: true,
+		},
+		{
+			name:     "JSON file with JSON content",
+			filename: "schema.json",
+			content:  []byte(`{"openapi": "3.0.0"}`),
+			expected: false,
+		},
+		{
+			name:     "JSON file with array content",
+			filename: "schema.json",
+			content:  []byte(`[{"name": "test"}]`),
+			expected: false,
+		},
+		{
+			name:     "Unknown extension with YAML content",
+			filename: "schema.txt",
+			content:  []byte(`openapi: "3.0.0"`),
+			expected: true,
+		},
+		{
+			name:     "URL with YAML content",
+			filename: "https://example.com/openapi",
+			content:  []byte(`openapi: "3.0.0"\ninfo:\n  title: Test`),
+			expected: true,
+		},
+		{
+			name:     "URL with JSON content",
+			filename: "https://example.com/openapi",
+			content:  []byte(`{"openapi": "3.0.0"}`),
+			expected: false,
+		},
+		{
+			name:     "Empty content",
+			filename: "schema.json",
+			content:  []byte{},
+			expected: false,
+		},
+		{
+			name:     "Whitespace only content with JSON extension",
+			filename: "schema.json",
+			content:  []byte("   \n\t  "),
+			expected: false,
+		},
+		{
+			name:     "YAML extension uppercase",
+			filename: "schema.YAML",
+			content:  []byte(`openapi: "3.0.0"`),
+			expected: true,
+		},
+		{
+			name:     "JSON with leading whitespace",
+			filename: "schema.json",
+			content:  []byte(`  { "openapi": "3.0.0" }`),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isYAML(tt.filename, tt.content)
+			if result != tt.expected {
+				t.Errorf("isYAML(%q, %q) = %v, want %v", tt.filename, string(tt.content), result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestYamlToJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		expectError bool
+	}{
+		{
+			name: "Simple OpenAPI schema",
+			input: `openapi: "3.0.0"
+info:
+  title: Test API
+  version: "1.0.0"`,
+			expected:    `{"info":{"title":"Test API","version":"1.0.0"},"openapi":"3.0.0"}`,
+			expectError: false,
+		},
+		{
+			name: "Schema with array",
+			input: `tags:
+  - name: pets
+  - name: users`,
+			expected:    `{"tags":[{"name":"pets"},{"name":"users"}]}`,
+			expectError: false,
+		},
+		{
+			name: "Schema with nested objects",
+			input: `paths:
+  /pets:
+    get:
+      summary: List pets
+      responses:
+        "200":
+          description: OK`,
+			expected:    `{"paths":{"/pets":{"get":{"responses":{"200":{"description":"OK"}},"summary":"List pets"}}}}`,
+			expectError: false,
+		},
+		{
+			name:        "Invalid YAML",
+			input:       "invalid:\n  - foo: [\n    bar",
+			expected:    "",
+			expectError: true,
+		},
+		{
+			name:        "Empty YAML",
+			input:       "",
+			expected:    "null",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := yamlToJSON([]byte(tt.input))
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// Parse both expected and result as JSON for comparison
+			// (order of keys in JSON may differ)
+			var expectedMap, resultMap interface{}
+			if err := json.Unmarshal([]byte(tt.expected), &expectedMap); err != nil {
+				t.Fatalf("failed to parse expected JSON: %v", err)
+			}
+			if err := json.Unmarshal(result, &resultMap); err != nil {
+				t.Fatalf("failed to parse result JSON: %v", err)
+			}
+
+			expectedBytes, _ := json.Marshal(expectedMap)
+			resultBytes, _ := json.Marshal(resultMap)
+
+			if string(expectedBytes) != string(resultBytes) {
+				t.Errorf("yamlToJSON() = %s, want %s", string(result), tt.expected)
+			}
+		})
+	}
+}
+
+func TestConvertMapKeys(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected interface{}
+	}{
+		{
+			name:     "String map",
+			input:    map[string]interface{}{"key": "value"},
+			expected: map[string]interface{}{"key": "value"},
+		},
+		{
+			name:     "Any map (from YAML)",
+			input:    map[interface{}]interface{}{"key": "value", 123: "numeric"},
+			expected: map[string]interface{}{"key": "value", "123": "numeric"},
+		},
+		{
+			name:     "Nested any map",
+			input:    map[interface{}]interface{}{"outer": map[interface{}]interface{}{"inner": "value"}},
+			expected: map[string]interface{}{"outer": map[string]interface{}{"inner": "value"}},
+		},
+		{
+			name:     "Array with maps",
+			input:    []interface{}{map[interface{}]interface{}{"key": "value1"}, map[interface{}]interface{}{"key": "value2"}},
+			expected: []interface{}{map[string]interface{}{"key": "value1"}, map[string]interface{}{"key": "value2"}},
+		},
+		{
+			name:     "Primitive value",
+			input:    "hello",
+			expected: "hello",
+		},
+		{
+			name:     "Nil value",
+			input:    nil,
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertMapKeys(tt.input)
+
+			// Convert both to JSON for comparison
+			expectedJSON, _ := json.Marshal(tt.expected)
+			resultJSON, _ := json.Marshal(result)
+
+			if string(expectedJSON) != string(resultJSON) {
+				t.Errorf("convertMapKeys() = %s, want %s", string(resultJSON), string(expectedJSON))
+			}
+		})
+	}
+}
