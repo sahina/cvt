@@ -224,6 +224,31 @@ cvt can-i-deploy --schema ./openapi.json --server localhost:9550
 cvt can-i-deploy --schema ./openapi.json --server localhost:9550 --json --timeout 30s
 ```
 
+**wait** - Wait for CVT server to be ready:
+
+```bash
+cvt wait                                    # Default: 60s timeout, 2s interval
+cvt wait --server localhost:9550            # Specific server address
+cvt wait --timeout 120 --interval 1         # Custom timeout and polling interval
+cvt wait -S localhost:9550 -t 120 -i 1      # Short flags
+cvt wait -q                                 # Quiet mode for CI/CD
+cvt wait --json                             # JSON output for scripting
+```
+
+**register-schema** - Register an OpenAPI schema with the server (file path or URL):
+
+```bash
+cvt register-schema my-api ./openapi.yaml                    # Basic registration from file
+cvt register-schema my-api https://api.example.com/openapi.json  # Register from URL
+cvt register-schema my-api ./openapi.yaml --version 2.0.0    # With specific version
+cvt register-schema my-api ./openapi.yaml -v 2.0.0           # Short flag for version
+cvt register-schema my-api ./openapi.yaml --check-compatibility  # Check for breaking changes
+cvt register-schema my-api ./openapi.yaml --check-compatibility --fail-on-breaking  # Fail CI on breaking changes
+cvt register-schema my-api ./openapi.yaml --json             # JSON output for scripting
+cvt register-schema my-api ./openapi.yaml --owner "Jane Doe" --team "Platform"  # With ownership
+cvt register-schema my-api ./openapi.yaml -q                 # Quiet mode
+```
+
 **serve** - Start the gRPC server:
 
 ```bash
