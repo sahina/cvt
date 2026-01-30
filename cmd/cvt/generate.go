@@ -61,7 +61,7 @@ Examples:
 			}
 
 			v := cvt.NewValidator()
-			if err := v.RegisterSchemaFromFile("schema", schemaFile); err != nil {
+			if err := v.RegisterSchemaFromPath("schema", schemaFile); err != nil {
 				return fmt.Errorf("failed to load schema: %w", err)
 			}
 

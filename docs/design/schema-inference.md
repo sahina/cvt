@@ -1224,10 +1224,10 @@ The following areas need detailed design and implementation:
 
 ### C. Related CVT Documentation
 
-- [Consumer Testing Guide](docs/guides/consumer-testing.mdx)
-- [Producer Testing Guide](docs/guides/producer-testing.mdx)
-- [Breaking Changes Guide](docs/guides/breaking-changes.mdx)
-- [Server README](server/README.md)
+- [Consumer Testing Guide](../guides/consumer-testing.mdx)
+- [Producer Testing Guide](../guides/producer-testing.mdx)
+- [Breaking Changes Guide](../guides/breaking-changes.mdx)
+- [Server README](../../server/README.md)
 
 ---
 

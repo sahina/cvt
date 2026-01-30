@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi2"
 	"github.com/getkin/kin-openapi/openapi2conv"
@@ -83,6 +84,44 @@ func (v *Validator) RegisterSchemaFromFile(schemaID, filePath string) error {
 	v.mu.Unlock()
 
 	return nil
+}
+
+// RegisterSchemaFromURL fetches and registers an OpenAPI schema from a URL.
+func (v *Validator) RegisterSchemaFromURL(schemaID, schemaURL string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, schemaURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to fetch schema from URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("failed to fetch schema: HTTP %d", resp.StatusCode)
+	}
+
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return v.RegisterSchema(schemaID, content)
+}
+
+// RegisterSchemaFromPath loads a schema from a file path or URL.
+// It automatically detects URLs (http:// or https://) and fetches them,
+// otherwise treats the path as a local file.
+func (v *Validator) RegisterSchemaFromPath(schemaID, path string) error {
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return v.RegisterSchemaFromURL(schemaID, path)
+	}
+	return v.RegisterSchemaFromFile(schemaID, path)
 }
 
 // Interaction represents an HTTP request/response pair to validate.

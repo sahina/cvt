@@ -17,7 +17,11 @@ This guide walks you through your first contract test in under 5 minutes.
 - CVT server running (see [Installation](./installation.mdx))
 - An OpenAPI schema to test against (we'll use the included Petstore schema)
 
-Save the [Petstore OpenAPI schema](https://petstore.swagger.io/v2/swagger.json) as `./openapi.json` in your project directory. All examples below reference this file path.
+You can either:
+- Save the [Petstore OpenAPI schema](https://petstore.swagger.io/v2/swagger.json) as `./openapi.json` in your project directory, OR
+- Use the URL directly: `https://petstore.swagger.io/v2/swagger.json`
+
+All `registerSchema` methods accept both file paths and URLs. The examples below use a local file path, but you can substitute a URL.
 
 ## Step 1: Start the Server
 

@@ -51,9 +51,9 @@ cvt validate --schema <path> [options]
 
 ### Options
 
-| Flag              | Short | Description                              | Required                              |
-| ----------------- | ----- | ---------------------------------------- | ------------------------------------- |
-| `--schema`        | `-s`  | Path to OpenAPI schema file (JSON/YAML)  | Yes                                   |
+| Flag              | Short | Description                                      | Required                              |
+| ----------------- | ----- | ------------------------------------------------ | ------------------------------------- |
+| `--schema`        | `-s`  | Path or URL to OpenAPI schema (JSON/YAML)        | Yes                                   |
 | `--interaction`   | `-i`  | Path to combined interaction JSON file   | No (alternative to request/response)  |
 | `--request`       |       | Path to request JSON file                | No (use with --response)              |
 | `--response`      |       | Path to response JSON file               | No (use with --request)               |
@@ -83,6 +83,12 @@ cvt validate --schema ./openapi.json --request req.json --response resp.json
 cvt validate --schema ./openapi.json \
   --method GET --path /pets/123 \
   --status-code 200 --response-body '{"id": 123, "name": "doggie"}'
+```
+
+**4. Using a URL for the schema:**
+```bash
+cvt validate --schema https://petstore3.swagger.io/api/v3/openapi.json \
+  --interaction interaction.json
 ```
 
 ### Request File Format
@@ -148,11 +154,11 @@ cvt compare --old <path> --new <path> [options]
 
 ### Options
 
-| Flag     | Description                     | Required |
-| -------- | ------------------------------- | -------- |
-| `--old`  | Path to old/previous schema     | Yes      |
-| `--new`  | Path to new schema              | Yes      |
-| `--json` | Output results as JSON          | No       |
+| Flag     | Description                           | Required |
+| -------- | ------------------------------------- | -------- |
+| `--old`  | Path or URL to old/previous schema    | Yes      |
+| `--new`  | Path or URL to new schema             | Yes      |
+| `--json` | Output results as JSON                | No       |
 
 ### Examples
 
@@ -162,6 +168,9 @@ cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
 
 # JSON output for CI/CD integration
 cvt compare --old ./v1/openapi.json --new ./v2/openapi.json --json
+
+# Compare local schema against a remote URL
+cvt compare --old ./local-schema.json --new https://api.example.com/openapi.json
 ```
 
 ### Output
@@ -199,7 +208,7 @@ cvt generate --schema <path> [options]
 
 | Flag             | Short | Description                                        | Default            |
 | ---------------- | ----- | -------------------------------------------------- | ------------------ |
-| `--schema`       | `-s`  | Path to OpenAPI schema file                        | (required)         |
+| `--schema`       | `-s`  | Path or URL to OpenAPI schema                      | (required)         |
 | `--list`         | `-l`  | List all available endpoints and exit              | false              |
 | `--method`       | `-m`  | HTTP method (GET, POST, PUT, DELETE, etc.)         | (required for gen) |
 | `--path`         | `-p`  | API path (e.g., `/users`, `/users/{id}`)           | (required for gen) |
@@ -214,6 +223,9 @@ cvt generate --schema <path> [options]
 ```bash
 # List all endpoints in the schema
 cvt generate --schema ./openapi.json --list
+
+# List endpoints from a remote URL
+cvt generate --schema https://petstore3.swagger.io/api/v3/openapi.json --list
 
 # Generate complete request/response fixture
 cvt generate --schema ./openapi.json --method GET --path /pets/{petId}
