@@ -190,27 +190,30 @@ go build -o cvt ./cmd/cvt
 
 ### CLI Commands
 
-**validate** - Validate an interaction against a schema:
+**validate** - Validate an interaction against a schema (file path or URL):
 
 ```bash
 cvt validate --schema ./openapi.json --request req.json --response resp.json
 cvt validate --schema ./openapi.json --interaction interaction.json  # Combined file
 cvt validate --schema ./openapi.json --request req.json --response resp.json --json  # JSON output
+cvt validate --schema https://petstore3.swagger.io/api/v3/openapi.json --interaction interaction.json  # From URL
 ```
 
-**compare** - Compare schemas for breaking changes:
+**compare** - Compare schemas for breaking changes (file paths or URLs):
 
 ```bash
 cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
 cvt compare --old ./v1/openapi.json --new ./v2/openapi.json --json  # JSON output
+cvt compare --old ./local.json --new https://api.example.com/openapi.json  # Mixed file and URL
 ```
 
-**generate** - Generate test fixtures from schemas:
+**generate** - Generate test fixtures from schemas (file paths or URLs):
 
 ```bash
 cvt generate --schema ./openapi.json --endpoint "GET /users/{id}"
 cvt generate --schema ./openapi.json --endpoint "POST /users" --output-type request
 cvt generate --schema ./openapi.json --list  # List all endpoints
+cvt generate --schema https://petstore3.swagger.io/api/v3/openapi.json --list  # List from URL
 cvt generate --schema ./openapi.json --endpoint "GET /users" --use-examples  # Use schema examples
 ```
 

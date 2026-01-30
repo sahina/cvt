@@ -41,8 +41,10 @@ func main() {
     }
     defer validator.Close()
 
-    // Register a schema (file path or URL)
+    // Register a schema from file
     err = validator.RegisterSchema(ctx, "petstore", "./openapi.json")
+    // Or register from URL:
+    // err = validator.RegisterSchema(ctx, "petstore", "https://petstore3.swagger.io/api/v3/openapi.json")
     if err != nil {
         log.Fatal(err)
     }
@@ -128,7 +130,7 @@ func (v *Validator) RegisterSchema(ctx context.Context, schemaID, schemaPath str
 err := validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
 // From URL
-err := validator.RegisterSchema(ctx, "petstore", "https://petstore.swagger.io/v2/swagger.json")
+err := validator.RegisterSchema(ctx, "petstore", "https://petstore3.swagger.io/api/v3/openapi.json")
 ```
 
 #### RegisterSchemaWithVersion

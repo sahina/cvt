@@ -51,8 +51,10 @@ public class Example {
     public static void main(String[] args) throws Exception {
         ContractValidator validator = new ContractValidator("localhost:9550");
 
-        // Register a schema (file path or URL)
+        // Register a schema from file
         validator.registerSchema("petstore", "./openapi.json");
+        // Or register from URL:
+        // validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
 
         // Validate an interaction
         ValidationResult result = validator.validate(
@@ -129,7 +131,7 @@ void registerSchema(String schemaId, String schemaPath) throws IOException
 validator.registerSchema("petstore", "./openapi.json");
 
 // From URL
-validator.registerSchema("petstore", "https://petstore.swagger.io/v2/swagger.json");
+validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
 ```
 
 #### registerSchemaWithVersion

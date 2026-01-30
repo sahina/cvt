@@ -14,6 +14,14 @@ This guide covers how to use CVT for producer-side contract testing. Producer te
 
 :::tip Example Schema
 The examples in this guide use the Petstore schema from `sdks/shared/openapi.json`. Copy it to your project as `openapi.json` or adjust the paths to reference it directly.
+
+All `registerSchema` methods accept both **file paths** and **URLs**:
+```typescript
+// From file
+await validator.registerSchema("petstore", "./openapi.json");
+// From URL
+await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
+```
 :::
 
 ## Overview

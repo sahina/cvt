@@ -43,11 +43,11 @@ Examples:
 			// Load schemas
 			v := cvt.NewValidator()
 
-			if err := v.RegisterSchemaFromFile("old", oldSchemaFile); err != nil {
+			if err := v.RegisterSchemaFromPath("old", oldSchemaFile); err != nil {
 				return fmt.Errorf("failed to load old schema: %w", err)
 			}
 
-			if err := v.RegisterSchemaFromFile("new", newSchemaFile); err != nil {
+			if err := v.RegisterSchemaFromPath("new", newSchemaFile); err != nil {
 				return fmt.Errorf("failed to load new schema: %w", err)
 			}
 
