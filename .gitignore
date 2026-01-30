@@ -100,7 +100,7 @@ htmlcov/
 server/server
 server/cvt-server
 # CLI binary at root
-cvt
+/cvt
 # Test coverage
 *.coverprofile
 coverage.out

@@ -45,6 +45,8 @@ Examples:
 	rootCmd.AddCommand(serveCmd())
 	rootCmd.AddCommand(generateCmd())
 	rootCmd.AddCommand(canIDeployCmd())
+	rootCmd.AddCommand(waitCmd())
+	rootCmd.AddCommand(registerSchemaCmd())
 	rootCmd.AddCommand(versionCmd())
 
 	if err := rootCmd.Execute(); err != nil {
