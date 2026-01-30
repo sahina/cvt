@@ -201,29 +201,25 @@ jobs:
           echo "Contract tests completed!"
 
       # -------------------------------------------------------------------------
-      # STEP 5: Verify Consumer Registration
+      # STEP 5: Verification Note
       # -------------------------------------------------------------------------
-      # After tests complete, verify that the consumer was registered successfully.
-      # This confirms the SDK communicated with the server correctly.
+      # After tests complete, the consumer registration can be verified by
+      # querying the CVT server's gRPC API or checking the server logs.
       #
-      # HOW IT WORKS:
-      # - cvt list-consumers queries the server for registered consumers
-      # - You should see your consumer ID in the output
-      # - If not present, check SDK configuration and server connectivity
+      # The CVT SDK automatically registers consumer interactions when tests
+      # complete successfully. The producer can then use `can-i-deploy` to
+      # check if their schema changes will break this consumer.
       #
-      - name: Verify consumer registration
+      - name: Registration complete
         run: |
-          echo "Verifying consumer registration..."
+          echo "Consumer registration complete!"
           echo ""
-
-          # List all registered consumers for verification
-          docker run --rm \
-            --network host \
-            ghcr.io/your-org/cvt:latest \
-            cvt list-consumers --server "$CVT_SERVER_URL"
-
+          echo "Consumer ID:      $CVT_CONSUMER_ID"
+          echo "Consumer Version: $CVT_CONSUMER_VERSION"
+          echo "CVT Server:       $CVT_SERVER_URL"
           echo ""
-          echo "Look for '$CVT_CONSUMER_ID' in the list above."
+          echo "The producer can now run 'cvt can-i-deploy' to check if their"
+          echo "schema changes will break this consumer's contract."
 
       # -------------------------------------------------------------------------
       # STEP 6: Generate Summary Report

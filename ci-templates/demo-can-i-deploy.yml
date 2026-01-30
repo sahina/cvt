@@ -56,26 +56,26 @@ on:
         description: 'CVT server address (host:port)'
         required: true
         default: 'localhost:9550'
-      schema_url:
-        description: 'Path to OpenAPI schema to check (file path or URL)'
-        required: true
-        default: './openapi.yaml'
       schema_id:
         description: 'Schema identifier to check consumers against'
         required: true
         default: 'my-api'
+      schema_version:
+        description: 'Schema version to check for deployment'
+        required: true
+        default: '1.0.0'
       environment:
-        description: 'Target deployment environment'
-        required: false
-        default: 'production'
+        description: 'Target deployment environment (dev, staging, prod)'
+        required: true
+        default: 'prod'
 
 # -----------------------------------------------------------------------------
 # ENVIRONMENT VARIABLES
 # -----------------------------------------------------------------------------
 env:
   CVT_SERVER_URL: ${{ github.event.inputs.server_url }}
-  CVT_SCHEMA_URL: ${{ github.event.inputs.schema_url }}
   CVT_SCHEMA_ID: ${{ github.event.inputs.schema_id }}
+  CVT_SCHEMA_VERSION: ${{ github.event.inputs.schema_version }}
   CVT_ENVIRONMENT: ${{ github.event.inputs.environment }}
 
   # -----------------------------------------------------------------------------
@@ -100,43 +100,22 @@ jobs:
         uses: actions/checkout@v4
 
       # -------------------------------------------------------------------------
-      # STEP 2: List Registered Consumers
+      # STEP 2: Display Check Configuration
       # -------------------------------------------------------------------------
-      # First, let's see who depends on this API. This gives visibility into
-      # the consumer landscape before we check for breaking changes.
+      # Show the deployment check configuration before running.
       #
-      # HOW IT WORKS:
-      # - Queries CVT server for all consumers registered against this schema_id
-      # - Shows consumer name, version, and which endpoints they use
-      # - If no consumers are registered, the deploy check will succeed
-      #   (nothing to break!)
-      #
-      - name: List registered consumers
-        id: list_consumers
+      - name: Display check configuration
+        id: config
         run: |
-          echo "=== Registered Consumers for '$CVT_SCHEMA_ID' ==="
+          echo "=== Can I Deploy? Configuration ==="
           echo ""
-          echo "These services depend on your API and have registered their usage:"
+          echo "Schema ID:      $CVT_SCHEMA_ID"
+          echo "Schema Version: (will be extracted from schema file)"
+          echo "Environment:    $CVT_ENVIRONMENT"
+          echo "CVT Server:     $CVT_SERVER_URL"
           echo ""
-
-          docker run --rm \
-            --network host \
-            ghcr.io/your-org/cvt:latest \
-            cvt list-consumers \
-              --server "$CVT_SERVER_URL" \
-              --schema "$CVT_SCHEMA_ID" \
-            2>&1 | tee /tmp/consumers.txt
-
-          # Count consumers for summary
-          CONSUMER_COUNT=$(grep -c "Consumer:" /tmp/consumers.txt 2>/dev/null || echo "0")
-          echo "consumer_count=$CONSUMER_COUNT" >> $GITHUB_OUTPUT
-
-          echo ""
-          if [ "$CONSUMER_COUNT" == "0" ]; then
-            echo "No consumers registered. Deploy check will succeed (nothing to break)."
-          else
-            echo "Found $CONSUMER_COUNT registered consumer(s)."
-          fi
+          echo "This check will query the CVT server to determine if deploying"
+          echo "this schema version will break any registered consumers."
 
       # -------------------------------------------------------------------------
       # STEP 3: Run Can-I-Deploy Check
@@ -161,12 +140,28 @@ jobs:
       # - Fails if ANY consumer would be broken
       # - To proceed despite breaks, manually override or use continue-on-error
       #
+      # -------------------------------------------------------------------------
+      # STEP 3: Run Can-I-Deploy Check
+      # -------------------------------------------------------------------------
+      # The main event: check if your schema changes break any consumers.
+      #
+      # HOW IT WORKS:
+      # 1. CVT queries for all consumers registered against this schema_id
+      # 2. For each consumer, it compares their tested version against your new version
+      # 3. Detects breaking changes that would affect each consumer's used endpoints
+      # 4. Reports per-consumer impact and overall deployment safety
+      #
+      # SECURITY NOTE:
+      # The --network host flag is used to allow the container to reach the CVT
+      # server. On shared self-hosted runners, consider using Docker networking
+      # or a service container instead for better isolation.
+      #
       - name: Run can-i-deploy check
         id: can_i_deploy
         run: |
           echo "=== Can I Deploy? ==="
           echo ""
-          echo "Checking if '$CVT_SCHEMA_URL' can be safely deployed..."
+          echo "Checking if '$CVT_SCHEMA_ID' v$CVT_SCHEMA_VERSION can be safely deployed..."
           echo "Target environment: $CVT_ENVIRONMENT"
           echo ""
 
@@ -174,13 +169,13 @@ jobs:
           # This is the critical command that determines deployment safety
           docker run --rm \
             --network host \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
             ghcr.io/your-org/cvt:latest \
             cvt can-i-deploy \
-              --schema "$CVT_SCHEMA_URL" \
+              --schema "$CVT_SCHEMA_ID" \
+              --version "$CVT_SCHEMA_VERSION" \
+              --env "$CVT_ENVIRONMENT" \
               --server "$CVT_SERVER_URL" \
-              --timeout 30s \
+              --timeout 30 \
             2>&1 | tee /tmp/deploy-check.txt
 
           # Capture exit code
@@ -225,19 +220,9 @@ jobs:
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Schema ID | \`$CVT_SCHEMA_ID\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Schema URL | \`$CVT_SCHEMA_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Schema Version | \`$CVT_SCHEMA_VERSION\` |" >> $GITHUB_STEP_SUMMARY
           echo "| CVT Server | \`$CVT_SERVER_URL\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | \`$CVT_ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Consumers Checked | ${{ steps.list_consumers.outputs.consumer_count }} |" >> $GITHUB_STEP_SUMMARY
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Registered Consumers" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "These services have registered their API dependencies:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          cat /tmp/consumers.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No consumers registered"
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Compatibility Check Results" >> $GITHUB_STEP_SUMMARY

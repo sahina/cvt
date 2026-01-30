@@ -144,6 +144,11 @@ jobs:
       # - Consumers register against specific versions
       # - The server tracks which consumers depend on which versions
       #
+      # SECURITY NOTE:
+      # The --network host flag is used to allow the container to reach the CVT
+      # server. On shared self-hosted runners, consider using Docker networking
+      # or a service container instead for better isolation.
+      #
       - name: Register schema with CVT server
         run: |
           echo "Registering schema with CVT server..."
@@ -185,6 +190,11 @@ jobs:
       # - This step FAILS if breaking changes are detected
       # - To make it a warning instead, add: continue-on-error: true
       #
+      # SECURITY NOTE:
+      # The --network host flag is used to allow the container to reach the CVT
+      # server. On shared self-hosted runners, consider using Docker networking
+      # or a service container instead for better isolation.
+      #
       - name: Check deployment safety (can-i-deploy)
         id: can_i_deploy
         run: |
@@ -192,14 +202,14 @@ jobs:
           echo ""
 
           # Run can-i-deploy check
-          # --json flag outputs machine-readable results
+          # Requires: schema ID, version, and target environment
           docker run --rm \
             --network host \
-            -v "${{ github.workspace }}:/workspace" \
-            -w /workspace \
             ghcr.io/your-org/cvt:latest \
             cvt can-i-deploy \
-              --schema "$CVT_SCHEMA_URL" \
+              --schema "$CVT_SCHEMA_ID" \
+              --version "$CVT_SCHEMA_VERSION" \
+              --env "prod" \
               --server "$CVT_SERVER_URL"
 
       # -------------------------------------------------------------------------
