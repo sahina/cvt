@@ -567,9 +567,10 @@ info:
 
 func TestConvertMapKeys(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    interface{}
-		expected interface{}
+		name        string
+		input       interface{}
+		expected    interface{}
+		expectError bool
 	}{
 		{
 			name:     "String map",
@@ -601,11 +602,33 @@ func TestConvertMapKeys(t *testing.T) {
 			input:    nil,
 			expected: nil,
 		},
+		{
+			name:        "Duplicate key after string conversion",
+			input:       map[interface{}]interface{}{123: "numeric", "123": "string"},
+			expectError: true,
+		},
+		{
+			name:        "Nested duplicate key",
+			input:       map[string]interface{}{"outer": map[interface{}]interface{}{456: "a", "456": "b"}},
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertMapKeys(tt.input)
+			result, err := convertMapKeys(tt.input)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
 
 			// Convert both to JSON for comparison
 			expectedJSON, _ := json.Marshal(tt.expected)

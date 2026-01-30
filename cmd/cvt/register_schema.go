@@ -274,33 +274,57 @@ func yamlToJSON(yamlContent []byte) ([]byte, error) {
 	if err := yaml.Unmarshal(yamlContent, &data); err != nil {
 		return nil, err
 	}
-	// Convert map[string]any keys recursively (YAML uses map[string]any, but nested maps are map[any]any)
-	data = convertMapKeys(data)
-	return json.Marshal(data)
+	// Recursively convert map keys to strings to ensure JSON compatibility.
+	convertedData, err := convertMapKeys(data)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(convertedData)
 }
 
 // convertMapKeys recursively converts map[any]any to map[string]any for JSON compatibility.
-func convertMapKeys(v any) any {
+// It returns an error if a key collision is detected after converting keys to strings.
+func convertMapKeys(v any) (any, error) {
 	switch val := v.(type) {
 	case map[string]any:
 		result := make(map[string]any, len(val))
 		for k, v := range val {
-			result[k] = convertMapKeys(v)
+			convertedValue, err := convertMapKeys(v)
+			if err != nil {
+				return nil, err
+			}
+			result[k] = convertedValue
 		}
-		return result
+		return result, nil
 	case map[any]any:
 		result := make(map[string]any, len(val))
-		for k, v := range val {
-			result[fmt.Sprintf("%v", k)] = convertMapKeys(v)
+		stringKeys := make(map[string]struct{}, len(val))
+		for k := range val {
+			strKey := fmt.Sprintf("%v", k)
+			if _, exists := stringKeys[strKey]; exists {
+				return nil, fmt.Errorf("duplicate key after string conversion: %q", strKey)
+			}
+			stringKeys[strKey] = struct{}{}
 		}
-		return result
+		for k, v := range val {
+			convertedValue, err := convertMapKeys(v)
+			if err != nil {
+				return nil, err
+			}
+			result[fmt.Sprintf("%v", k)] = convertedValue
+		}
+		return result, nil
 	case []any:
 		result := make([]any, len(val))
 		for i, v := range val {
-			result[i] = convertMapKeys(v)
+			convertedValue, err := convertMapKeys(v)
+			if err != nil {
+				return nil, err
+			}
+			result[i] = convertedValue
 		}
-		return result
+		return result, nil
 	default:
-		return v
+		return v, nil
 	}
 }
