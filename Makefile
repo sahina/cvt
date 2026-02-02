@@ -43,7 +43,7 @@ help:
 	@echo "  make lint-go            - Run golangci-lint on all Go code"
 	@echo "  make lint-node          - Run ESLint on Node.js SDK"
 	@echo "  make lint-python        - Run ruff on Python SDK"
-	@echo "  make lint-java          - Run Gradle checkstyle on Java SDK"
+	@echo "  make lint-java          - Run Maven verify on Java SDK"
 	@echo "  make ci                 - Run CI checks locally (lint + format)"
 	@echo "  make check-coverage     - Verify all components have >= 70% test coverage"
 	@echo "  make ci-full            - Run full CI (lint + format + coverage)"
@@ -170,7 +170,7 @@ install-go-sdk:
 
 install-java-sdk:
 	@echo "📦 Installing Java SDK dependencies..."
-	cd sdks/java && ./gradlew dependencies --quiet
+	cd sdks/java && mvn dependency:resolve -q
 	@echo "✅ Java SDK dependencies installed!"
 
 # Test targets
@@ -206,12 +206,12 @@ test-go-sdk:
 
 generate-java-sdk:
 	@echo "🔄 Generating protobuf code for Java SDK..."
-	cd sdks/java && ./gradlew generateProto
+	cd sdks/java && mvn generate-sources -DskipTests
 
 test-java-sdk:
 	@echo "🧪 Running Java SDK tests with coverage..."
-	cd sdks/java && ./gradlew test jacocoTestReport --continue || true
-	@echo "📊 Coverage report: sdks/java/build/reports/jacoco/test/html/index.html"
+	cd sdks/java && mvn test jacoco:report || true
+	@echo "📊 Coverage report: sdks/java/target/site/jacoco/index.html"
 
 test-coverage:
 	@echo "🧪 Running server tests with coverage..."
@@ -380,7 +380,7 @@ update-go-sdk:
 
 update-java-sdk:
 	@echo "🔄 Updating Java SDK dependencies..."
-	cd sdks/java && ./gradlew dependencies --refresh-dependencies
+	cd sdks/java && mvn versions:update-properties -DgenerateBackupPoms=false || mvn dependency:resolve -U
 	@echo "✅ Java SDK dependencies updated!"
 
 update-node-sdk:
@@ -458,7 +458,7 @@ lint-python:
 
 lint-java:
 	@echo "🔍 Linting Java SDK..."
-	cd sdks/java && ./gradlew check 2>/dev/null || echo "⚠️  Java linting skipped (gradle check not configured)"
+	cd sdks/java && mvn verify -DskipTests 2>/dev/null || echo "⚠️  Java linting skipped (maven verify not configured)"
 	@echo "✅ Java linting complete!"
 
 # CI target - runs all checks that CI runs
@@ -517,8 +517,8 @@ check-coverage:
 		(echo "❌ Node.js SDK coverage below 70%" && exit 1)
 	@echo ""
 	@echo ">>> Java SDK coverage..."
-	@cd sdks/java && ./gradlew test jacocoTestCoverageVerification 2>&1 | grep -E "(covered ratio|BUILD)" | head -2 || true
-	@cd sdks/java && ./gradlew test jacocoTestCoverageVerification --quiet 2>/dev/null && \
+	@cd sdks/java && mvn test jacoco:check 2>&1 | grep -E "(covered ratio|BUILD)" | head -2 || true
+	@cd sdks/java && mvn test jacoco:check -q 2>/dev/null && \
 		echo "✅ Java SDK: >= 70% (enforced by JaCoCo)" || \
 		(echo "❌ Java SDK coverage below 70%" && exit 1)
 	@echo ""

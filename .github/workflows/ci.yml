@@ -137,15 +137,11 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'gradle'
-
-      - name: Grant execute permission for gradlew
-        working-directory: ./sdks/java
-        run: chmod +x gradlew
+          cache: 'maven'
 
       - name: Run Java SDK integration tests
         working-directory: ./sdks/java
-        run: ./gradlew test
+        run: mvn test
         env:
           CVT_SERVER_ADDRESS: localhost:9550
 
@@ -166,7 +162,7 @@ jobs:
             sdks/node/coverage/
             sdks/python/htmlcov/
             sdks/go/coverage.out
-            sdks/java/build/reports/
+            sdks/java/target/
 
   # Build and test Node.js SDK
   node-sdk:
@@ -302,19 +298,15 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'gradle'
-
-      - name: Grant execute permission for gradlew
-        working-directory: ./sdks/java
-        run: chmod +x gradlew
+          cache: 'maven'
 
       - name: Build Java SDK
         working-directory: ./sdks/java
-        run: ./gradlew build -x test
+        run: mvn compile -DskipTests
 
       - name: Run tests with coverage
         working-directory: ./sdks/java
-        run: ./gradlew test jacocoTestReport --continue || true
+        run: mvn test jacoco:report || true
 
       - name: Upload test results
         if: always()
@@ -322,8 +314,8 @@ jobs:
         with:
           name: java-sdk-test-results
           path: |
-            sdks/java/build/reports/tests/
-            sdks/java/build/reports/jacoco/
+            sdks/java/target/surefire-reports/
+            sdks/java/target/site/jacoco/
 
   # Build Docker image
   docker:
@@ -462,12 +454,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'gradle'
+          cache: 'maven'
 
-      - name: Grant execute permission for gradlew (Java)
+      - name: Run Java verify
         working-directory: ./sdks/java
-        run: chmod +x gradlew
-
-      - name: Run Java checkstyle
-        working-directory: ./sdks/java
-        run: ./gradlew check -x test
+        run: mvn verify -DskipTests
