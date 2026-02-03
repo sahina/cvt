@@ -8,11 +8,11 @@ The **CVT Java SDK** allows you to validate HTTP interactions (requests and resp
 
 **Note**: This package is currently for internal/development use.
 
-To use locally, first publish to your local Maven repository:
+To use locally, first install to your local Maven repository:
 
 ```bash
 cd sdks/java
-./gradlew publishToMavenLocal
+mvn install
 ```
 
 Then add `mavenLocal()` to your repositories and the dependency:
@@ -26,7 +26,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.cvt:cvt-sdk:1.0.0'
+    implementation 'com.cvt:cvt-sdk:0.1.0'
 }
 ```
 
@@ -36,7 +36,7 @@ dependencies {
 <dependency>
     <groupId>com.cvt</groupId>
     <artifactId>cvt-sdk</artifactId>
-    <version>1.0.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
@@ -291,16 +291,16 @@ The Java SDK includes tests covering:
 
 ```bash
 # Run all tests
-./gradlew test
+mvn test
 
 # Run tests with coverage
-./gradlew test jacocoTestReport
+mvn test jacoco:report
 
 # View coverage report
-open build/reports/jacoco/test/html/index.html
+open target/site/jacoco/index.html
 
 # Run specific test class
-./gradlew test --tests "ContractValidatorTest"
+mvn test -Dtest=ContractValidatorTest
 ```
 
 ### Test Structure
@@ -361,16 +361,16 @@ The SDK targets 60%+ test coverage.
 
 ```bash
 # Build the SDK
-./gradlew build
+mvn package -DskipTests
 
-# Run linter/checkstyle
-./gradlew checkstyleMain
+# Run linter/verify
+mvn verify -DskipTests
 
 # Generate javadoc
-./gradlew javadoc
+mvn javadoc:javadoc
 
-# Publish to local Maven
-./gradlew publishToMavenLocal
+# Install to local Maven
+mvn install
 ```
 
 ## Contributing

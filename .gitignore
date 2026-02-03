@@ -27,12 +27,12 @@
 # --- Java (Server & SDK) ---
 .gradle/
 build/
+target/
 server/build/
 out/
 bin/
 *.class
 *.jar
-!**/gradle/wrapper/gradle-wrapper.jar
 *.war
 *.ear
 hs_err_pid*
