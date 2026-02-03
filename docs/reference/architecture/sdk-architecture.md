@@ -98,17 +98,17 @@ Explicit validation in tests:
 │                                                              │
 │  1. Make HTTP call                                           │
 │     ┌────────────┐     HTTP      ┌────────────┐              │
-│     │ Your Code  │ ────────────► │  Real API  │             │
+│     │ Your Code  │ ────────────► │  Real API  │              │
 │     └────────────┘               └────────────┘              │
 │           │                            │                     │
 │           │ request                    │ response            │
-│           ▼                            ▼                   │
+│           ▼                            ▼                     │
 │  2. Validate with CVT                                        │
 │     ┌──────────────────────────────────────────┐             │
 │     │ validator.validate(request, response)    │             │
 │     └──────────────────────────────────────────┘             │
 │           │                                                  │
-│           ▼                                                 │
+│           ▼                                                  │
 │  3. Assert result                                            │
 │     expect(result.valid).toBe(true)                          │
 │                                                              │
@@ -126,37 +126,37 @@ Explicit validation in tests:
 Automatic validation of all HTTP calls:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│                  HTTP Client with Adapter                    │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│     ┌────────────┐                                           │
-│     │ Your Code  │                                           │
-│     └─────┬──────┘                                           │
-│           │ api.get('/users/123')                            │
+┌─────────────────────────────────────────────────────────────┐
+│                  HTTP Client with Adapter                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│     ┌────────────┐                                          │
+│     │ Your Code  │                                          │
+│     └─────┬──────┘                                          │
+│           │ api.get('/users/123')                           │
 │           ▼                                                 │
-│     ┌────────────┐                                           │
-│     │   HTTP     │                                           │
-│     │  Client    │                                           │
-│     │  (Axios)   │                                           │
-│     └─────┬──────┘                                           │
-│           │                                                  │
+│     ┌────────────┐                                          │
+│     │   HTTP     │                                          │
+│     │  Client    │                                          │
+│     │  (Axios)   │                                          │
+│     └─────┬──────┘                                          │
+│           │                                                 │
 │           ▼                                                 │
-│     ┌────────────────────────────────────────┐               │
-│     │          CVT Adapter                    │              │
-│     │  ┌──────────────────────────────────┐  │               │
-│     │  │ 1. Intercept request             │  │               │
+│     ┌────────────────────────────────────────┐              │
+│     │          CVT Adapter                   │              │
+│     │  ┌──────────────────────────────────┐  │              │
+│     │  │ 1. Intercept request             │  │              │
 │     │  │ 2. Make actual HTTP call         │──┼──► Real API  │
 │     │  │ 3. Intercept response            │◄─┼──            │
-│     │  │ 4. Validate both with CVT        │  │               │
-│     │  │ 5. Return response (or throw)    │  │               │
-│     │  └──────────────────────────────────┘  │               │
-│     └────────────────────────────────────────┘               │
-│           │                                                  │
+│     │  │ 4. Validate both with CVT        │  │              │
+│     │  │ 5. Return response (or throw)    │  │              │
+│     │  └──────────────────────────────────┘  │              │
+│     └────────────────────────────────────────┘              │
+│           │                                                 │
 │           ▼                                                 │
-│     Response (or validation error)                           │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+│     Response (or validation error)                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **When to use:**
@@ -178,9 +178,9 @@ Schema-compliant response generation:
 │     │ Your Code  │                                           │
 │     └─────┬──────┘                                           │
 │           │ mock.get('/users/123')                           │
-│           ▼                                                 │
+│           ▼                                                  │
 │     ┌────────────────────────────────────────┐               │
-│     │          Mock Adapter                   │              │
+│     │          Mock Adapter                  │               │
 │     │  ┌──────────────────────────────────┐  │               │
 │     │  │ 1. Parse request                 │  │               │
 │     │  │ 2. Find matching operation       │  │               │
@@ -190,7 +190,7 @@ Schema-compliant response generation:
 │     │  └──────────────────────────────────┘  │               │
 │     └────────────────────────────────────────┘               │
 │           │                                                  │
-│           ▼                                                 │
+│           ▼                                                  │
 │     Generated Response                                       │
 │     { id: 123, name: "string", email: "user@example.com" }   │
 │                                                              │
@@ -216,25 +216,25 @@ Validate requests/responses at runtime:
 │                                                              │
 │     Client Request                                           │
 │           │                                                  │
-│           ▼                                                 │
+│           ▼                                                  │
 │     ┌────────────────────────────────────────┐               │
 │     │          CVT Middleware                │               │
 │     │  ┌──────────────────────────────────┐  │               │
 │     │  │ 1. Validate incoming request     │  │               │
 │     │  │                                  │  │               │
-│     │  │    mode: strict → reject 400    │  │               │
-│     │  │    mode: warn   → log, continue │  │               │
-│     │  │    mode: shadow → metrics only  │  │               │
+│     │  │    mode: strict → reject 400     │  │               │
+│     │  │    mode: warn   → log, continue  │  │               │
+│     │  │    mode: shadow → metrics only   │  │               │
 │     │  └──────────────────────────────────┘  │               │
 │     └────────────────────────────────────────┘               │
 │           │                                                  │
-│           ▼                                                 │
+│           ▼                                                  │
 │     ┌────────────────────────────────────────┐               │
 │     │          Your Handler                  │               │
 │     │     return { id: 123, name: "Alice" }  │               │
 │     └────────────────────────────────────────┘               │
 │           │                                                  │
-│           ▼                                                 │
+│           ▼                                                  │
 │     ┌────────────────────────────────────────┐               │
 │     │          CVT Middleware                │               │
 │     │  ┌──────────────────────────────────┐  │               │
@@ -243,7 +243,7 @@ Validate requests/responses at runtime:
 │     │  └──────────────────────────────────┘  │               │
 │     └────────────────────────────────────────┘               │
 │           │                                                  │
-│           ▼                                                 │
+│           ▼                                                  │
 │     Client Response                                          │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
@@ -271,7 +271,7 @@ Validate handler output in tests:
 │     │ const response = await myHandler(request)│             │
 │     └──────────────────────────────────────────┘             │
 │           │                                                  │
-│           ▼                                                 │
+│           ▼                                                  │
 │  2. Validate with ProducerTestKit                            │
 │     ┌──────────────────────────────────────────┐             │
 │     │ testKit.validateResponse({               │             │
@@ -282,7 +282,7 @@ Validate handler output in tests:
 │     │ })                                       │             │
 │     └──────────────────────────────────────────┘             │
 │           │                                                  │
-│           ▼                                                 │
+│           ▼                                                  │
 │  3. Assert compliance                                        │
 │     expect(result.valid).toBe(true)                          │
 │                                                              │
@@ -311,8 +311,8 @@ All SDK adapters follow a consistent pattern:
 │  └─ recordUsedEndpoints: boolean                            │
 │                                                             │
 │  Lifecycle                                                  │
-│  ├─ intercept(request) → modifiedRequest                   │
-│  ├─ intercept(response) → validatedResponse                │
+│  ├─ intercept(request) → modifiedRequest                    │
+│  ├─ intercept(response) → validatedResponse                 │
 │  └─ dispose()                                               │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -327,7 +327,7 @@ const adapter = createAxiosAdapter({
   axios: axiosInstance,
   validator,
   schemaId: "user-api",
-  onViolation: "throw",  // or "log", "ignore"
+  onViolation: "throw", // or "log", "ignore"
 });
 
 // All calls through this instance are validated

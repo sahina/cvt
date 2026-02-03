@@ -71,16 +71,17 @@ flowchart TB
 
 The server is implemented in Go and provides the following capabilities:
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| gRPC Service | grpc-go | RPC interface for all client operations |
+| Component         | Technology  | Purpose                                         |
+| ----------------- | ----------- | ----------------------------------------------- |
+| gRPC Service      | grpc-go     | RPC interface for all client operations         |
 | Validation Engine | kin-openapi | OpenAPI parsing and request/response validation |
-| Router | gorillamux | Route matching for OpenAPI paths |
-| Cache | Ristretto | High-performance LRU cache for schemas |
-| Logging | Zap | Structured logging |
-| Metrics | Prometheus | Observability metrics |
+| Router            | gorillamux  | Route matching for OpenAPI paths                |
+| Cache             | Ristretto   | High-performance LRU cache for schemas          |
+| Logging           | Zap         | Structured logging                              |
+| Metrics           | Prometheus  | Observability metrics                           |
 
 **Key characteristics:**
+
 - Single static binary (~23MB)
 - Container image ~30-40MB (Alpine-based)
 - Memory footprint: 50-100MB typical
@@ -90,12 +91,12 @@ The server is implemented in Go and provides the following capabilities:
 
 All SDKs provide a consistent interface for contract validation:
 
-| SDK | Language | Features |
-|-----|----------|----------|
-| Node.js | TypeScript | Dynamic proto loading, Axios/Fetch adapters |
-| Python | Python 3.12+ | requests/httpx adapters, uv package manager |
-| Go | Go 1.25+ | http.RoundTripper adapter |
-| Java | Java 21+ | Gradle build, Spring/Servlet middleware |
+| SDK     | Language     | Features                                    |
+| ------- | ------------ | ------------------------------------------- |
+| Node.js | TypeScript   | Dynamic proto loading, Axios/Fetch adapters |
+| Python  | Python 3.12+ | requests/httpx adapters, uv package manager |
+| Go      | Go 1.25+     | http.RoundTripper adapter                   |
+| Java    | Java 21+     | Gradle build, Spring/Servlet middleware     |
 
 SDKs are **pure validator clients** - they handle gRPC communication, configuration, and authentication but do not execute HTTP requests themselves.
 
@@ -103,11 +104,11 @@ SDKs are **pure validator clients** - they handle gRPC communication, configurat
 
 CVT supports three storage backends:
 
-| Backend | Use Case | Persistence | Performance |
-|---------|----------|-------------|-------------|
-| In-Memory | Development, CI | None | Fastest |
-| SQLite | Single-instance | File-based | Fast |
-| PostgreSQL | Production | External DB | Scalable |
+| Backend    | Use Case        | Persistence | Performance |
+| ---------- | --------------- | ----------- | ----------- |
+| In-Memory  | Development, CI | None        | Fastest     |
+| SQLite     | Single-instance | File-based  | Fast        |
+| PostgreSQL | Production      | External DB | Scalable    |
 
 :::tip Storage Architecture
 For detailed information about the storage layer, caching strategies, and data models, see [Storage Layer Architecture](./storage-layer.md).
@@ -131,29 +132,29 @@ The CVT server exposes the following gRPC services, organized by functional phas
 
 ### Phase 1: Schema & Validation
 
-| Service | Input | Output | Purpose |
-|---------|-------|--------|---------|
-| `RegisterSchema` | Schema ID, content, version | Success status, metadata | Register OpenAPI schema |
-| `ValidateInteraction` | Schema ID, request, response | Validation result | Validate HTTP interaction |
-| `GetSchema` | Schema ID, version | Schema content, metadata | Retrieve registered schema |
-| `ListSchemas` | Filters, pagination | Schema list | List all schemas |
-| `CompareSchemas` | Schema ID, old/new versions | Breaking changes | Detect breaking changes |
-| `GenerateFixture` | Schema ID, endpoint | Request/response fixture | Generate test data |
-| `ListEndpoints` | Schema ID | Endpoint list | List schema endpoints |
-| `ValidateProducerResponse` | Schema ID, method, path, response | Validation result | Producer-side validation |
+| Service                    | Input                             | Output                   | Purpose                    |
+| -------------------------- | --------------------------------- | ------------------------ | -------------------------- |
+| `RegisterSchema`           | Schema ID, content, version       | Success status, metadata | Register OpenAPI schema    |
+| `ValidateInteraction`      | Schema ID, request, response      | Validation result        | Validate HTTP interaction  |
+| `GetSchema`                | Schema ID, version                | Schema content, metadata | Retrieve registered schema |
+| `ListSchemas`              | Filters, pagination               | Schema list              | List all schemas           |
+| `CompareSchemas`           | Schema ID, old/new versions       | Breaking changes         | Detect breaking changes    |
+| `GenerateFixture`          | Schema ID, endpoint               | Request/response fixture | Generate test data         |
+| `ListEndpoints`            | Schema ID                         | Endpoint list            | List schema endpoints      |
+| `ValidateProducerResponse` | Schema ID, method, path, response | Validation result        | Producer-side validation   |
 
 ### Phase 2: Consumer Registry
 
-| Service | Input | Output | Purpose |
-|---------|-------|--------|---------|
-| `RegisterConsumer` | Consumer ID, schema ID, endpoints | Consumer info | Register consumer dependency |
-| `ListConsumers` | Schema ID, environment | Consumer list | List schema consumers |
-| `DeregisterConsumer` | Consumer ID, schema ID | Success status | Remove consumer registration |
+| Service              | Input                             | Output         | Purpose                      |
+| -------------------- | --------------------------------- | -------------- | ---------------------------- |
+| `RegisterConsumer`   | Consumer ID, schema ID, endpoints | Consumer info  | Register consumer dependency |
+| `ListConsumers`      | Schema ID, environment            | Consumer list  | List schema consumers        |
+| `DeregisterConsumer` | Consumer ID, schema ID            | Success status | Remove consumer registration |
 
 ### Phase 3: Deployment Safety
 
-| Service | Input | Output | Purpose |
-|---------|-------|--------|---------|
+| Service      | Input                               | Output            | Purpose                 |
+| ------------ | ----------------------------------- | ----------------- | ----------------------- |
 | `CanIDeploy` | Schema ID, new version, environment | Safety assessment | Check deployment safety |
 
 :::tip Validation Engine
@@ -168,18 +169,19 @@ CVT supports multiple deployment models to fit different use cases:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Developer Machine                         │
+│                    Developer Machine                        │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │   ┌──────────────┐    gRPC     ┌──────────────────────────┐ │
 │   │  Test Suite  │ ──────────► │   CVT Server (Docker)    │ │
 │   │  (Jest/etc)  │             │   Port 9550              │ │
 │   └──────────────┘             └──────────────────────────┘ │
-│                                                              │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Characteristics:**
+
 - Run via `make up` or `docker compose up`
 - In-memory or SQLite storage
 - Full observability stack optional
@@ -188,9 +190,9 @@ CVT supports multiple deployment models to fit different use cases:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                     CI Runner                                │
+│                     CI Runner                               │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │   1. Start Container    ┌────────────────────┐              │
 │      ─────────────────► │   CVT Server       │              │
 │                         │   (ephemeral)      │              │
@@ -199,11 +201,12 @@ CVT supports multiple deployment models to fit different use cases:
 │                         │                    │              │
 │   3. Stop Container     │                    │              │
 │      ─────────────────► └────────────────────┘              │
-│                                                              │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Characteristics:**
+
 - Ephemeral container lifecycle
 - In-memory storage (no persistence needed)
 - Fast startup for pipeline efficiency
@@ -212,9 +215,9 @@ CVT supports multiple deployment models to fit different use cases:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Production Environment                    │
+│                    Production Environment                   │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │   ┌──────────────┐                 ┌─────────────────────┐  │
 │   │  Service A   │ ───┐            │    CVT Server       │  │
 │   └──────────────┘    │            │    (persistent)     │  │
@@ -227,11 +230,12 @@ CVT supports multiple deployment models to fit different use cases:
 │   │  Service C   │ ───┘            │   Prometheus/       │  │
 │   └──────────────┘                 │   Grafana           │  │
 │                                    └─────────────────────┘  │
-│                                                              │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Characteristics:**
+
 - PostgreSQL for persistent storage
 - Consumer registry for deployment safety
 - Full observability with alerting
@@ -243,12 +247,12 @@ CVT is designed for high-throughput validation with low latency.
 
 ### Performance Targets
 
-| Metric | Target | Achieved By |
-|--------|--------|-------------|
-| Throughput | 5000+ validations/sec | Go concurrency, efficient caching |
-| Startup time | <1 second | Single static binary |
-| Memory | 50-100MB | Ristretto cache with bounded size |
-| Container size | 30-40MB | Alpine base, multi-stage build |
+| Metric         | Target                | Achieved By                       |
+| -------------- | --------------------- | --------------------------------- |
+| Throughput     | 5000+ validations/sec | Go concurrency, efficient caching |
+| Startup time   | <1 second             | Single static binary              |
+| Memory         | 50-100MB              | Ristretto cache with bounded size |
+| Container size | 30-40MB               | Alpine base, multi-stage build    |
 
 ### Caching Strategy
 
@@ -256,28 +260,29 @@ The caching layer is critical for performance:
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│                      Request Flow                             │
+│                      Request Flow                            │
 ├──────────────────────────────────────────────────────────────┤
-│                                                               │
-│   ValidateInteraction                                         │
-│         │                                                     │
-│         ▼                                                     │
+│                                                              │
+│   ValidateInteraction                                        │
+│         │                                                    │
+│         ▼                                                    │
 │   ┌───────────┐    Hit     ┌──────────────────────────────┐  │
 │   │   Cache   │ ─────────► │ Return cached SchemaEntry    │  │
 │   │  Lookup   │            │ (Document + Metadata)        │  │
 │   └───────────┘            └──────────────────────────────┘  │
-│         │                                                     │
-│         │ Miss                                                │
-│         ▼                                                     │
+│         │                                                    │
+│         │ Miss                                               │
+│         ▼                                                    │
 │   ┌───────────┐            ┌──────────────────────────────┐  │
 │   │  Storage  │ ─────────► │ Load from backend,           │  │
 │   │   Read    │            │ populate cache, return       │  │
 │   └───────────┘            └──────────────────────────────┘  │
-│                                                               │
+│                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 **Cache configuration:**
+
 - Maximum schemas: 1000
 - TTL: 24 hours
 - Eviction policy: LRU with TinyLFU admission
@@ -301,17 +306,17 @@ CVT provides multiple layers of security:
 
 ### Transport Security
 
-| Feature | Configuration | Purpose |
-|---------|--------------|---------|
-| TLS | `CVT_TLS_ENABLED=true` | Encrypt all communication |
-| mTLS | `CVT_TLS_CLIENT_AUTH=require` | Mutual authentication |
+| Feature | Configuration                 | Purpose                   |
+| ------- | ----------------------------- | ------------------------- |
+| TLS     | `CVT_TLS_ENABLED=true`        | Encrypt all communication |
+| mTLS    | `CVT_TLS_CLIENT_AUTH=require` | Mutual authentication     |
 
 ### Authentication
 
-| Method | Configuration | Purpose |
-|--------|--------------|---------|
-| API Keys | `CVT_API_KEY_ENABLED=true` | Client authentication |
-| Key File | `CVT_API_KEYS_FILE` | Externalized key management |
+| Method   | Configuration              | Purpose                     |
+| -------- | -------------------------- | --------------------------- |
+| API Keys | `CVT_API_KEY_ENABLED=true` | Client authentication       |
+| Key File | `CVT_API_KEYS_FILE`        | Externalized key management |
 
 ### Container Security
 
@@ -324,12 +329,12 @@ CVT provides multiple layers of security:
 
 For detailed information about specific subsystems:
 
-| Document | Topics Covered |
-|----------|---------------|
+| Document                                    | Topics Covered                                                       |
+| ------------------------------------------- | -------------------------------------------------------------------- |
 | [Validation Engine](./validation-engine.md) | kin-openapi integration, route matching, request/response validation |
-| [Storage Layer](./storage-layer.md) | Caching, persistence backends, data models |
-| [Consumer Registry](./consumer-registry.md) | Consumer tracking, deployment safety, breaking change detection |
-| [SDK Architecture](./sdk-architecture.md) | SDK design patterns, adapters, cross-language consistency |
+| [Storage Layer](./storage-layer.md)         | Caching, persistence backends, data models                           |
+| [Consumer Registry](./consumer-registry.md) | Consumer tracking, deployment safety, breaking change detection      |
+| [SDK Architecture](./sdk-architecture.md)   | SDK design patterns, adapters, cross-language consistency            |
 
 ---
 
