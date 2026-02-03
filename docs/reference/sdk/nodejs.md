@@ -11,6 +11,10 @@ description: CVT SDK for Node.js and TypeScript
 
 The Node.js SDK provides TypeScript-first contract validation for Node.js applications. It includes HTTP client adapters for automatic validation, producer middleware for Express and Fastify, and a test kit for schema compliance testing.
 
+:::tip SDK Architecture
+For information about SDK design patterns, adapter architecture, and cross-language consistency, see [SDK Architecture](../architecture/sdk-architecture.md).
+:::
+
 ## Installation
 
 ```bash

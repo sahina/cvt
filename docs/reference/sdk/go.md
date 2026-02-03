@@ -11,6 +11,10 @@ description: CVT SDK for Go
 
 The Go SDK provides contract validation for Go applications with full type safety. It includes HTTP client adapters for automatic validation, mock response generation, producer middleware for popular frameworks (net/http, Gin, Chi), and a test kit for schema compliance testing.
 
+:::tip SDK Architecture
+For information about SDK design patterns, adapter architecture, and cross-language consistency, see [SDK Architecture](../architecture/sdk-architecture.md).
+:::
+
 ## Installation
 
 ```bash

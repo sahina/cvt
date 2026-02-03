@@ -11,6 +11,10 @@ description: CVT SDK for Java
 
 The Java SDK provides contract validation for Java applications with Spring integration. It includes HTTP client adapters for automatic validation with OkHttp, producer middleware for Spring and Servlet applications, and a test kit for schema compliance testing.
 
+:::tip SDK Architecture
+For information about SDK design patterns, adapter architecture, and cross-language consistency, see [SDK Architecture](../architecture/sdk-architecture.md).
+:::
+
 ## Installation
 
 ```bash

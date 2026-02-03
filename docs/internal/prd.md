@@ -10,6 +10,7 @@ description: Complete product, architectural, and implementation requirements fo
 :::info Historical Document
 This PRD captures the **original vision and requirements** that guided CVT development. Some implementation details may have evolved since this document was written. For current information, see:
 
+- **[Architecture Documentation](../reference/architecture/index.md)** - Current system design and component architecture
 - **[API Reference](../reference/api.mdx)** - Current gRPC service definition
 - **[SDK Documentation](../reference/sdk/index.mdx)** - SDK installation and usage
 - **[Configuration Reference](../reference/configuration.md)** - Environment variables

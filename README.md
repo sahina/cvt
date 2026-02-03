@@ -724,6 +724,8 @@ make up
 
 ## Architecture
 
+CVT follows a client-server architecture with a Go-based gRPC server and SDKs for multiple languages.
+
 **Server** (Go 1.25): gRPC API with kin-openapi validation, Ristretto caching (1000 schemas/24h), Prometheus metrics, structured logging (Zap)
 
 - **Ports**: 9550 (gRPC), 9551 (metrics)
@@ -733,6 +735,8 @@ make up
 
 - All SDKs support schema registration and validation
 - Examples included in `sdks/*/examples/`
+
+> **Architecture Documentation**: For comprehensive system architecture, component design, validation flow, and deployment patterns, see the [Architecture Documentation](docs/reference/architecture/index.md).
 
 **See detailed docs**: [server/README.md](server/README.md), [sdks/node/README.md](sdks/node/README.md), [sdks/python/README.md](sdks/python/README.md), [sdks/go/README.md](sdks/go/README.md), [sdks/java/README.md](sdks/java/README.md)
 

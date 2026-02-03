@@ -11,6 +11,10 @@ description: Metrics, monitoring, and dashboards for CVT
 
 CVT provides comprehensive observability features to monitor the health, performance, and usage of your contract validation infrastructure. This includes Prometheus metrics for real-time monitoring, Grafana dashboards for visualization, and structured logging for debugging and audit trails.
 
+:::tip Architecture Context
+For system architecture context including how observability integrates with the CVT server, see the [Architecture Overview](../reference/architecture/index.md).
+:::
+
 ## Overview
 
 CVT provides comprehensive observability through:
