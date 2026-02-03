@@ -28,14 +28,16 @@ go install github.com/sahina/cvt/cmd/cvt@latest
 
 ## Commands Overview
 
-| Command        | Description                                          |
-| -------------- | ---------------------------------------------------- |
-| `validate`     | Validate an interaction against a schema             |
-| `compare`      | Compare schemas for breaking changes                 |
-| `generate`     | Generate test fixtures from schemas                  |
-| `can-i-deploy` | Check deployment safety against registered consumers |
-| `serve`        | Start the gRPC server                                |
-| `version`      | Show version information                             |
+| Command           | Description                                          |
+| ----------------- | ---------------------------------------------------- |
+| `validate`        | Validate an interaction against a schema             |
+| `compare`         | Compare schemas for breaking changes                 |
+| `generate`        | Generate test fixtures from schemas                  |
+| `can-i-deploy`    | Check deployment safety against registered consumers |
+| `wait`            | Wait for CVT server to become ready                  |
+| `register-schema` | Register an OpenAPI schema with the server           |
+| `serve`           | Start the gRPC server                                |
+| `version`         | Show version information                             |
 
 ---
 
@@ -51,34 +53,37 @@ cvt validate --schema <path> [options]
 
 ### Options
 
-| Flag              | Short | Description                                      | Required                              |
-| ----------------- | ----- | ------------------------------------------------ | ------------------------------------- |
-| `--schema`        | `-s`  | Path or URL to OpenAPI schema (JSON/YAML)        | Yes                                   |
-| `--interaction`   | `-i`  | Path to combined interaction JSON file   | No (alternative to request/response)  |
-| `--request`       |       | Path to request JSON file                | No (use with --response)              |
-| `--response`      |       | Path to response JSON file               | No (use with --request)               |
-| `--method`        | `-m`  | HTTP method (GET, POST, etc.)            | No (alternative to files)             |
-| `--path`          | `-p`  | Request path (e.g., /pets/123)           | No (use with --method)                |
-| `--request-body`  |       | Request body as JSON string              | No                                    |
-| `--status-code`   |       | Response status code (default: 200)      | No                                    |
-| `--response-body` |       | Response body as JSON string             | No                                    |
-| `--json`          |       | Output results as JSON                   | No                                    |
+| Flag              | Short | Description                               | Required                             |
+| ----------------- | ----- | ----------------------------------------- | ------------------------------------ |
+| `--schema`        | `-s`  | Path or URL to OpenAPI schema (JSON/YAML) | Yes                                  |
+| `--interaction`   | `-i`  | Path to combined interaction JSON file    | No (alternative to request/response) |
+| `--request`       |       | Path to request JSON file                 | No (use with --response)             |
+| `--response`      |       | Path to response JSON file                | No (use with --request)              |
+| `--method`        | `-m`  | HTTP method (GET, POST, etc.)             | No (alternative to files)            |
+| `--path`          | `-p`  | Request path (e.g., /pets/123)            | No (use with --method)               |
+| `--request-body`  |       | Request body as JSON string               | No                                   |
+| `--status-code`   |       | Response status code (default: 200)       | No                                   |
+| `--response-body` |       | Response body as JSON string              | No                                   |
+| `--json`          |       | Output results as JSON                    | No                                   |
 
 ### Input Methods
 
 You can provide interaction data in three ways:
 
 **1. Combined interaction file:**
+
 ```bash
 cvt validate --schema ./openapi.json --interaction interaction.json
 ```
 
 **2. Separate request/response files:**
+
 ```bash
 cvt validate --schema ./openapi.json --request req.json --response resp.json
 ```
 
 **3. Command-line flags (for simple cases):**
+
 ```bash
 cvt validate --schema ./openapi.json \
   --method GET --path /pets/123 \
@@ -86,6 +91,7 @@ cvt validate --schema ./openapi.json \
 ```
 
 **4. Using a URL for the schema:**
+
 ```bash
 cvt validate --schema https://petstore3.swagger.io/api/v3/openapi.json \
   --interaction interaction.json
@@ -123,22 +129,22 @@ cvt validate --schema https://petstore3.swagger.io/api/v3/openapi.json \
   "request": {
     "method": "GET",
     "path": "/pets/123",
-    "headers": {"Accept": "application/json"}
+    "headers": { "Accept": "application/json" }
   },
   "response": {
     "status_code": 200,
-    "headers": {"Content-Type": "application/json"},
-    "body": {"id": 123, "name": "doggie"}
+    "headers": { "Content-Type": "application/json" },
+    "body": { "id": 123, "name": "doggie" }
   }
 }
 ```
 
 ### Exit Codes
 
-| Code | Meaning                                    |
-| ---- | ------------------------------------------ |
-| 0    | Validation passed                          |
-| 1    | Validation failed (errors printed)         |
+| Code | Meaning                            |
+| ---- | ---------------------------------- |
+| 0    | Validation passed                  |
+| 1    | Validation failed (errors printed) |
 
 ---
 
@@ -154,11 +160,11 @@ cvt compare --old <path> --new <path> [options]
 
 ### Options
 
-| Flag     | Description                           | Required |
-| -------- | ------------------------------------- | -------- |
-| `--old`  | Path or URL to old/previous schema    | Yes      |
-| `--new`  | Path or URL to new schema             | Yes      |
-| `--json` | Output results as JSON                | No       |
+| Flag     | Description                        | Required |
+| -------- | ---------------------------------- | -------- |
+| `--old`  | Path or URL to old/previous schema | Yes      |
+| `--new`  | Path or URL to new schema          | Yes      |
+| `--json` | Output results as JSON             | No       |
 
 ### Examples
 
@@ -175,7 +181,7 @@ cvt compare --old ./local-schema.json --new https://api.example.com/openapi.json
 
 ### Output
 
-```
+```text
 ✗ Found 2 breaking change(s):
 
   [ENDPOINT_REMOVED] DELETE /users/{id} was removed
@@ -187,10 +193,10 @@ cvt compare --old ./local-schema.json --new https://api.example.com/openapi.json
 
 ### Exit Codes
 
-| Code | Meaning                              |
-| ---- | ------------------------------------ |
-| 0    | Schemas are compatible               |
-| 1    | Breaking changes detected            |
+| Code | Meaning                   |
+| ---- | ------------------------- |
+| 0    | Schemas are compatible    |
+| 1    | Breaking changes detected |
 
 ---
 
@@ -263,7 +269,7 @@ cvt generate --schema ./openapi.json --method GET --path /pets/{petId} -o fixtur
 
 ### Endpoint List Output
 
-```
+```text
 Available endpoints:
   GET /pets
   GET /pets/{petId}
@@ -286,14 +292,14 @@ cvt can-i-deploy --schema <id> --version <version> --env <environment> [options]
 
 ### Options
 
-| Flag        | Description                            | Required | Default          |
-| ----------- | -------------------------------------- | -------- | ---------------- |
-| `--schema`  | Schema ID to check                     | Yes      |                  |
-| `--version` | New version to deploy                  | Yes      |                  |
-| `--env`     | Target environment (dev, staging, prod)| Yes      |                  |
-| `--server`  | CVT server address                     | No       | localhost:9550   |
-| `--json`    | Output results as JSON                 | No       | false            |
-| `--timeout` | Connection timeout in seconds          | No       | 30               |
+| Flag        | Description                             | Required | Default        |
+| ----------- | --------------------------------------- | -------- | -------------- |
+| `--schema`  | Schema ID to check                      | Yes      |                |
+| `--version` | New version to deploy                   | Yes      |                |
+| `--env`     | Target environment (dev, staging, prod) | Yes      |                |
+| `--server`  | CVT server address                      | No       | localhost:9550 |
+| `--json`    | Output results as JSON                  | No       | false          |
+| `--timeout` | Connection timeout in seconds           | No       | 30             |
 
 ### Examples
 
@@ -313,7 +319,7 @@ cvt can-i-deploy --schema petstore --version 2.0.0 --env prod --timeout 60
 
 ### Output (Safe)
 
-```
+```text
 Deployment Safety Check
 =======================
 Schema:      petstore
@@ -327,7 +333,7 @@ No breaking changes detected that would affect registered consumers.
 
 ### Output (Unsafe)
 
-```
+```text
 Deployment Safety Check
 =======================
 Schema:      petstore
@@ -366,6 +372,128 @@ Recommendation: Coordinate with order-service team before deploying.
 
 ---
 
+## wait
+
+Wait for the CVT server to become ready. Useful for CI/CD pipelines and startup scripts.
+
+### Usage
+
+```bash
+cvt wait [options]
+```
+
+### Options
+
+| Flag         | Short | Description                   | Default        |
+| ------------ | ----- | ----------------------------- | -------------- |
+| `--server`   | `-S`  | CVT server address            | localhost:9550 |
+| `--timeout`  | `-t`  | Timeout in seconds            | 60             |
+| `--interval` | `-i`  | Polling interval in seconds   | 2              |
+| `--json`     | `-j`  | Output results as JSON        | false          |
+| `--quiet`    | `-q`  | Suppress output except errors | false          |
+
+### Examples
+
+```bash
+# Wait with defaults (60s timeout, 2s interval)
+cvt wait
+
+# Wait for specific server with custom timeout
+cvt wait --server cvt.internal:9550 --timeout 120
+
+# Custom polling interval
+cvt wait --server localhost:9550 --timeout 120 --interval 1
+
+# Short flags
+cvt wait -S localhost:9550 -t 120 -i 1
+
+# Quiet mode for CI/CD
+cvt wait -q
+
+# JSON output for scripting
+cvt wait --json
+```
+
+### Exit Codes
+
+| Code | Meaning                    |
+| ---- | -------------------------- |
+| 0    | Server is ready            |
+| 1    | Timeout waiting for server |
+
+---
+
+## register-schema
+
+Register an OpenAPI schema with the CVT server. Supports both local files and URLs, and can check for breaking changes before registering.
+
+### Usage
+
+```bash
+cvt register-schema <schema-id> <schema-file> [options]
+```
+
+### Arguments
+
+| Argument      | Description                               | Required |
+| ------------- | ----------------------------------------- | -------- |
+| `schema-id`   | Unique identifier for the schema          | Yes      |
+| `schema-file` | Path or URL to OpenAPI schema (JSON/YAML) | Yes      |
+
+### Options
+
+| Flag                    | Short | Description                         | Default        |
+| ----------------------- | ----- | ----------------------------------- | -------------- |
+| `--version`             | `-v`  | Schema version (e.g., "2.0.0")      |                |
+| `--server`              | `-S`  | CVT server address                  | localhost:9550 |
+| `--check-compatibility` |       | Check for breaking changes          | false          |
+| `--fail-on-breaking`    |       | Exit with error if breaking changes | false          |
+| `--owner`               |       | Schema owner name                   |                |
+| `--team`                |       | Team name                           |                |
+| `--json`                |       | Output results as JSON              | false          |
+| `--quiet`               | `-q`  | Suppress output except errors       | false          |
+| `--timeout`             | `-t`  | Connection timeout in seconds       | 30             |
+
+### Examples
+
+```bash
+# Basic registration from file
+cvt register-schema my-api ./openapi.yaml
+
+# Register from URL
+cvt register-schema my-api https://api.example.com/openapi.json
+
+# Register with version
+cvt register-schema my-api ./openapi.yaml --version 2.0.0
+
+# Short flag for version
+cvt register-schema my-api ./openapi.yaml -v 2.0.0
+
+# Check for breaking changes before registering
+cvt register-schema my-api ./openapi.yaml --check-compatibility
+
+# Fail CI if breaking changes detected
+cvt register-schema my-api ./openapi.yaml --check-compatibility --fail-on-breaking
+
+# With ownership metadata
+cvt register-schema my-api ./openapi.yaml --owner "Jane Doe" --team "Platform"
+
+# JSON output for scripting
+cvt register-schema my-api ./openapi.yaml --json
+
+# Quiet mode
+cvt register-schema my-api ./openapi.yaml -q
+```
+
+### Exit Codes
+
+| Code | Meaning                                       |
+| ---- | --------------------------------------------- |
+| 0    | Schema registered successfully                |
+| 1    | Registration failed or breaking changes found |
+
+---
+
 ## serve
 
 Start the CVT gRPC server.
@@ -378,14 +506,14 @@ cvt serve [options]
 
 ### Options
 
-| Flag             | Short | Description                  | Default |
-| ---------------- | ----- | ---------------------------- | ------- |
-| `--port`         | `-p`  | gRPC server port             | 9550    |
-| `--metrics-port` |       | Prometheus metrics port      | 9551    |
-| `--tls`          |       | Enable TLS                   | false   |
-| `--cert`         |       | Path to TLS certificate      |         |
-| `--key`          |       | Path to TLS private key      |         |
-| `--api-key-auth` |       | Enable API key authentication| false   |
+| Flag             | Short | Description                   | Default |
+| ---------------- | ----- | ----------------------------- | ------- |
+| `--port`         | `-p`  | gRPC server port              | 9550    |
+| `--metrics-port` |       | Prometheus metrics port       | 9551    |
+| `--tls`          |       | Enable TLS                    | false   |
+| `--cert`         |       | Path to TLS certificate       |         |
+| `--key`          |       | Path to TLS private key       |         |
+| `--api-key-auth` |       | Enable API key authentication | false   |
 
 ### Examples
 
@@ -421,7 +549,7 @@ cvt version
 
 ### Output
 
-```
+```text
 CVT version 1.0.0
   Commit:  abc1234
   Built:   2024-01-15T10:30:00Z
@@ -433,8 +561,8 @@ CVT version 1.0.0
 
 These options work with all commands:
 
-| Flag         | Description          |
-| ------------ | -------------------- |
+| Flag           | Description           |
+| -------------- | --------------------- |
 | `--help`, `-h` | Show help for command |
 
 ---

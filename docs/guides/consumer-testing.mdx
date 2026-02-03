@@ -1689,6 +1689,148 @@ The `ghcr.io/cvt/cvt-server:latest` image is a placeholder. You can:
 3. Host CVT as a shared service in your infrastructure
 :::
 
+### GitLab CI
+
+:::note Prerequisites
+The `can-i-deploy` job requires the `cvt` CLI and `jq` to be available. Either use a base image with these tools pre-installed, or add installation steps to your `before_script`.
+:::
+
+```yaml
+stages:
+  - test
+  - deploy
+
+variables:
+  CVT_SERVER: "localhost:9550"
+
+contract-tests:
+  stage: test
+  services:
+    - name: your-registry/cvt-server:latest
+      alias: cvt
+  variables:
+    CVT_SERVER: "cvt:9550"
+  script:
+    - npm ci
+    - npm test
+  artifacts:
+    reports:
+      junit: test-results.xml
+
+register-consumer:
+  stage: deploy
+  only:
+    - main
+  script:
+    - |
+      npm run register-consumer -- \
+        --id my-service \
+        --version $CI_COMMIT_SHA \
+        --schema petstore \
+        --env staging
+
+can-i-deploy:
+  stage: deploy
+  only:
+    - main
+  script:
+    - |
+      cvt can-i-deploy \
+        --schema petstore \
+        --version $SCHEMA_VERSION \
+        --env prod \
+        --json > check.json
+
+      if [ "$(jq '.safeToDeploy' check.json)" != "true" ]; then
+        echo "Breaking changes detected!"
+        jq '.affectedConsumers[] | select(.willBreak == true)' check.json
+        exit 1
+      fi
+```
+
+### Jenkins
+
+:::note Jenkins plugins
+This example uses `readJSON` from the [Pipeline Utility Steps](https://plugins.jenkins.io/pipeline-utility-steps/) plugin.
+:::
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        CVT_SERVER = 'cvt.internal:9550'
+    }
+
+    stages {
+        stage('Start CVT') {
+            steps {
+                sh 'docker-compose up -d cvt-server'
+                sh 'cvt wait --server localhost:9550 --timeout 60'
+            }
+        }
+
+        stage('Contract Tests') {
+            steps {
+                sh 'npm ci'
+                sh 'npm test'
+            }
+            post {
+                always {
+                    junit 'test-results.xml'
+                }
+            }
+        }
+
+        stage('Register Consumer') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh """
+                    npm run register-consumer -- \\
+                        --id my-service \\
+                        --version ${env.GIT_COMMIT} \\
+                        --schema petstore \\
+                        --env staging
+                """
+            }
+        }
+
+        stage('Can I Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    def result = sh(
+                        script: """
+                            cvt can-i-deploy \\
+                                --schema petstore \\
+                                --version ${env.SCHEMA_VERSION} \\
+                                --env prod \\
+                                --json
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    def json = readJSON text: result
+                    if (!json.safeToDeploy) {
+                        error "Breaking changes detected! Affected consumers: ${json.affectedConsumers}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker-compose down'
+        }
+    }
+}
+```
+
 ### Pre-Deploy Safety Check
 
 ```yaml
@@ -1710,6 +1852,196 @@ deploy:
           exit 1
         fi
 ```
+
+---
+
+## Corporate Proxy Configuration
+
+Many enterprise environments require HTTP traffic to go through a corporate proxy. This section covers how to configure CVT and your tests to work behind a proxy.
+
+### gRPC Traffic (CVT Server Communication)
+
+gRPC uses HTTP/2 and typically doesn't use standard HTTP proxy environment variables. For CVT server communication:
+
+**Option 1: Direct Connection (Recommended)**
+
+Configure your network to allow direct connections to the CVT server on port 9550. This is the simplest approach and avoids proxy complications with gRPC.
+
+**Option 2: gRPC Proxy Support**
+
+If you must proxy gRPC traffic, note that different SDKs have different proxy support:
+
+| SDK | Proxy Mechanism |
+|-----|-----------------|
+| **Python (grpcio)** | Uses `grpc_proxy` / `no_grpc_proxy` environment variables (via gRPC C-core) |
+| **Go (grpc-go)** | Uses standard `HTTPS_PROXY` / `NO_PROXY` environment variables |
+| **Java (grpc-java)** | Uses Java's `ProxySelector` / `Authenticator` mechanism |
+| **Node.js (@grpc/grpc-js)** | No built-in env var support; requires manual proxy configuration |
+
+**Python example:**
+
+```bash
+export grpc_proxy=http://proxy.corporate.com:8080
+export no_grpc_proxy=localhost,127.0.0.1
+```
+
+**Go example:**
+
+```bash
+export HTTPS_PROXY=http://proxy.corporate.com:8080
+export NO_PROXY=localhost,127.0.0.1
+```
+
+### HTTP Traffic (Schema URLs)
+
+When registering schemas from URLs, standard HTTP proxy environment variables apply:
+
+```bash
+# Set proxy for HTTP/HTTPS traffic
+export HTTP_PROXY=http://proxy.corporate.com:8080
+export HTTPS_PROXY=http://proxy.corporate.com:8080
+
+# Bypass proxy for local services
+export NO_PROXY=localhost,127.0.0.1,.internal.corp
+```
+
+### SDK-Specific Configuration
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+Node.js respects `HTTP_PROXY` and `HTTPS_PROXY` environment variables for schema URL fetching:
+
+```typescript
+// Environment variables are picked up automatically
+// HTTP_PROXY=http://proxy:8080 npm test
+
+// Or configure programmatically with a custom agent
+import { HttpsProxyAgent } from 'https-proxy-agent';
+
+const proxyAgent = new HttpsProxyAgent('http://proxy.corporate.com:8080');
+// Use with your HTTP client for API calls
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+Python `requests` library respects standard proxy environment variables:
+
+```python
+import os
+
+# Set programmatically if needed
+os.environ['HTTP_PROXY'] = 'http://proxy.corporate.com:8080'
+os.environ['HTTPS_PROXY'] = 'http://proxy.corporate.com:8080'
+os.environ['NO_PROXY'] = 'localhost,127.0.0.1'
+
+# Or use requests session with explicit proxy
+import requests
+session = requests.Session()
+session.proxies = {
+    'http': 'http://proxy.corporate.com:8080',
+    'https': 'http://proxy.corporate.com:8080',
+}
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+Go respects `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables:
+
+```go
+import (
+    "net/http"
+    "net/url"
+    "os"
+)
+
+// Environment variables are picked up automatically by http.Client
+
+// Or configure explicitly
+proxyURL, _ := url.Parse("http://proxy.corporate.com:8080")
+transport := &http.Transport{
+    Proxy: http.ProxyURL(proxyURL),
+}
+client := &http.Client{Transport: transport}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+Java uses system properties for proxy configuration:
+
+```java
+// Set via JVM arguments
+// -Dhttp.proxyHost=proxy.corporate.com -Dhttp.proxyPort=8080
+// -Dhttps.proxyHost=proxy.corporate.com -Dhttps.proxyPort=8080
+
+// Or programmatically
+System.setProperty("http.proxyHost", "proxy.corporate.com");
+System.setProperty("http.proxyPort", "8080");
+System.setProperty("https.proxyHost", "proxy.corporate.com");
+System.setProperty("https.proxyPort", "8080");
+System.setProperty("http.nonProxyHosts", "localhost|127.0.0.1");
+```
+
+</TabItem>
+</Tabs>
+
+### CI/CD Pipeline Configuration
+
+In CI/CD environments, proxy configuration is typically set at the pipeline level:
+
+**GitHub Actions:**
+```yaml
+env:
+  HTTP_PROXY: ${{ secrets.CORPORATE_PROXY }}
+  HTTPS_PROXY: ${{ secrets.CORPORATE_PROXY }}
+  NO_PROXY: localhost,127.0.0.1
+```
+
+**GitLab CI:**
+```yaml
+variables:
+  HTTP_PROXY: http://proxy.corporate.com:8080
+  HTTPS_PROXY: http://proxy.corporate.com:8080
+  NO_PROXY: localhost,127.0.0.1,cvt
+```
+
+**Jenkins:**
+```groovy
+environment {
+    HTTP_PROXY = 'http://proxy.corporate.com:8080'
+    HTTPS_PROXY = 'http://proxy.corporate.com:8080'
+    NO_PROXY = 'localhost,127.0.0.1'
+}
+```
+
+### SSL Certificate Issues
+
+Corporate proxies often perform SSL inspection, which can cause certificate validation failures. Solutions:
+
+1. **Add corporate CA to trust store:**
+   ```bash
+   # Node.js
+   export NODE_EXTRA_CA_CERTS=/path/to/corporate-ca.crt
+
+   # Python
+   export REQUESTS_CA_BUNDLE=/path/to/corporate-ca.crt
+
+   # Java
+   keytool -import -trustcacerts -file corporate-ca.crt -alias corporate -keystore $JAVA_HOME/lib/security/cacerts
+   ```
+
+2. **Disable SSL verification (development only):**
+   ```bash
+   # NOT recommended for production
+   export NODE_TLS_REJECT_UNAUTHORIZED=0  # Node.js
+   ```
+
+:::warning Security
+Never disable SSL verification in production environments. Always use proper certificate configuration.
+:::
 
 ---
 

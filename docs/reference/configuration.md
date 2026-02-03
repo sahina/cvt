@@ -169,6 +169,10 @@ validator = ContractValidator(ContractValidatorOptions(
 
 Configure backend storage for schemas, consumers, and validation records.
 
+:::tip Storage Architecture
+For detailed information about storage backends, caching strategies, and data models, see [Storage Layer Architecture](./architecture/storage-layer.md).
+:::
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CVT_STORAGE_ENABLED` | `false` | Enable persistent storage (default uses in-memory) |

@@ -1,419 +1,61 @@
 # Contract Validator Toolkit
 
-## 🚧 WORK IN PROGRESS 🚧
-
 <p align="center">
   <img src="assets/cvt-infographic.jpg" alt="CVT - Contract Validator Toolkit" style="border-radius: 12px;">
 </p>
 
 A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against API contracts. Supports both consumer-side (client) and producer-side (server) validation.
 
-> For complete working examples with real-world usage patterns:
->
-> [CVT Demo Repository](https://github.com/sahina/cvt-demo).
-
-## Understanding Consumer vs Producer Validation
-
-CVT supports two complementary validation approaches. Understanding when to use each is key to effective contract testing.
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Contract Testing Overview                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  CONSUMER TESTING                                                           │
-│                                                                             │
-│  Option A: Direct Testing          Option B: Auto-Validating Adapters       │
-│  ┌─────────────────────────────┐   ┌─────────────────────────────┐          │
-│  │                             │   │                             │          │
-│  │  validator.validate(        │   │  HTTP Client (Axios/Fetch)  │          │
-│  │    request, response        │   │         │                   │          │
-│  │  )                          │   │   ┌─────▼─────┐             │          │
-│  │                             │   │   │ CVT       │             │          │
-│  │  Explicit validation in     │   │   │ Adapter   │             │          │
-│  │  unit tests                 │   │   └───────────┘             │          │
-│  │                             │   │                             │          │
-│  │  "Test specific calls"      │   │  Auto-validates ALL calls   │          │
-│  └─────────────────────────────┘   └─────────────────────────────┘          │
-│                                                                             │
-│  Option C: Mock Adapters (Offline Testing)                                  │
-│  ┌──────────────────────────────────────────────────────────────────┐       │
-│  │  Test without the real API:                                      │       │
-│  │                                                                  │       │
-│  │  const mock = createMockAdapter({ validator });                  │       │
-│  │  const response = await mock.fetch('/users/123');                │       │
-│  │                                                                  │       │
-│  │  ✓ Generates schema-compliant responses    ✓ No network needed   │       │
-│  │  ✓ Test before producer API exists         ✓ Fast, deterministic │       │
-│  └──────────────────────────────────────────────────────────────────┘       │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PRODUCER TESTING                                                           │
-│                                                                             │
-│  Option A: Runtime Middleware          Option B: Test-Time Validation       │
-│  ┌─────────────────────────────┐       ┌─────────────────────────────┐      │
-│  │                             │       │                             │      │
-│  │  ┌────────┐   ┌──────────┐  │       │  ┌────────┐   ┌──────────┐  │      │
-│  │  │ Client │──►│ Your API │  │       │  │  Test  │──►│ Handler  │  │      │
-│  │  └────────┘   └────┬─────┘  │       │  └────────┘   └────┬─────┘  │      │
-│  │                    │        │       │                    │        │      │
-│  │              ┌─────▼─────┐  │       │              ┌─────▼─────┐  │      │
-│  │              │ CVT       │  │       │              │ CVT       │  │      │
-│  │              │ Middleware│  │       │              │ TestKit   │  │      │
-│  │              └───────────┘  │       │              └───────────┘  │      │
-│  │                             │       │                             │      │
-│  │  Validates live traffic     │       │  Validates handler output   │      │
-│  │  "Reject bad requests"      │       │  "Does my code match spec?" │      │
-│  └─────────────────────────────┘       └─────────────────────────────┘      │
-│                                                                             │
-│  Option C: Deployment Safety (can-i-deploy)                                 │
-│  ┌──────────────────────────────────────────────────────────────────┐       │
-│  │  Before deploying a new schema version, check consumer impact:   │       │
-│  │                                                                  │       │
-│  │  cvt can-i-deploy --schema my-api --version 2.0.0 --env prod     │       │
-│  │                                                                  │       │
-│  │  ✓ Query consumer registry    ✓ Detect breaking changes          │       │
-│  │  ✓ Identify affected teams    ✓ Block unsafe deployments         │       │
-│  └──────────────────────────────────────────────────────────────────┘       │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### When to Use Each Approach
-
-| Approach                    | You Are...                 | You Want To...                                  | Tool            |
-| --------------------------- | -------------------------- | ----------------------------------------------- | --------------- |
-| **Consumer Direct (A)**     | Calling another team's API | Explicitly validate specific calls in tests     | `validator`     |
-| **Consumer Adapters (B)**   | Calling another team's API | Auto-validate ALL HTTP client calls             | SDK adapters    |
-| **Consumer Mock (C)**       | Calling another team's API | Test without access to the real API             | Mock adapters   |
-| **Producer Middleware (A)** | Exposing an API            | Reject invalid requests at runtime              | Middleware      |
-| **Producer Testing (B)**    | Exposing an API            | Verify handlers return spec-compliant responses | ProducerTestKit |
-| **Deployment Safety (C)**   | Changing your API          | Ensure changes won't break consumers            | can-i-deploy    |
-
-### Consumer Validation (Client-Side)
-
-**Who uses this:** Teams whose code calls external APIs (e.g., your service calls a payment API, user API, etc.)
-
-**What it validates:** Your HTTP client code—the requests you send and how you handle responses—against the downstream API's OpenAPI specification.
-
-CVT offers three approaches for consumer-side validation:
-
-#### Option A: Direct Contract Testing
-
-**What it does:** Explicitly validate request/response pairs in your test suite.
-
-**When to use:** Unit tests where you want full control over what gets validated.
-
-```typescript
-// Explicit validation in your test
-const result = await validator.validate(
-  { method: "GET", path: "/users/123" },
-  { statusCode: 200, body: '{"id": 123}' },
-);
-expect(result.valid).toBe(true);
-```
-
-#### Option B: Auto-Validating HTTP Adapters
-
-**What it does:** Wraps your HTTP client to automatically validate ALL outgoing calls.
-
-**When to use:** You want zero-touch validation—never miss a contract violation.
-
-```typescript
-// Node.js - Axios adapter validates every call automatically
-const adapter = createAxiosAdapter({
-  axios: api,
-  validator,
-  schemaId: "user-api",
-});
-const response = await api.get("/users/123"); // Auto-validated!
-```
-
-```python
-# Python - Drop-in session replacement
-session = ContractValidatingSession(validator, schema_id='user-api')
-response = session.get('http://api/users/123')  # Auto-validated!
-```
-
-```go
-// Go - RoundTripper intercepts all HTTP traffic
-rt := adapters.NewValidatingRoundTripper(adapters.RoundTripperConfig{Validator: v})
-client := &http.Client{Transport: rt}
-```
-
-#### Option C: Mock Adapters (Offline Testing)
-
-**What it does:** Generate schema-compliant mock responses without calling the real API.
-
-**When to use:** Testing consumer code before the producer API is available (see Use Case 4).
-
-```typescript
-// No real HTTP call - response generated from OpenAPI schema!
-const mock = createMockAdapter({ validator, cache: true });
-const response = await mock.fetch("http://mock.user-api/users/123");
-const data = await response.json(); // Schema-compliant mock data
-```
-
-```python
-# Python - MockSession generates responses from schema
-mock = MockSession(validator, schema_id='user-api')
-response = mock.get('http://mock.user-api/users/123')  # No network needed!
-```
-
-```go
-// Go - Mock client generates responses from schema
-client := adapters.NewMockClient(validator)
-resp, _ := client.Get("http://mock.user-api/users/123") // No network needed!
-```
-
-**Key insight:** Consumer validation tests YOUR code against THEIR contract.
-
-### Producer Validation (Server-Side)
-
-CVT offers three complementary approaches for producer-side validation:
-
-#### Option A: Runtime Middleware
-
-**What it does:** Validates incoming requests and outgoing responses against your OpenAPI spec in production.
-
-**When to use:** You want to reject malformed requests before they reach business logic.
-
-```typescript
-// Middleware validates ALL incoming requests at runtime
-app.use(
-  createExpressMiddleware({
-    schemaId: "my-api",
-    validator,
-    mode: "strict", // Rejects requests that don't match your OpenAPI spec
-  }),
-);
-```
-
-#### Option B: Test-Time Validation (ProducerTestKit)
-
-**What it does:** Validates that your handler implementations return spec-compliant responses during testing.
-
-**When to use:** You want to catch implementation drift in your test suite before deployment.
-
-```typescript
-// In your test suite - validate handler output matches spec
-const testKit = new ProducerTestKit({ schemaId: "my-api" });
-
-const result = await testKit.validateResponse({
-  method: "GET",
-  path: "/users/123",
-  statusCode: 200,
-  body: myHandler.getUser("123"), // Your actual handler output
-});
-
-expect(result.valid).toBe(true);
-```
-
-#### Option C: Deployment Safety (can-i-deploy)
-
-**What it does:** Checks if a new schema version can be safely deployed without breaking registered consumers.
-
-**When to use:** Before deploying API changes to production.
-
-```bash
-# Check if v2.0.0 can be deployed without breaking consumers
-cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
-```
-
-**Key insight:** Producer validation ensures YOUR API matches YOUR contract, and deployment safety prevents breaking THEIR integrations.
+> **Examples**: For complete working examples with real-world usage patterns, see the [CVT Demo Repository](https://github.com/sahina/cvt-demo).
 
 ## Features
 
 - **OpenAPI v2/v3 Support** - Validate against Swagger 2.0 and OpenAPI 3.0 specifications
 - **Consumer Validation** - Validate outgoing API calls match the contract (client-side)
 - **Producer Validation** - Validate incoming requests match the contract (server-side middleware)
-- **Producer Testing** - Test API handlers against your OpenAPI spec without real consumers
 - **Consumer Registry** - Track which consumers depend on which schemas
 - **Deployment Safety** - `can-i-deploy` checks prevent breaking changes from reaching production
 - **High Performance** - gRPC-based server with schema caching (1000 schemas, 24h TTL)
 - **Multiple SDKs** - Node.js, Python, Go, and Java client libraries
 - **Security** - TLS/mTLS support and API key authentication
-- **Schema Versioning** - Version tracking, content hashing, and breaking change detection
-- **Local Lite Mode** - Standalone CLI for validation without Docker
-- **Test Fixture Generation** - Generate valid request/response data from schemas
-- **CI/CD Integration** - Ready-to-use templates for GitHub Actions, GitLab CI, and Jenkins
 - **Observability** - Prometheus metrics and Grafana dashboards built-in
-- **Production Ready** - Health checks, structured logging, audit logging, Docker containers (~30-40MB)
-- **Fully Tested** - 70%+ code coverage with comprehensive integration tests
 
-## How It Works
-
-CVT validates API contracts through two mechanisms:
-
-- **Consumer testing**: CVT adapters intercept your HTTP client calls and validate them against upstream API contracts
-- **Producer testing**: CVT middleware intercepts incoming requests to your API and validates them against your contract
-
-**See the Architecture section below for system overview.**
-
-**Middleware support:** Express, Fastify (Node.js), FastAPI, Flask (Python), net/http, Gin, Chi (Go), Spring, Servlet (Java).
-
-## Validation Modes
-
-CVT producer middleware supports three validation modes for gradual rollout:
-
-| Mode       | Request Violation     | Response Violation | Use Case                      |
-| ---------- | --------------------- | ------------------ | ----------------------------- |
-| **strict** | Reject with 400       | Log error          | Production enforcement        |
-| **warn**   | Log warning, continue | Log warning        | Gradual rollout               |
-| **shadow** | Silent (metrics only) | Silent             | Initial deployment, zero risk |
-
-**Recommended rollout:** Start with `shadow` to measure baseline, switch to `warn` to identify issues, then `strict` for full enforcement.
-
-**See [docs/guides/validation-modes.mdx](docs/guides/validation-modes.mdx) for detailed mode behavior, SDK configuration examples, and production rollout strategy.**
-
-## Producer Testing & Deployment Safety
-
-CVT provides comprehensive producer-side testing capabilities that help API owners ensure their implementations match their OpenAPI specifications and prevent breaking changes from affecting consumers.
+## Contract Testing Overview
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     Consumer Registry & Producer Testing                    │
+│                          Contract Testing with CVT                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  CONSUMER SIDE (during tests)              PRODUCER SIDE (before deploy)    │
-│  ┌─────────────────────────────┐           ┌─────────────────────────────┐  │
-│  │                             │           │                             │  │
-│  │  1. Run contract tests      │           │  1. Run schema compliance   │  │
-│  │     (validates against      │           │     tests (handler output   │  │
-│  │      producer's spec)       │           │      matches spec)          │  │
-│  │              │              │           │              │              │  │
-│  │              ▼              │           │              ▼              │  │
-│  │  2. Register with CVT       │           │  2. Run cvt can-i-deploy    │  │
-│  │     - Which schema I use    │           │     - Check breaking changes│  │
-│  │     - Which version         │           │     - Check consumer impact │  │
-│  │     - Which endpoints/fields│           │              │              │  │
-│  │              │              │           │              ▼              │  │
-│  │              ▼              │           │  3. Deploy if safe          │  │
-│  └──────────────┼──────────────┘           └─────────────────────────────┘  │
-│                 │                                        ▲                  │
-│                 │         ┌─────────────────────┐        │                  │
-│                 └────────►│   CVT Server        │────────┘                  │
-│                           │                     │                           │
-│                           │  - Consumer Registry│                           │
-│                           │  - Schema Store     │                           │
-│                           │  - Compatibility    │                           │
-│                           │    Matrix           │                           │
-│                           └─────────────────────┘                           │
+│  CONSUMER TESTING                        PRODUCER TESTING                   │
+│  "Am I calling the API correctly?"       "Does my API match my spec?"       │
+│                                                                             │
+│  ┌─────────────┐      HTTP       ┌─────────────┐                            │
+│  │ Your Service│ ──────────────► │ Upstream API│                            │
+│  │ (Consumer)  │                 │ (Producer)  │                            │
+│  └──────┬──────┘                 └─────────────┘                            │
+│         │                                                                   │
+│         │ Validate request/response                                         │
+│         ▼                                                                   │
+│  ┌─────────────┐                 ┌─────────────┐      HTTP       ┌────────┐ │
+│  │ CVT Server  │                 │  Your API   │◄────────────────│ Client │ │
+│  │ + Schema    │                 │ + Middleware│                 │        │ │
+│  └─────────────┘                 └──────┬──────┘                 └────────┘ │
+│                                         │                                   │
+│                                         │ Validate request/response         │
+│                                         ▼                                   │
+│                                  ┌─────────────┐                            │
+│                                  │ CVT Server  │                            │
+│                                  │ + Schema    │                            │
+│                                  └─────────────┘                            │
+│                                                                             │
+│  Use Cases:                              Use Cases:                         │
+│  • Test your API integrations            • Runtime request validation       │
+│  • Mock upstream APIs                    • Detect implementation drift      │
+│  • Register as consumer                  • Deployment safety checks         │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
-
-### Capability Summary
-
-| Capability                    | Needs Registry? | What It Answers                          |
-| ----------------------------- | --------------- | ---------------------------------------- |
-| **Schema compliance tests**   | No              | "Does my code match my spec?"            |
-| **Breaking change detection** | No              | "What changed between v1 and v2?"        |
-| **can-i-deploy**              | **Yes**         | "Will this change break real consumers?" |
-| **Consumer impact analysis**  | **Yes**         | "Which teams do I need to notify?"       |
-
-### Producer Testing (ProducerTestKit)
-
-Test your API handlers return spec-compliant responses without needing real consumers:
-
-```typescript
-// Node.js
-import { ProducerTestKit } from "@cvt/sdk/producer";
-
-const testKit = new ProducerTestKit({
-  schemaId: "user-api",
-  serverAddress: "localhost:9550",
-});
-
-// In your test
-const result = await testKit.validateResponse({
-  method: "GET",
-  path: "/users/123",
-  statusCode: 200,
-  body: { id: "123", name: "John", email: "john@example.com" },
-});
-
-expect(result.valid).toBe(true);
-```
-
-```go
-// Go
-testKit, _ := producer.NewProducerTestKit(producer.TestConfig{
-    SchemaID:      "user-api",
-    ServerAddress: "localhost:9550",
-})
-
-result, _ := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
-    Method:     "GET",
-    Path:       "/users/123",
-    StatusCode: 200,
-    Body:       map[string]interface{}{"id": "123", "name": "John"},
-})
-
-assert.True(t, result.Valid)
-```
-
-### Consumer Registry
-
-Track which consumers depend on which schemas for deployment safety analysis:
-
-```typescript
-// Register a consumer's dependency on a schema
-await validator.registerConsumer({
-  consumerId: "order-service",
-  consumerVersion: "2.1.0",
-  schemaId: "user-api",
-  schemaVersion: "1.0.0",
-  environment: "prod",
-  usedEndpoints: [
-    { method: "GET", path: "/users/{id}", usedFields: ["email", "name"] },
-  ],
-});
-
-// List all consumers of a schema
-const consumers = await validator.listConsumers("user-api", "prod");
-```
-
-### Deployment Safety (can-i-deploy)
-
-Check if a schema version can be safely deployed without breaking consumers:
-
-```bash
-# CLI usage
-cvt can-i-deploy --schema user-api --version 2.0.0 --env prod
-
-# Output (when unsafe)
-❌ UNSAFE TO DEPLOY
-
-Breaking changes in v2.0.0:
-  - FIELD_REMOVED: GET /users/{id} response removed 'email'
-
-Affected consumers in production:
-  ├── order-service v2.1.0
-  │   Schema version: 1.0.0
-  │   Impact: BREAKING
-  │   Affected by:
-  │     - GET /users/{id}
-  │
-  └── billing-service v1.0.0
-      Schema version: 1.0.0
-      Impact: None
-
-Safe consumers:     1/2
-Affected consumers: 1/2
-
-Recommendation: Coordinate with order-service team before deploying.
-```
-
-```typescript
-// SDK usage
-const result = await validator.canIDeploy("user-api", "2.0.0", "prod");
-if (!result.safeToDeploy) {
-  console.log("Affected consumers:", result.affectedConsumers);
-  process.exit(1);
-}
-```
-
-**See [docs/guides/producer-testing.mdx](docs/guides/producer-testing.mdx) for complete producer testing documentation.**
 
 ## Quick Start
 
@@ -431,254 +73,29 @@ make run-example
 make down
 ```
 
-> **Note**: The Docker setup includes PostgreSQL for persistent storage. Schemas and consumer registrations survive server restarts.
+### Basic Usage
 
-### Consumer Validation (Client SDK)
-
-Validate your HTTP client calls against the API contract:
-
-```javascript
-const { ContractValidator } = require("@cvt/sdk");
-
-const validator = new ContractValidator("localhost:9550");
-await validator.registerSchema("my-api", "./openapi.json");
-
-// Validate request/response pair against the registered schema
-const result = await validator.validate(
-  { method: "GET", path: "/users", headers: {} }, // What your code sends
-  { statusCode: 200, body: '[{"id": 1}]' }, // What the API returns
-);
-
-console.log(result.valid ? "✅ Valid" : "❌ Invalid");
-```
-
-### Producer Validation (Server Middleware)
-
-Validate incoming requests to your API server:
-
-```javascript
-// Express.js example
-import express from "express";
+```typescript
 import { ContractValidator } from "@cvt/sdk";
-import { createExpressMiddleware } from "@cvt/sdk/producer";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("my-api", "./openapi.json");
 
-const app = express();
-// Middleware validates ALL incoming requests before they hit your routes
-app.use(
-  createExpressMiddleware({
-    schemaId: "my-api",
-    validator,
-    mode: "strict", // "strict" rejects invalid requests; "warn" logs only
-  }),
+const result = await validator.validate(
+  { method: "GET", path: "/users/123" },
+  { statusCode: 200, body: { id: 123, name: "Alice" } },
 );
+
+console.log(result.valid ? "Valid" : "Invalid");
 ```
 
----
+## When to Use Each Approach
 
-## User Guide
-
-This section walks you through common use cases from start to finish.
-
-**Use Cases:**
-
-| Use Case                          | Description                                                | Link                                                                                     |
-| --------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| **1. Adding Contract Tests**      | Validate your HTTP calls match upstream API contracts      | [Consumer Testing Guide](docs/guides/consumer-testing.mdx)                               |
-| **2. Detecting Breaking Changes** | Ensure API updates don't break existing consumers          | [Breaking Changes Guide](docs/guides/breaking-changes.mdx)                               |
-| **3. Local Development**          | Fast feedback without Docker using CLI or embedded library | [CLI Reference](docs/reference/cli.mdx)                                                  |
-| **4. Testing Without API Access** | Validate integration code before you have API access       | [Consumer Testing Guide](docs/guides/consumer-testing.mdx#mock-adapters-offline-testing) |
-| **5. Producer Validation**        | Validate incoming requests to your API with middleware     | [Producer Testing Guide](docs/guides/producer-testing.mdx)                               |
-
-**See the guides above for complete step-by-step instructions with code examples.**
-
----
-
-### CI/CD Integration
-
-CVT provides ready-to-use templates for integrating contract validation into your CI/CD pipelines.
-
-#### GitHub Actions
-
-```yaml
-# .github/workflows/contract-validation.yml
-name: Contract Validation
-on: [push, pull_request]
-
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: your-org/cvt/.github/actions/cvt-validate@main
-        with:
-          schema-path: "./openapi.json"
-          validate-fixtures: "tests/fixtures/*.json"
-```
-
-#### GitLab CI
-
-```yaml
-# .gitlab-ci.yml
-include:
-  - project: "your-org/cvt"
-    file: "/ci-templates/gitlab-ci.yml"
-
-variables:
-  CVT_SCHEMA_PATH: "openapi.json"
-```
-
-#### Jenkins
-
-Copy `ci-templates/Jenkinsfile` to your repository, or use as a shared library.
-
-**Full documentation:** See [`ci-templates/README.md`](ci-templates/README.md) for complete setup instructions, all available options, and troubleshooting.
-
----
-
-### Adoption Checklist
-
-Use this checklist when adopting CVT for your service:
-
-- [ ] **Identify upstream dependencies** - List all APIs your service calls
-- [ ] **Collect OpenAPI schemas** - Get schemas from each upstream service
-- [ ] **Create contracts directory** - Store schemas in `./contracts/` or `./api/`
-- [ ] **Install CVT SDK** - Add the SDK for your language
-- [ ] **Write first contract test** - Start with your most critical integration
-- [ ] **Add HTTP adapter** - Enable automatic validation for all calls
-- [ ] **Add to CI pipeline** - Ensure tests run on every PR
-- [ ] **Set up breaking change detection** - If you own an API, add schema comparison
-
-### Troubleshooting Common Issues
-
-| Issue                      | Solution                                                           |
-| -------------------------- | ------------------------------------------------------------------ |
-| "Connection refused"       | Ensure CVT server is running: `make up` or `docker ps`             |
-| "Schema not found"         | Check schema ID matches between register and validate              |
-| "Validation timeout"       | Increase timeout or check network connectivity                     |
-| "Path not found in schema" | Verify the path exists in your OpenAPI spec                        |
-| "Invalid response body"    | Check JSON structure matches schema; use `--json` flag for details |
-
----
-
-### SDK Adapters
-
-CVT provides adapters for both consumer (client-side) and producer (server-side) validation.
-
-#### Consumer Adapters (Client-Side)
-
-Automatically validate outgoing HTTP calls:
-
-```javascript
-// Node.js - Axios adapter wraps your client for automatic validation
-const adapter = createAxiosAdapter({
-  axios: api,
-  validator,
-  schemaId: "my-api",
-});
-const response = await api.post("/pets", { name: "Fluffy" }); // Auto-validated!
-```
-
-```python
-# Python - Drop-in replacement for requests.Session with validation
-session = ContractValidatingSession(validator, schema_id='my-api')
-response = session.post('http://api/pets', json={'name': 'Fluffy'})  # Auto-validated!
-```
-
-```go
-// Go - RoundTripper intercepts all HTTP traffic for validation
-rt := adapters.NewValidatingRoundTripper(adapters.RoundTripperConfig{Validator: v})
-client := &http.Client{Transport: rt}
-```
-
-#### Producer Middleware (Server-Side)
-
-Validate incoming requests to your API:
-
-```javascript
-// Node.js - Express middleware validates before routes execute
-import { createExpressMiddleware } from "@cvt/sdk/producer";
-app.use(
-  createExpressMiddleware({ schemaId: "my-api", validator, mode: "strict" }),
-);
-```
-
-```python
-# Python - ASGI middleware for FastAPI/Starlette
-from cvt_sdk.producer.adapters import ASGIMiddleware
-app.add_middleware(ASGIMiddleware, config=config)
-```
-
-```go
-// Go - Middleware wrapper for any http.Handler
-import "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
-http.Handle("/", adapters.NetHTTPMiddleware(config)(handler))
-```
-
-```java
-// Java - Spring interceptor for controller methods
-registry.addInterceptor(new SpringInterceptor(config)).addPathPatterns("/api/**");
-```
-
-See [Producer Testing Guide](docs/guides/producer-testing.mdx) for complete producer validation documentation.
-
-### Security Configuration
-
-```javascript
-// Enable TLS encryption and API key auth for production deployments
-const validator = new ContractValidator({
-  address: "localhost:9550",
-  tls: { enabled: true, rootCertPath: "./certs/ca.crt" }, // mTLS supported
-  apiKey: "your-api-key", // Set via CVT_API_KEYS env var on server
-});
-```
-
-### CLI (Local Lite Mode)
-
-Validate schemas locally without Docker:
-
-```bash
-# Build the CLI (one-time)
-go build -o cvt ./cmd/cvt
-
-# Validate request/response against schema
-cvt validate --schema ./openapi.json --request req.json --response resp.json
-
-# Detect breaking changes between schema versions (exit code 1 = breaking)
-cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
-
-# Run standalone gRPC server (alternative to Docker)
-cvt serve --port 9550
-```
-
-## Project Structure
-
-```shell
-/
-├── api/              # Protobuf definitions
-├── cmd/cvt/          # CLI commands (validate, compare, serve, can-i-deploy)
-├── pkg/cvt/          # Embedded validation library
-├── server/           # Go gRPC server
-│   ├── cvtservice/   # Core service implementation (importable package)
-│   ├── storage/      # Persistence layer (SQLite, PostgreSQL)
-│   └── pb/           # Generated protobuf code
-├── sdks/             # Client SDKs (Node.js, Python, Go, Java)
-│   ├── shared/       # Test schemas (openapi.json, swagger.json)
-│   └── */            # Language-specific SDKs with examples
-├── observability/    # Prometheus & Grafana configs
-├── docs/             # Documentation
-└── tools/            # Build scripts
-```
-
-## Prerequisites
-
-- **Docker & Docker Compose** (required)
-- **Node.js 18+** (for Node.js SDK)
-- **Optional**: Go 1.25+, Python 3.11+, grpc-health-probe
-
-Install health probe: `make install-health-probe` or see [releases](https://github.com/grpc-ecosystem/grpc-health-probe/releases)
+| Approach                | You Are...                 | You Want To...                                | Guide                                                |
+| ----------------------- | -------------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| **Consumer Validation** | Calling another team's API | Validate your HTTP calls match their contract | [Consumer Testing](docs/guides/consumer-testing.mdx) |
+| **Producer Middleware** | Exposing an API            | Reject invalid requests at runtime            | [Producer Testing](docs/guides/producer-testing.mdx) |
+| **Deployment Safety**   | Changing your API          | Ensure changes won't break consumers          | [Breaking Changes](docs/guides/breaking-changes.mdx) |
 
 ## Key Commands
 
@@ -686,244 +103,114 @@ Install health probe: `make install-health-probe` or see [releases](https://gith
 # Docker
 make up                    # Start server + observability
 make down                  # Stop all services
-make logs                  # View server logs
+make health                # Check server health
 
 # Testing
 make test                  # Run all tests
-make test-with-observability  # Run tests, keep stack running
-
-# Health & Observability
-make health                # Check server health
-make grafana               # Open Grafana (localhost:3000)
-make metrics               # View Prometheus metrics
+make test-server           # Server unit tests only
 
 # Development
 make build                 # Build server and SDKs
 make run-example           # Run Node.js example
 ```
 
-**See all commands**: `make help`
+Run `make help` for all available commands.
 
-## Observability
+## CLI (Local Lite Mode)
 
-Built-in **Prometheus metrics** and **Grafana dashboards**:
-
-```bash
-# Start with observability stack
-make up
-
-# Access dashboards
-# - Grafana:    http://localhost:3000 (admin/admin)
-# - Prometheus: http://localhost:9091
-# - Metrics:    http://localhost:9090/metrics
-```
-
-**Metrics**: Validation counts/latency, cache hit rates, schema registrations, gRPC request patterns
-
-**See [docs/operations/observability.md](docs/operations/observability.md) for detailed metrics reference and dashboard configuration.**
-
-## Architecture
-
-**Server** (Go 1.25): gRPC API with kin-openapi validation, Ristretto caching (1000 schemas/24h), Prometheus metrics, structured logging (Zap)
-
-- **Ports**: 9550 (gRPC), 9551 (metrics)
-- **Container**: Alpine-based, ~30-40MB, non-root user
-
-**SDKs**: Node.js (production-ready), Python, Go, Java
-
-- All SDKs support schema registration and validation
-- Examples included in `sdks/*/examples/`
-
-**See detailed docs**: [server/README.md](server/README.md), [sdks/node/README.md](sdks/node/README.md), [sdks/python/README.md](sdks/python/README.md), [sdks/go/README.md](sdks/go/README.md), [sdks/java/README.md](sdks/java/README.md)
-
-## Development
+Validate schemas locally without Docker:
 
 ```bash
-# Code generation (after modifying api/protos)
-make generate
+# Build the CLI
+go build -o cvt ./cmd/cvt
 
-# Run tests
-make test                 # All tests (server + SDKs)
-make test-server          # Server unit tests only
-make test-integration     # Integration tests (requires Docker)
+# Validate request/response against schema
+cvt validate --schema ./openapi.json --request req.json --response resp.json
 
-# Coverage
-cd server && go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out -o coverage.html
+# Detect breaking changes between schema versions
+cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
+
+# Check deployment safety
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
 ```
 
-**Testing**: 1200+ lines of Go tests, 70%+ coverage enforced in CI/CD
+See [CLI Reference](docs/reference/cli.mdx) for all commands.
 
-**See detailed guides**: [server/README.md](server/README.md) for server development, SDK READMEs for client library testing
+## Project Structure
 
-## Troubleshooting
-
-```bash
-# Server won't start
-lsof -i :9550           # Check if port is in use
-make logs                # View error logs
-
-# Tests failing
-make clean && make build # Clean rebuild
-cd server && go test -v ./...  # Verbose test output
-
-# Schema registration fails
-# - Validate schema at editor.swagger.io
-# - Check schema size (10MB max)
-# - Verify network connectivity
+```text
+/
+├── api/protos/       # gRPC proto definitions
+├── cmd/cvt/          # CLI entry point
+├── server/           # Go gRPC server
+├── sdks/             # Client SDKs (Node.js, Python, Go, Java)
+├── docs/             # Documentation
+└── observability/    # Prometheus & Grafana configs
 ```
 
-### Corporate Proxy Configuration
+## Prerequisites
 
-If you're working behind a corporate proxy, configure the following environment variables:
-
-```bash
-# Set proxy for Docker daemon (add to ~/.docker/config.json or daemon.json)
-# You will need to restart the Docker daemon for this to take effect
-cat <<'EOF' > ~/.docker/config.json
-{
-  "proxies": {
-    "default": {
-      "httpProxy": "http://proxy.corp.example.com:8080",
-      "httpsProxy": "http://proxy.corp.example.com:8080",
-      "noProxy": "localhost,127.0.0.1,.corp.example.com"
-    }
-  }
-}
-EOF
-
-# Set proxy for container builds (in docker-compose.yml or shell)
-export HTTP_PROXY=http://proxy.corp.example.com:8080
-export HTTPS_PROXY=http://proxy.corp.example.com:8080
-export NO_PROXY=localhost,127.0.0.1,cvt-server,postgres,prometheus,grafana
-
-# Go modules (for building from source)
-export GOPROXY=https://proxy.golang.org,direct
-# Or use corporate Artifactory/Nexus:
-export GOPROXY=https://artifactory.corp.example.com/artifactory/go-remote,direct
-
-# npm (Node.js SDK)
-npm config set proxy http://proxy.corp.example.com:8080
-npm config set https-proxy http://proxy.corp.example.com:8080
-# Or in .npmrc:
-# proxy=http://proxy.corp.example.com:8080
-# https-proxy=http://proxy.corp.example.com:8080
-# registry=https://artifactory.corp.example.com/artifactory/api/npm/npm-remote/
-
-# pip (Python SDK)
-export PIP_INDEX_URL=https://artifactory.corp.example.com/artifactory/api/pypi/pypi-remote/simple
-# Or in pip.conf:
-# [global]
-# index-url = https://artifactory.corp.example.com/artifactory/api/pypi/pypi-remote/simple
-# trusted-host = artifactory.corp.example.com
-
-# Git (for cloning dependencies)
-git config --global http.proxy http://proxy.corp.example.com:8080
-git config --global https.proxy http://proxy.corp.example.com:8080
-```
-
-**Common Corporate Environment Issues:**
-
-| Issue                   | Solution                                                                     |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| Docker pull fails       | Configure Docker daemon proxy settings and restart Docker                    |
-| `go mod download` hangs | Set `GOPROXY` to corporate Artifactory or use `GOPRIVATE` for internal repos |
-| npm install fails       | Set npm proxy and registry to corporate Artifactory                          |
-| SSL certificate errors  | Add corporate CA cert to system trust store and set `NODE_EXTRA_CA_CERTS`    |
-| gRPC connection fails   | Ensure `NO_PROXY` includes `localhost` and internal service names            |
-
-**SSL Certificate Configuration:**
-
-```bash
-# Add corporate CA certificate (Linux)
-sudo cp corp-ca.crt /usr/local/share/ca-certificates/
-sudo update-ca-certificates
-
-# For Node.js
-export NODE_EXTRA_CA_CERTS=/path/to/corp-ca.crt
-
-# For Python
-export REQUESTS_CA_BUNDLE=/path/to/corp-ca.crt
-export SSL_CERT_FILE=/path/to/corp-ca.crt
-
-# For Go
-export SSL_CERT_FILE=/path/to/corp-ca.crt
-```
-
-## CI/CD & Quality
-
-**GitHub Actions**: Automated testing, building, security scanning (Trivy), linting (golangci-lint, ESLint)
-
-- Server: Go 1.25, race detection, 70% coverage minimum
-- Integration tests with Docker
-- Multi-stage Docker builds (~30-40MB images)
-
-## Performance & Security
-
-**Performance Targets**:
-
-- **Throughput**: 5000+ validations/sec (Design goal)
-- **Startup**: <1s (Typical for Go gRPC)
-- **Footprint**: 50-100MB memory, ~30-40MB Docker image
-- **Efficiency**: 1000 schema cache with 24h TTL (Ristretto)
-
-**Security**:
-
-- ✅ TLS/mTLS support for encrypted transport
-- ✅ API key authentication with configurable key store
-- ✅ Input validation, non-root containers, bounded caching
-- ✅ Audit logging for compliance and governance
-- ✅ 70%+ code coverage (Enforced in CI/CD)
-- ⚠️ **Production needs**: Rate limiting (not yet implemented)
-
-**Optimization**: Reuse schemas, batch validations, monitor cache hit rates via Grafana.
+- **Docker & Docker Compose** (required)
+- **Node.js 18+** (for Node.js SDK)
+- **Optional**: Go 1.25+, Python 3.12+, Java 21+
 
 ## Documentation
 
-**For AI Agents / LLMs:**
+### Getting Started
 
-- [llms.txt](llms.txt) - Index file with links to documentation (follows [llms.txt standard](https://llmstxt.org/))
-- [llms-full.txt](llms-full.txt) - Complete API reference with code examples for all SDKs (Node.js, Python, Go, CLI)
+| Document                                              | Description              |
+| ----------------------------------------------------- | ------------------------ |
+| [Installation](docs/getting-started/installation.mdx) | Server and SDK setup     |
+| [Quick Start](docs/getting-started/quick-start.mdx)   | Your first contract test |
 
-**Getting Started:**
+### Guides
 
-- [User Guide](#user-guide) - End-to-end use cases and adoption checklist
-- [docs/internal/adoption-strategy.md](docs/internal/adoption-strategy.md) - Organizational adoption guide
+| Guide                                                | Description                      |
+| ---------------------------------------------------- | -------------------------------- |
+| [Consumer Testing](docs/guides/consumer-testing.mdx) | Validate your API integrations   |
+| [Producer Testing](docs/guides/producer-testing.mdx) | Validate your API implementation |
+| [Breaking Changes](docs/guides/breaking-changes.mdx) | Detect schema incompatibilities  |
+| [Validation Modes](docs/guides/validation-modes.mdx) | Strict, warn, and shadow modes   |
 
-**Guides:**
+### Reference
 
-- [docs/guides/consumer-testing.mdx](docs/guides/consumer-testing.mdx) - Consumer contract testing guide
-- [docs/guides/producer-testing.mdx](docs/guides/producer-testing.mdx) - Producer testing and deployment safety
-- [docs/guides/breaking-changes.mdx](docs/guides/breaking-changes.mdx) - Detecting and handling breaking changes
-- [docs/guides/validation-modes.mdx](docs/guides/validation-modes.mdx) - Validation modes (strict/warn/shadow) and rollout strategy
+| Reference                                            | Description                  |
+| ---------------------------------------------------- | ---------------------------- |
+| [Architecture](docs/reference/architecture/index.md) | System design and components |
+| [API Reference](docs/reference/api.mdx)              | gRPC API documentation       |
+| [CLI Reference](docs/reference/cli.mdx)              | Command-line interface       |
+| [Configuration](docs/reference/configuration.md)     | Environment variables        |
+| [SDK Documentation](docs/reference/sdk/index.mdx)    | Language-specific SDK guides |
 
-**Technical References:**
+### Operations
 
-- [docs/operations/observability.md](docs/operations/observability.md) - Metrics and monitoring guide
-- [docs/development/contributing.md](docs/development/contributing.md) - Development setup and guidelines
-- [server/README.md](server/README.md) - Server architecture and development
-- [sdks/node/README.md](sdks/node/README.md) - Node.js SDK guide
-- [sdks/python/README.md](sdks/python/README.md) - Python SDK guide
-- [sdks/go/README.md](sdks/go/README.md) - Go SDK guide
-- [sdks/java/README.md](sdks/java/README.md) - Java SDK guide
+| Document                                          | Description             |
+| ------------------------------------------------- | ----------------------- |
+| [Observability](docs/operations/observability.md) | Metrics and monitoring  |
+| [Development](docs/development/contributing.md)   | Local development setup |
 
-**Contributing:**
+### For AI Agents / LLMs
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute
-- [CODEOWNERS](CODEOWNERS) - Code ownership model
+- [llms.txt](llms.txt) - Index file with documentation links
+- [llms-full.txt](llms-full.txt) - Complete API reference with examples
 
-## Comparison & Value Proposition
+## Comparison with Alternatives
 
-CVT is not just another validation library; it is an architectural answer to the inconsistencies of polyglot microservices.
+| Approach                      | Examples            | Problem                                  | How CVT Differs                              |
+| ----------------------------- | ------------------- | ---------------------------------------- | -------------------------------------------- |
+| **In-Process Libraries**      | Ajv, swagger-parser | Inconsistent validation across languages | Unified Go-based validator for all languages |
+| **Consumer-Driven Contracts** | Pact                | Requires separate pact files and broker  | Uses existing OpenAPI specs directly         |
+| **Runtime Gateways**          | Kong, Apigee        | Validation happens too late              | Shift-left: validates during development     |
 
-| Approach                      | Examples                              | The Problem                                                                                                                                | How CVT differs                                                                                                                         |
-| :---------------------------- | :------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
-| **In-Process Libraries**      | `Ajv` (Node), `swagger-parser` (Java) | **Inconsistency:** A regex might pass in Node.js but fail in Java. Teams fighting "works on my machine" issues due to runtime differences. | **Unified Engine:** One Go-based validator governs rules for _all_ languages. If it passes in Python, it guarantees passing in Java.    |
-| **Consumer-Driven Contracts** | `Pact`                                | **Complexity:** Requires generating/brokering separate "pact files" and heavy coordination between teams.                                  | **Simplicity:** Uses your _existing_ OpenAPI spec as the "Golden Source." No new artifacts to manage, just pure compliance checking.    |
-| **Runtime Gateways**          | `Kong`, `Apigee`                      | **Too Late:** Validation happens at deployment/runtime.                                                                                    | **Shift Left:** CVT runs directly in your local test suite (Jest, JUnit) via Docker, catching contract violations _during development_. |
+## Troubleshooting
 
-**Architectural Trade-off:**
-CVT exchanges the _simplicity_ of a library import for the _consistency_ of a containerized service. While it requires Docker to run tests, it buys you absolute certainty that your API implementation matches the design contract across your entire organization.
+| Issue                      | Solution                                              |
+| -------------------------- | ----------------------------------------------------- |
+| "Connection refused"       | Ensure CVT server is running: `make up`               |
+| "Schema not found"         | Check schema ID matches between register and validate |
+| "Path not found in schema" | Verify the path exists in your OpenAPI spec           |
+
+See [Development Guide](docs/development/contributing.md) for more troubleshooting tips.
 
 ## License
 

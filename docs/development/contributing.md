@@ -52,14 +52,19 @@ make test
 
 The gRPC server is located in the `server/` directory.
 
+:::tip Architecture Documentation
+For detailed information about component design, validation engine, storage layer, and data flow, see the [Architecture Documentation](../reference/architecture/index.md).
+:::
+
 ### Directory Structure
 
 ```shell
 server/
 ├── main.go                 # Entry point
 ├── cvtservice/             # Core service implementation
-│   ├── service.go          # Main service logic (RPC handlers)
+│   ├── validator_service.go # Main service logic (RPC handlers)
 │   ├── cache.go            # Ristretto-based schema caching
+│   ├── compatibility_engine.go # Breaking change detection
 │   ├── interceptors.go     # gRPC interceptors for logging, metrics, auth
 │   ├── metrics.go          # Prometheus metrics collection
 │   ├── audit_logger.go     # Audit logging for compliance

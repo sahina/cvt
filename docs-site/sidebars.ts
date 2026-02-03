@@ -44,6 +44,18 @@ const sidebars: SidebarsConfig = {
         'reference/configuration',
         {
           type: 'category',
+          label: 'Architecture',
+          collapsed: true,
+          items: [
+            'reference/architecture/index',
+            'reference/architecture/validation-engine',
+            'reference/architecture/storage-layer',
+            'reference/architecture/consumer-registry',
+            'reference/architecture/sdk-architecture',
+          ],
+        },
+        {
+          type: 'category',
           label: 'SDKs',
           collapsed: true,
           items: [

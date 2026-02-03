@@ -111,6 +111,10 @@ CVT runs as a gRPC service that can be deployed via Docker or run locally:
                                   └─────────────────┘
 ```
 
+:::tip Architecture Deep Dive
+For detailed system architecture, component design, validation engine, and storage layer documentation, see the [Architecture Documentation](./reference/architecture/index.md).
+:::
+
 ## Documentation Structure
 
 ### Getting Started
