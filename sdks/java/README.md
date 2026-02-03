@@ -361,7 +361,7 @@ The SDK targets 60%+ test coverage.
 
 ```bash
 # Build the SDK
-mvn compile
+mvn package -DskipTests
 
 # Run linter/verify
 mvn verify -DskipTests
