@@ -23,7 +23,7 @@
         <okhttp.version>4.12.0</okhttp.version>
         <annotations-api.version>6.0.53</annotations-api.version>
         <jakarta-servlet.version>6.0.0</jakarta-servlet.version>
-        <spring-webmvc.version>6.2.8</spring-webmvc.version>
+        <spring-webmvc.version>6.2.11</spring-webmvc.version>
         <junit.version>5.12.1</junit.version>
         <mockito.version>5.21.0</mockito.version>
 

@@ -26,7 +26,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.cvt:cvt-sdk:1.0.0'
+    implementation 'com.cvt:cvt-sdk:0.1.0'
 }
 ```
 
@@ -36,7 +36,7 @@ dependencies {
 <dependency>
     <groupId>com.cvt</groupId>
     <artifactId>cvt-sdk</artifactId>
-    <version>1.0.0</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
