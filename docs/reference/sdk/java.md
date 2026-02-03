@@ -113,12 +113,12 @@ ContractValidator validator = ContractValidator.builder()
     .build();
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `address` | `String` | Server address (default: `localhost:9550`) |
-| `tlsEnabled` | `boolean` | Enable TLS |
-| `rootCertPath` | `String` | Path to CA certificate |
-| `apiKey` | `String` | API key for authentication |
+| Option         | Type      | Description                                |
+| -------------- | --------- | ------------------------------------------ |
+| `address`      | `String`  | Server address (default: `localhost:9550`) |
+| `tlsEnabled`   | `boolean` | Enable TLS                                 |
+| `rootCertPath` | `String`  | Path to CA certificate                     |
+| `apiKey`       | `String`  | API key for authentication                 |
 
 ### Methods
 
@@ -206,6 +206,19 @@ Generates a response fixture only.
 
 ```java
 GeneratedResponse generateResponse(String method, String path, GenerateOptions options)
+```
+
+#### generateRequestBody
+
+Generates a request body fixture for an endpoint.
+
+```java
+Object generateRequestBody(String method, String path, GenerateOptions options)
+```
+
+```java
+Object body = validator.generateRequestBody("POST", "/pet", null);
+System.out.println("Request body: " + body);
 ```
 
 #### listEndpoints

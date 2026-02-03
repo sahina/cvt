@@ -110,14 +110,14 @@ if err != nil {
 defer validator.Close()
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `Address` | `string` | Server address (default: `localhost:9550`) |
-| `TLS.Enabled` | `bool` | Enable TLS |
-| `TLS.RootCertPath` | `string` | Path to CA certificate |
-| `TLS.CertPath` | `string` | Path to client certificate (for mTLS) |
-| `TLS.KeyPath` | `string` | Path to client private key (for mTLS) |
-| `APIKey` | `string` | API key for authentication |
+| Option             | Type     | Description                                |
+| ------------------ | -------- | ------------------------------------------ |
+| `Address`          | `string` | Server address (default: `localhost:9550`) |
+| `TLS.Enabled`      | `bool`   | Enable TLS                                 |
+| `TLS.RootCertPath` | `string` | Path to CA certificate                     |
+| `TLS.CertPath`     | `string` | Path to client certificate (for mTLS)      |
+| `TLS.KeyPath`      | `string` | Path to client private key (for mTLS)      |
+| `APIKey`           | `string` | API key for authentication                 |
 
 ### Validator Methods
 
@@ -235,6 +235,26 @@ func (v *Validator) GenerateResponse(
     method, path string,
     opts *GenerateOptions,
 ) (*GeneratedResponse, error)
+```
+
+#### GenerateRequestBody
+
+Generates a request body fixture for an endpoint.
+
+```go
+func (v *Validator) GenerateRequestBody(
+    ctx context.Context,
+    method, path string,
+    opts *GenerateOptions,
+) (any, error)
+```
+
+```go
+body, err := validator.GenerateRequestBody(ctx, "POST", "/pet", nil)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Request body: %+v\n", body)
 ```
 
 #### ListEndpoints
@@ -518,6 +538,30 @@ opts, err := validator.BuildConsumerFromInteractions(ctx, mock.GetInteractions()
     SchemaVersion:   "1.0.0",
 })
 fmt.Printf("Would register %d endpoints\n", len(opts.UsedEndpoints))
+```
+
+### BuildConsumerFromInteractions
+
+Builds consumer registration options from captured interactions without registering.
+
+```go
+func (v *Validator) BuildConsumerFromInteractions(
+    ctx context.Context,
+    interactions []CapturedInteraction,
+    config AutoRegisterConfig,
+) (*RegisterConsumerOptions, error)
+```
+
+### RegisterConsumerFromInteractions
+
+Registers a consumer from captured interactions (combines `BuildConsumerFromInteractions` + `RegisterConsumer`).
+
+```go
+func (v *Validator) RegisterConsumerFromInteractions(
+    ctx context.Context,
+    interactions []CapturedInteraction,
+    config AutoRegisterConfig,
+) (*ConsumerInfo, error)
 ```
 
 ## TLS Configuration

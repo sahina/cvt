@@ -85,14 +85,14 @@ const validator = new ContractValidator({
 });
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `address` | `string` | Server address (default: `localhost:9550`) |
-| `tls.enabled` | `boolean` | Enable TLS |
-| `tls.rootCertPath` | `string` | Path to CA certificate |
-| `tls.certPath` | `string` | Path to client certificate (for mTLS) |
-| `tls.keyPath` | `string` | Path to client private key (for mTLS) |
-| `apiKey` | `string` | API key for authentication |
+| Option             | Type      | Description                                |
+| ------------------ | --------- | ------------------------------------------ |
+| `address`          | `string`  | Server address (default: `localhost:9550`) |
+| `tls.enabled`      | `boolean` | Enable TLS                                 |
+| `tls.rootCertPath` | `string`  | Path to CA certificate                     |
+| `tls.certPath`     | `string`  | Path to client certificate (for mTLS)      |
+| `tls.keyPath`      | `string`  | Path to client private key (for mTLS)      |
+| `apiKey`           | `string`  | API key for authentication                 |
 
 #### Methods
 
@@ -109,7 +109,10 @@ registerSchema(schemaId: string, schemaPath: string): Promise<void>
 await validator.registerSchema("petstore", "./openapi.json");
 
 // From URL
-await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
+await validator.registerSchema(
+  "petstore",
+  "https://petstore3.swagger.io/api/v3/openapi.json",
+);
 ```
 
 ##### registerSchemaWithVersion
@@ -150,6 +153,19 @@ Generates a response fixture only.
 
 ```typescript
 generateResponse(method: string, path: string, options?: GenerateOptions): Promise<GeneratedResponse>
+```
+
+##### generateRequestBody
+
+Generates a request body fixture for an endpoint.
+
+```typescript
+generateRequestBody(method: string, path: string, options?: GenerateOptions): Promise<any>
+```
+
+```typescript
+const body = await validator.generateRequestBody("POST", "/pet");
+console.log(body); // { name: "string", status: "available" }
 ```
 
 ##### listEndpoints
@@ -283,7 +299,11 @@ app.use(
 );
 
 app.get("/pet/:petId", (req, res) => {
-  res.json({ id: parseInt(req.params.petId), name: "doggie", status: "available" });
+  res.json({
+    id: parseInt(req.params.petId),
+    name: "doggie",
+    status: "available",
+  });
 });
 ```
 
@@ -351,6 +371,61 @@ describe("Pet API", () => {
     expect(result.errors.length).toBeGreaterThan(0);
   });
 });
+```
+
+## Auto-Registration
+
+Build consumer registrations from captured mock interactions:
+
+```typescript
+import { createMockAdapter } from "@cvt/sdk/adapters";
+
+// Capture interactions during tests
+const mock = createMockAdapter({ validator, cache: true });
+await mock.fetch("http://mock.petstore/pet/123");
+await mock.fetch("http://mock.petstore/pet", { method: "POST", body: "{}" });
+
+// Build registration options (preview)
+const opts = validator.buildConsumerFromInteractions(mock.getInteractions(), {
+  consumerId: "order-service",
+  consumerVersion: "2.1.0",
+  environment: "dev",
+  schemaVersion: "1.0.0",
+});
+console.log(`Would register ${opts.usedEndpoints?.length} endpoints`);
+
+// Or register directly
+const info = await validator.registerConsumerFromInteractions(
+  mock.getInteractions(),
+  {
+    consumerId: "order-service",
+    consumerVersion: "2.1.0",
+    environment: "dev",
+    schemaVersion: "1.0.0",
+  },
+);
+```
+
+### buildConsumerFromInteractions
+
+Builds consumer registration options from captured interactions without registering.
+
+```typescript
+buildConsumerFromInteractions(
+  interactions: CapturedInteraction[],
+  config: AutoRegisterConfig
+): RegisterConsumerOptions
+```
+
+### registerConsumerFromInteractions
+
+Registers a consumer from captured interactions (combines `buildConsumerFromInteractions` + `registerConsumer`).
+
+```typescript
+registerConsumerFromInteractions(
+  interactions: CapturedInteraction[],
+  config: AutoRegisterConfig
+): Promise<ConsumerInfo>
 ```
 
 ## TLS Configuration

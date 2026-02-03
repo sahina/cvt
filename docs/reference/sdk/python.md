@@ -87,14 +87,14 @@ options = ContractValidatorOptions(
 validator = ContractValidator(options)
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `address` | `str` | Server address (default: `localhost:9550`) |
-| `tls.enabled` | `bool` | Enable TLS |
-| `tls.root_cert_path` | `str` | Path to CA certificate |
-| `tls.cert_path` | `str` | Path to client certificate (for mTLS) |
-| `tls.key_path` | `str` | Path to client private key (for mTLS) |
-| `api_key` | `str` | API key for authentication |
+| Option               | Type   | Description                                |
+| -------------------- | ------ | ------------------------------------------ |
+| `address`            | `str`  | Server address (default: `localhost:9550`) |
+| `tls.enabled`        | `bool` | Enable TLS                                 |
+| `tls.root_cert_path` | `str`  | Path to CA certificate                     |
+| `tls.cert_path`      | `str`  | Path to client certificate (for mTLS)      |
+| `tls.key_path`       | `str`  | Path to client private key (for mTLS)      |
+| `api_key`            | `str`  | API key for authentication                 |
 
 #### Methods
 
@@ -154,6 +154,19 @@ Generates a response fixture only.
 
 ```python
 def generate_response(method: str, path: str, options: GenerateOptions = None) -> GeneratedResponse
+```
+
+##### generate_request_body
+
+Generates a request body fixture for an endpoint.
+
+```python
+def generate_request_body(method: str, path: str, options: GenerateOptions = None) -> Any
+```
+
+```python
+body = validator.generate_request_body("POST", "/pet")
+print(body)  # {"name": "string", "status": "available"}
 ```
 
 ##### list_endpoints
@@ -335,6 +348,64 @@ def test_detects_invalid_response(test_kit):
 
     assert not result.valid
     assert len(result.errors) > 0
+```
+
+## Auto-Registration
+
+Build consumer registrations from captured mock interactions:
+
+```python
+from cvt_sdk.adapters import create_validating_session
+
+# Capture interactions during tests
+session = create_validating_session(validator, auto_validate=True)
+session.get("http://mock.petstore/pet/123")
+session.post("http://mock.petstore/pet", json={"name": "doggie"})
+
+# Build registration options (preview)
+opts = validator.build_consumer_from_interactions(
+    session.get_interactions(),
+    {
+        "consumer_id": "order-service",
+        "consumer_version": "2.1.0",
+        "environment": "dev",
+        "schema_version": "1.0.0",
+    }
+)
+print(f"Would register {len(opts.get('used_endpoints', []))} endpoints")
+
+# Or register directly
+info = validator.register_consumer_from_interactions(
+    session.get_interactions(),
+    {
+        "consumer_id": "order-service",
+        "consumer_version": "2.1.0",
+        "environment": "dev",
+        "schema_version": "1.0.0",
+    }
+)
+```
+
+### build_consumer_from_interactions
+
+Builds consumer registration options from captured interactions without registering.
+
+```python
+def build_consumer_from_interactions(
+    interactions: list[CapturedInteraction],
+    config: AutoRegisterConfig
+) -> RegisterConsumerOptions
+```
+
+### register_consumer_from_interactions
+
+Registers a consumer from captured interactions (combines `build_consumer_from_interactions` + `register_consumer`).
+
+```python
+def register_consumer_from_interactions(
+    interactions: list[CapturedInteraction],
+    config: AutoRegisterConfig
+) -> ConsumerInfo
 ```
 
 ## TLS Configuration
