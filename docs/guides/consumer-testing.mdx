@@ -1691,6 +1691,10 @@ The `ghcr.io/cvt/cvt-server:latest` image is a placeholder. You can:
 
 ### GitLab CI
 
+:::note Prerequisites
+The `can-i-deploy` job requires the `cvt` CLI and `jq` to be available. Either use a base image with these tools pre-installed, or add installation steps to your `before_script`.
+:::
+
 ```yaml
 stages:
   - test
@@ -1745,6 +1749,10 @@ can-i-deploy:
 ```
 
 ### Jenkins
+
+:::note Jenkins plugins
+This example uses `readJSON` from the [Pipeline Utility Steps](https://plugins.jenkins.io/pipeline-utility-steps/) plugin.
+:::
 
 ```groovy
 pipeline {
@@ -1861,11 +1869,27 @@ Configure your network to allow direct connections to the CVT server on port 955
 
 **Option 2: gRPC Proxy Support**
 
-If you must proxy gRPC traffic, use the `grpc_proxy` environment variable:
+If you must proxy gRPC traffic, note that different SDKs have different proxy support:
+
+| SDK | Proxy Mechanism |
+|-----|-----------------|
+| **Python (grpcio)** | Uses `grpc_proxy` / `no_grpc_proxy` environment variables (via gRPC C-core) |
+| **Go (grpc-go)** | Uses standard `HTTPS_PROXY` / `NO_PROXY` environment variables |
+| **Java (grpc-java)** | Uses Java's `ProxySelector` / `Authenticator` mechanism |
+| **Node.js (@grpc/grpc-js)** | No built-in env var support; requires manual proxy configuration |
+
+**Python example:**
 
 ```bash
 export grpc_proxy=http://proxy.corporate.com:8080
 export no_grpc_proxy=localhost,127.0.0.1
+```
+
+**Go example:**
+
+```bash
+export HTTPS_PROXY=http://proxy.corporate.com:8080
+export NO_PROXY=localhost,127.0.0.1
 ```
 
 ### HTTP Traffic (Schema URLs)

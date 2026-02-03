@@ -138,7 +138,7 @@ See [CLI Reference](docs/reference/cli.mdx) for all commands.
 
 ## Project Structure
 
-```
+```text
 /
 ├── api/protos/       # gRPC proto definitions
 ├── cmd/cvt/          # CLI entry point
