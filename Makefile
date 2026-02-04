@@ -139,7 +139,7 @@ build:
 	cd sdks/node && npm ci && npm run build
 	@echo "🏗️  Building Python SDK..."
 	cd sdks/python && uv sync
-	# cd sdks/java && ./gradlew build
+	# cd sdks/java && mvn package
 	@echo "✅ Build complete!"
 
 # Install targets (install dependencies without building)
@@ -253,7 +253,7 @@ test-with-observability:
 clean:
 	@echo "🧹 Cleaning build artifacts..."
 	cd server && go clean && rm -f cvt-server server
-	# cd sdks/java && ./gradlew clean
+	# cd sdks/java && mvn clean
 	rm -rf sdks/node/dist sdks/node/node_modules
 	# rm -rf sdks/python/.venv
 	@echo "✅ Clean complete!"

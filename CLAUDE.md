@@ -133,7 +133,7 @@ _Phase 3 - Deployment Safety:_
 - **Node.js** (`sdks/node/`): TypeScript, npm, Jest - production-ready
 - **Python** (`sdks/python/`): uv package manager, pytest
 - **Go** (`sdks/go/`): Standard Go modules
-- **Java** (`sdks/java/`): Gradle build
+- **Java** (`sdks/java/`): Maven build
 - **Shared** (`sdks/shared/`): Test schemas (openapi.json, swagger.json)
 
 ### Proto Definition (`api/protos/cvt.proto`)

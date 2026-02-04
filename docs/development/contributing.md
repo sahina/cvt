@@ -239,13 +239,13 @@ Location: `sdks/java/`
 cd sdks/java
 
 # Build the SDK
-./gradlew build
+mvn package
 
 # Run tests
-./gradlew test
+mvn test
 
 # Generate coverage report
-./gradlew jacocoTestReport
+mvn test jacoco:report
 ```
 
 ## Protobuf Code Generation
@@ -337,11 +337,11 @@ Add to your project's `go.mod`:
 replace github.com/sahina/cvt/sdks/go => /path/to/cvt/sdks/go
 ```
 
-### Java - publishToMavenLocal
+### Java - Install to Local Maven Repository
 
 ```bash
 cd sdks/java
-./gradlew publishToMavenLocal
+mvn install
 ```
 
 ## Common Development Tasks
@@ -364,7 +364,7 @@ make update-server
 cd sdks/node && npm update
 cd sdks/python && uv lock --upgrade
 cd sdks/go && go get -u ./...
-cd sdks/java && ./gradlew dependencyUpdates
+cd sdks/java && mvn versions:display-dependency-updates
 ```
 
 ### Cleaning Build Artifacts
