@@ -13,16 +13,16 @@ Example code demonstrating the ContractValidator Java SDK.
 2. **Run an example** (from `sdks/java` directory):
 
    ```bash
-   ./gradlew run --args="BasicUsage"
+   mvn compile exec:java -Dexec.mainClass="com.cvt.examples.BasicUsage"
    # or
-   ./gradlew run --args="AdvancedUsage"
+   mvn compile exec:java -Dexec.mainClass="com.cvt.examples.AdvancedUsage"
    ```
 
    Alternatively, compile and run directly:
 
    ```bash
-   ./gradlew build
-   java -cp build/libs/cvt-sdk.jar:build/classes/java/main com.cvt.examples.BasicUsage
+   mvn package
+   java -cp "target/cvt-sdk-*.jar:target/classes" com.cvt.examples.BasicUsage
    ```
 
 ## Examples
@@ -56,13 +56,13 @@ Breaking change detection between schema versions:
 - CI/CD integration patterns
 
 ```bash
-./gradlew run --args="BreakingChanges"
+mvn compile exec:java -Dexec.mainClass="com.cvt.examples.BreakingChanges"
 ```
 
 ## Troubleshooting
 
 **Server connection errors?** Ensure the server is running: `make up` from repository root.
 
-**Compilation errors?** Build the project first: `./gradlew build` from the `sdks/java` directory.
+**Compilation errors?** Build the project first: `mvn package` from the `sdks/java` directory.
 
 **Class not found?** Ensure you're using the correct classpath when running examples.

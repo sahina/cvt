@@ -74,9 +74,9 @@ cp -r ./path/to/cvt/sdks/go ./vendor/cvt
 ```bash
 # Build and install to local Maven repository
 cd ./path/to/cvt/sdks/java
-./gradlew publishToMavenLocal
+mvn install
 
-# Then add to your build.gradle
+# Then add to your build.gradle or pom.xml
 # implementation 'com.cvt:cvt-sdk:1.0.0'
 ```
 

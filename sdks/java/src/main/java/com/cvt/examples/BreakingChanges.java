@@ -22,7 +22,7 @@ import java.nio.file.Paths;
  * - Run: make up (from project root)
  *
  * Usage:
- * - ./gradlew run --args="BreakingChanges"
+ * - mvn compile exec:java -Dexec.mainClass="com.cvt.examples.BreakingChanges"
  */
 public class BreakingChanges {
     private static final String SCHEMA_ID = "petstore-api";

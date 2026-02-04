@@ -20,7 +20,7 @@ For information about SDK design patterns, adapter architecture, and cross-langu
 ```bash
 # From local clone (SDK not published to Maven Central)
 cd ./path/to/cvt/sdks/java
-./gradlew publishToMavenLocal
+mvn install
 ```
 
 Then add to your build file:

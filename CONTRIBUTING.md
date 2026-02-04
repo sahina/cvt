@@ -95,7 +95,7 @@ uv run ruff format .
 
 ```bash
 cd sdks/java
-./gradlew checkstyleMain
+mvn checkstyle:check
 ```
 
 ## Making Changes

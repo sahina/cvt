@@ -134,7 +134,7 @@ fi
 echo ""
 
 echo ">>> Testing Java SDK..."
-if (cd sdks/java && ./gradlew test --continue); then
+if (cd sdks/java && mvn test); then
     echo "✅ Java SDK tests passed"
 else
     echo "⚠️  Java SDK tests completed with some failures (server integration tests may require running server)"
