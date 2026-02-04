@@ -22,7 +22,7 @@ Example code demonstrating the ContractValidator Java SDK.
 
    ```bash
    mvn package
-   java -cp target/cvt-sdk-0.1.0.jar:target/classes com.cvt.examples.BasicUsage
+   java -cp "target/cvt-sdk-*.jar:target/classes" com.cvt.examples.BasicUsage
    ```
 
 ## Examples
