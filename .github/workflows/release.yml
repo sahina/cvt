@@ -108,10 +108,22 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Publish
+      - name: Publish to GitHub Packages
         run: npm publish ${{ needs.validate.outputs.prerelease == 'true' && '--tag next' || '' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js for npmjs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@sahina'
+
+      - name: Publish to npmjs
+        run: npm publish --access public ${{ needs.validate.outputs.prerelease == 'true' && '--tag next' || '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-java:
     name: Publish Java SDK
