@@ -204,3 +204,55 @@ jobs:
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-cli:
+    name: Build CLI (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: [validate, release]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build binary
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          COMMIT="${{ github.sha }}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+          OUTPUT="cvt-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
+
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -trimpath \
+            -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${DATE}" \
+            -o "${OUTPUT}" ./cmd/cvt
+        env:
+          CGO_ENABLED: '0'
+
+      - name: Generate checksum
+        run: |
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+          BINARY="cvt-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
+          sha256sum "${BINARY}" > "${BINARY}.sha256"
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            cvt-${{ matrix.goos }}-${{ matrix.goarch }}*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
