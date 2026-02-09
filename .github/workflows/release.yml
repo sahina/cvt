@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to build CLI for (e.g., v1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,12 +22,19 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Extract version info
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          VERSION="${TAG#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
           # Check if this is a pre-release (contains -alpha, -beta, -rc, etc.)
           if [[ "$VERSION" =~ -[a-zA-Z] ]]; then
@@ -32,6 +45,7 @@ jobs:
 
   docker:
     name: Build and Push Docker Image
+    if: github.event_name == 'push'
     needs: validate
     runs-on: ubuntu-latest
     steps:
@@ -63,6 +77,7 @@ jobs:
 
   publish-node:
     name: Publish Node.js SDK
+    if: github.event_name == 'push'
     needs: validate
     runs-on: ubuntu-latest
     defaults:
@@ -100,6 +115,7 @@ jobs:
 
   publish-java:
     name: Publish Java SDK
+    if: github.event_name == 'push'
     needs: validate
     runs-on: ubuntu-latest
     defaults:
@@ -134,6 +150,7 @@ jobs:
 
   publish-python:
     name: Publish Python SDK
+    if: github.event_name == 'push'
     needs: [validate, release]
     runs-on: ubuntu-latest
     defaults:
@@ -169,6 +186,7 @@ jobs:
 
   go-tag:
     name: Tag Go SDK
+    if: github.event_name == 'push'
     needs: validate
     runs-on: ubuntu-latest
     steps:
@@ -191,6 +209,7 @@ jobs:
 
   release:
     name: Create GitHub Release
+    if: github.event_name == 'push'
     needs: [validate, docker]
     runs-on: ubuntu-latest
     steps:
@@ -208,6 +227,7 @@ jobs:
   build-cli:
     name: Build CLI (${{ matrix.goos }}/${{ matrix.goarch }})
     needs: [validate, release]
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -216,6 +236,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -225,7 +247,7 @@ jobs:
       - name: Build binary
         run: |
           VERSION="${{ needs.validate.outputs.version }}"
-          COMMIT="${{ github.sha }}"
+          COMMIT="$(git rev-parse HEAD)"
           DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           EXT=""
           if [ "${{ matrix.goos }}" = "windows" ]; then
@@ -252,6 +274,7 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.validate.outputs.tag }}
           files: |
             cvt-${{ matrix.goos }}-${{ matrix.goarch }}*
         env:
