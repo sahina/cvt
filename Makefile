@@ -624,3 +624,55 @@ prerelease: _check_tag_prerelease
 	git push origin v$(TAG)
 	@echo "✅ Pre-release tag v$(TAG) pushed to origin"
 	@echo "🚀 Release workflow will publish Docker image + SDK packages (pre-release)"
+
+# Delete a release and all associated artifacts (GitHub Release, Docker image, npm/Maven packages, tags)
+# Usage: make delete-release TAG=0.1.1-rc.1
+delete-release: _check_tag
+	@REPO=$$(gh repo view --json nameWithOwner -q .nameWithOwner); \
+	OWNER=$$(echo "$$REPO" | cut -d/ -f1); \
+	echo "⚠️  This will delete ALL artifacts for v$(TAG):"; \
+	echo "   - GitHub Release"; \
+	echo "   - Docker image ghcr.io/$$OWNER/cvt-server:$(TAG)"; \
+	echo "   - npm package @$$OWNER/cvt-sdk@$(TAG)"; \
+	echo "   - Maven package com.cvt:cvt-sdk $(TAG)"; \
+	echo "   - Git tags: v$(TAG) and sdks/go/v$(TAG)"; \
+	echo ""; \
+	read -p "Are you sure? [y/N] " confirm; \
+	if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+		echo "Aborted."; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "🗑️  Deleting GitHub Release..."; \
+	gh release delete "v$(TAG)" --yes --cleanup-tag 2>/dev/null && echo "   ✅ GitHub Release deleted" || echo "   ⏭️  No GitHub Release found"; \
+	echo "🗑️  Deleting Docker image..."; \
+	VERSION_ID=$$(gh api "orgs/$$OWNER/packages/container/cvt-server/versions" --jq ".[] | select(.metadata.container.tags[] == \"$(TAG)\") | .id" 2>/dev/null || true); \
+	if [ -z "$$VERSION_ID" ]; then \
+		VERSION_ID=$$(gh api "users/$$OWNER/packages/container/cvt-server/versions" --jq ".[] | select(.metadata.container.tags[] == \"$(TAG)\") | .id" 2>/dev/null || true); \
+	fi; \
+	if [ -n "$$VERSION_ID" ]; then \
+		gh api --method DELETE "users/$$OWNER/packages/container/cvt-server/versions/$$VERSION_ID" 2>/dev/null && echo "   ✅ Docker image deleted" || echo "   ⚠️  Failed to delete Docker image (may need admin access)"; \
+	else \
+		echo "   ⏭️  No Docker image found"; \
+	fi; \
+	echo "🗑️  Deleting npm package..."; \
+	NPM_VERSION_ID=$$(gh api "users/$$OWNER/packages/npm/cvt-sdk/versions" --jq ".[] | select(.name == \"$(TAG)\") | .id" 2>/dev/null || true); \
+	if [ -n "$$NPM_VERSION_ID" ]; then \
+		gh api --method DELETE "users/$$OWNER/packages/npm/cvt-sdk/versions/$$NPM_VERSION_ID" 2>/dev/null && echo "   ✅ npm package deleted" || echo "   ⚠️  Failed to delete npm package (may need admin access)"; \
+	else \
+		echo "   ⏭️  No npm package found"; \
+	fi; \
+	echo "🗑️  Deleting Maven package..."; \
+	MVN_VERSION_ID=$$(gh api "users/$$OWNER/packages/maven/com.cvt.cvt-sdk/versions" --jq ".[] | select(.name == \"$(TAG)\") | .id" 2>/dev/null || true); \
+	if [ -n "$$MVN_VERSION_ID" ]; then \
+		gh api --method DELETE "users/$$OWNER/packages/maven/com.cvt.cvt-sdk/versions/$$MVN_VERSION_ID" 2>/dev/null && echo "   ✅ Maven package deleted" || echo "   ⚠️  Failed to delete Maven package (may need admin access)"; \
+	else \
+		echo "   ⏭️  No Maven package found"; \
+	fi; \
+	echo "🗑️  Deleting Go SDK tag..."; \
+	git push origin :refs/tags/sdks/go/v$(TAG) 2>/dev/null && echo "   ✅ Go SDK tag deleted" || echo "   ⏭️  No Go SDK tag found"; \
+	echo "🗑️  Deleting version tag..."; \
+	git tag -d v$(TAG) 2>/dev/null || true; \
+	git push origin :refs/tags/v$(TAG) 2>/dev/null && echo "   ✅ Version tag deleted" || echo "   ⏭️  No remote version tag found"; \
+	echo ""; \
+	echo "✅ Cleanup complete for v$(TAG)"
