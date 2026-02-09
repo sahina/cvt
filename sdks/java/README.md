@@ -85,7 +85,7 @@ repositories {
         url = uri("https://maven.pkg.github.com/sahina/cvt")
         credentials {
             username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
-            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
         }
     }
 }
@@ -94,6 +94,8 @@ dependencies {
     implementation 'com.cvt:cvt-sdk:0.1.0'
 }
 ```
+
+Replace `0.1.0` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
 
 ## Usage
 

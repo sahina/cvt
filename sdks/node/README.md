@@ -18,7 +18,7 @@ Using GitHub Packages lets you install all CVT SDKs (Node.js and Java) with a si
 //npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
 ```
 
-1. Install:
+3. Install:
 
 ```bash
 npm install @sahina/cvt-sdk
