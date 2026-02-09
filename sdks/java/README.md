@@ -40,6 +40,61 @@ dependencies {
 </dependency>
 ```
 
+### Install from GitHub Packages
+
+1. Create a GitHub [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope.
+
+2. Add the repository and credentials to your `~/.m2/settings.xml`:
+
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>github-cvt</id>
+      <username>YOUR_GITHUB_USERNAME</username>
+      <password>YOUR_GITHUB_PAT</password>
+    </server>
+  </servers>
+</settings>
+```
+
+3. Add the GitHub Packages repository to your `pom.xml`:
+
+```xml
+<repositories>
+    <repository>
+        <id>github-cvt</id>
+        <url>https://maven.pkg.github.com/sahina/cvt</url>
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>com.cvt</groupId>
+        <artifactId>cvt-sdk</artifactId>
+        <version>0.1.0</version>
+    </dependency>
+</dependencies>
+```
+
+For Gradle, add to `build.gradle`:
+
+```gradle
+repositories {
+    maven {
+        url = uri("https://maven.pkg.github.com/sahina/cvt")
+        credentials {
+            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
+            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.cvt:cvt-sdk:0.1.0'
+}
+```
+
 ## Usage
 
 ### Initialize and Register Schema
