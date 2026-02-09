@@ -316,7 +316,7 @@ npm run build
 npm link
 
 # In your consumer project
-npm link @cvt/sdk
+npm link @sahina/cvt-sdk
 ```
 
 ### Python - Editable Install

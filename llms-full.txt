@@ -14,7 +14,7 @@ CVT enables API contract testing by:
 ### Node.js
 
 ```typescript
-import { ContractValidator } from "@cvt/sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("user-api", "./openapi.json");
@@ -103,13 +103,13 @@ cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --server localhost:9
 ### Installation
 
 ```bash
-npm install @cvt/sdk
+npm install @sahina/cvt-sdk
 ```
 
 ### Initialization
 
 ```typescript
-import { ContractValidator, ContractValidatorOptions, TLSOptions } from "@cvt/sdk";
+import { ContractValidator, ContractValidatorOptions, TLSOptions } from "@sahina/cvt-sdk";
 
 // Simple connection
 const validator = new ContractValidator("localhost:9550");
