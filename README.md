@@ -118,12 +118,46 @@ Run `make help` for all available commands.
 
 ## CLI (Local Lite Mode)
 
-Validate schemas locally without Docker:
+Validate schemas locally without Docker.
+
+### Install
+
+Download a pre-built binary from [GitHub Releases](https://github.com/sahina/cvt/releases):
 
 ```bash
-# Build the CLI
-go build -o cvt ./cmd/cvt
+# macOS (Apple Silicon)
+curl -L https://github.com/sahina/cvt/releases/latest/download/cvt-darwin-arm64 -o cvt
 
+# macOS (Intel)
+curl -L https://github.com/sahina/cvt/releases/latest/download/cvt-darwin-amd64 -o cvt
+
+# Linux (x86_64)
+curl -L https://github.com/sahina/cvt/releases/latest/download/cvt-linux-amd64 -o cvt
+
+# Linux (ARM64)
+curl -L https://github.com/sahina/cvt/releases/latest/download/cvt-linux-arm64 -o cvt
+
+chmod +x cvt
+sudo mv cvt /usr/local/bin/
+```
+
+For Windows, download `cvt-windows-amd64.exe` or `cvt-windows-arm64.exe` from the releases page.
+
+Verify the installation:
+
+```bash
+cvt version
+```
+
+**Build from source** (requires Go 1.25+):
+
+```bash
+go build -o cvt ./cmd/cvt
+```
+
+### Usage
+
+```bash
 # Validate request/response against schema
 cvt validate --schema ./openapi.json --request req.json --response resp.json
 
