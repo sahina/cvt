@@ -18,8 +18,8 @@ This section provides documentation for CVT's language-specific SDKs. Each SDK o
 For information about SDK design patterns, adapter architecture, and how SDKs maintain cross-language consistency, see [SDK Architecture](../architecture/sdk-architecture.md).
 :::
 
-:::note Local Installation Only
-CVT SDKs are **not published** to public package registries (npm, PyPI, Maven Central, etc.). Install SDKs directly from your local CVT clone or from your organization's internal artifact repository.
+:::tip Published SDKs
+CVT SDKs are published to package registries: Node.js to [GitHub Packages](https://github.com/sahina/cvt/packages) and [npmjs](https://www.npmjs.com/package/@sahina/cvt-sdk), Java to [GitHub Packages](https://github.com/sahina/cvt/packages), Python to [GitHub Releases](https://github.com/sahina/cvt/releases), and Go via `go get`.
 :::
 
 ## Available SDKs
@@ -33,51 +33,39 @@ CVT SDKs are **not published** to public package registries (npm, PyPI, Maven Ce
 
 ## Installation
 
-Install SDKs from your local CVT clone:
-
 <Tabs groupId="sdk-language">
 <TabItem value="nodejs" label="Node.js">
 
 ```bash
-# Using npm
-npm install ./path/to/cvt/sdks/node
+# From npmjs (no auth required)
+npm install @sahina/cvt-sdk
 
-# Using pnpm
-pnpm add ./path/to/cvt/sdks/node
+# Or from GitHub Packages (recommended — single PAT for all SDKs)
+# See Node.js SDK docs for .npmrc setup
 ```
 
 </TabItem>
 <TabItem value="python" label="Python">
 
 ```bash
-# Using pip
-pip install ./path/to/cvt/sdks/python
-
-# Using uv
-uv pip install ./path/to/cvt/sdks/python
+# From GitHub Releases
+pip install "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
 ```
 
 </TabItem>
 <TabItem value="go" label="Go">
 
 ```bash
-# Add to go.mod with replace directive
-go mod edit -replace github.com/sahina/cvt/sdks/go=./path/to/cvt/sdks/go
-
-# Or copy the SDK into your project
-cp -r ./path/to/cvt/sdks/go ./vendor/cvt
+go get github.com/sahina/cvt/sdks/go
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```bash
-# Build and install to local Maven repository
-cd ./path/to/cvt/sdks/java
-mvn install
-
-# Then add to your build.gradle or pom.xml
-# implementation 'com.cvt:cvt-sdk:1.0.0'
+# From GitHub Packages (requires PAT — see Java SDK docs for setup)
+# Maven: add github-cvt repository + dependency to pom.xml
+# Gradle: add maven repository + dependency to build.gradle
 ```
 
 </TabItem>

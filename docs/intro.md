@@ -44,20 +44,17 @@ make run-server
 
 ### 2. Install an SDK
 
-Node.js and Python SDKs are installed from a local clone (not yet published to package registries). The Go SDK can be installed directly from GitHub:
-
 ```bash
-# Clone the repository into your project directory
-git clone https://github.com/sahina/cvt.git
+# Node.js (from npmjs — no auth required)
+npm install @sahina/cvt-sdk
 
-# Node.js (from local clone)
-npm install ./cvt/sdks/node
+# Python (from GitHub Releases)
+pip install "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
 
-# Python (from local clone)
-pip install ./cvt/sdks/python
-
-# Go (from GitHub - no local clone needed)
+# Go
 go get github.com/sahina/cvt/sdks/go
+
+# Java (from GitHub Packages — requires PAT setup, see Installation guide)
 ```
 
 See [Installation](./getting-started/installation.mdx) for detailed instructions.

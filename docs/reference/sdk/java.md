@@ -17,31 +17,62 @@ For information about SDK design patterns, adapter architecture, and cross-langu
 
 ## Installation
 
-```bash
-# From local clone (SDK not published to Maven Central)
-cd ./path/to/cvt/sdks/java
-mvn install
-```
+Install from GitHub Packages (requires a GitHub PAT with `read:packages` scope):
 
-Then add to your build file:
+1. Add credentials to `~/.m2/settings.xml`:
 
-### Gradle
+    ```xml
+    <settings>
+      <servers>
+        <server>
+          <id>github-cvt</id>
+          <username>YOUR_GITHUB_USERNAME</username>
+          <password>YOUR_GITHUB_PAT</password>
+        </server>
+      </servers>
+    </settings>
+    ```
 
-```gradle
-dependencies {
-    implementation 'com.cvt:cvt-sdk:1.0.0'
-}
-```
+2. Add the repository and dependency to your build file:
 
 ### Maven
 
 ```xml
-<dependency>
-    <groupId>com.cvt</groupId>
-    <artifactId>cvt-sdk</artifactId>
-    <version>1.0.0</version>
-</dependency>
+<repositories>
+    <repository>
+        <id>github-cvt</id>
+        <url>https://maven.pkg.github.com/sahina/cvt</url>
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>com.cvt</groupId>
+        <artifactId>cvt-sdk</artifactId>
+        <version>0.1.0</version>
+    </dependency>
+</dependencies>
 ```
+
+### Gradle
+
+```gradle
+repositories {
+    maven {
+        url = uri("https://maven.pkg.github.com/sahina/cvt")
+        credentials {
+            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
+            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.cvt:cvt-sdk:0.1.0'
+}
+```
+
+Replace `0.1.0` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
 
 ## Quick Start
 
