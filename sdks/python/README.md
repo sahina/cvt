@@ -6,25 +6,27 @@ The **CVT Python SDK** allows you to validate HTTP interactions (requests and re
 
 ## Installation
 
-**Note**: This package is currently for internal/development use.
+### From GitHub Releases (recommended)
 
-To install from the local source (editable mode):
-
-```bash
-# From the project root
-pip install -e sdks/python
-```
-
-For the published version (once available):
+Install directly from a GitHub Release asset:
 
 ```bash
-pip install cvt-sdk
+pip install "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
 ```
 
 Or with uv:
 
 ```bash
-uv add cvt-sdk
+uv add "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
+```
+
+Replace `v0.1.0` in the URL and `0.1.0` in the filename with the desired version. Available versions can be found on the [Releases](https://github.com/sahina/cvt/releases) page.
+
+### From local source (development)
+
+```bash
+# From the project root
+pip install -e sdks/python
 ```
 
 ## Usage
