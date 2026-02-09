@@ -17,12 +17,26 @@ For information about SDK design patterns, adapter architecture, and cross-langu
 
 ## Installation
 
-```bash
-# From local clone (SDK not published to npm)
-npm install ./cvt/sdks/node
+**GitHub Packages (recommended)** — single PAT covers both Node.js and Java SDKs:
 
-# Or with pnpm
-pnpm add ./cvt/sdks/node
+1. Create a GitHub [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope
+2. Add to `.npmrc`:
+
+    ```text
+    @sahina:registry=https://npm.pkg.github.com
+    //npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
+    ```
+
+3. Install:
+
+    ```bash
+    npm install @sahina/cvt-sdk
+    ```
+
+**Or from npmjs** (no authentication required):
+
+```bash
+npm install @sahina/cvt-sdk
 ```
 
 ## Quick Start

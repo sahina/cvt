@@ -17,13 +17,16 @@ For information about SDK design patterns, adapter architecture, and cross-langu
 
 ## Installation
 
+Install from a GitHub Release asset:
+
 ```bash
-# From local clone (SDK not yet published to PyPI)
-pip install ./cvt/sdks/python
+pip install "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
 
 # Or with uv
-uv pip install ./cvt/sdks/python
+uv add "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
 ```
+
+Replace `v0.1.0` in the URL and `0.1.0` in the filename with the desired version. Available versions can be found on the [Releases](https://github.com/sahina/cvt/releases) page.
 
 ## Quick Start
 
