@@ -109,9 +109,15 @@ jobs:
         run: npm test
 
       - name: Publish to GitHub Packages
-        run: npm publish ${{ needs.validate.outputs.prerelease == 'true' && '--tag next' || '' }}
+        run: |
+          if npm view "@sahina/cvt-sdk@$VERSION" version --registry https://npm.pkg.github.com 2>/dev/null; then
+            echo "Version $VERSION already exists on GitHub Packages, skipping"
+          else
+            npm publish ${{ needs.validate.outputs.prerelease == 'true' && '--tag next' || '' }}
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.validate.outputs.version }}
 
       - name: Setup Node.js for npmjs
         uses: actions/setup-node@v4
@@ -121,9 +127,15 @@ jobs:
           scope: '@sahina'
 
       - name: Publish to npmjs
-        run: npm publish --access public ${{ needs.validate.outputs.prerelease == 'true' && '--tag next' || '' }}
+        run: |
+          if npm view "@sahina/cvt-sdk@$VERSION" version 2>/dev/null; then
+            echo "Version $VERSION already exists on npmjs, skipping"
+          else
+            npm publish --access public ${{ needs.validate.outputs.prerelease == 'true' && '--tag next' || '' }}
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ needs.validate.outputs.version }}
 
   publish-java:
     name: Publish Java SDK
@@ -155,7 +167,15 @@ jobs:
         run: mvn verify
 
       - name: Deploy
-        run: mvn deploy -DskipTests
+        run: |
+          OUTPUT=$(mvn deploy -DskipTests 2>&1) && echo "$OUTPUT" || {
+            if echo "$OUTPUT" | grep -q "409 Conflict"; then
+              echo "Version already exists on GitHub Packages, skipping"
+            else
+              echo "$OUTPUT"
+              exit 1
+            fi
+          }
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
