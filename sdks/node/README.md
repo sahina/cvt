@@ -6,20 +6,11 @@ The **CVT Node.js SDK** allows you to validate HTTP interactions (requests and r
 
 ## Installation
 
-### npmjs (recommended)
+### GitHub Packages (recommended)
 
-No authentication required:
-
-```bash
-npm install @sahina/cvt-sdk
-```
-
-### GitHub Packages
-
-The package is also published to GitHub Packages:
+Using GitHub Packages lets you install all CVT SDKs (Node.js and Java) with a single PAT:
 
 1. Create a GitHub [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope.
-
 2. Add a `.npmrc` file to your project root (or `~/.npmrc` for global config):
 
 ```text
@@ -28,6 +19,14 @@ The package is also published to GitHub Packages:
 ```
 
 1. Install:
+
+```bash
+npm install @sahina/cvt-sdk
+```
+
+### npmjs
+
+Also available on npmjs (no authentication required):
 
 ```bash
 npm install @sahina/cvt-sdk
