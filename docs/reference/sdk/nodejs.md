@@ -28,7 +28,7 @@ pnpm add ./cvt/sdks/node
 ## Quick Start
 
 ```typescript
-import { ContractValidator } from "@cvt/sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
 
@@ -224,8 +224,8 @@ Automatically validate all Axios requests:
 
 ```typescript
 import axios from "axios";
-import { ContractValidator } from "@cvt/sdk";
-import { createAxiosAdapter } from "@cvt/sdk/adapters";
+import { ContractValidator } from "@sahina/cvt-sdk";
+import { createAxiosAdapter } from "@sahina/cvt-sdk/adapters";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -255,8 +255,8 @@ adapter.detach();
 ### Fetch Adapter
 
 ```typescript
-import { ContractValidator } from "@cvt/sdk";
-import { createFetchAdapter } from "@cvt/sdk/adapters";
+import { ContractValidator } from "@sahina/cvt-sdk";
+import { createFetchAdapter } from "@sahina/cvt-sdk/adapters";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -280,8 +280,8 @@ const interactions = adapter.getInteractions();
 
 ```typescript
 import express from "express";
-import { ContractValidator } from "@cvt/sdk";
-import { createExpressMiddleware } from "@cvt/sdk/producer";
+import { ContractValidator } from "@sahina/cvt-sdk";
+import { createExpressMiddleware } from "@sahina/cvt-sdk/producer";
 
 const app = express();
 app.use(express.json());
@@ -311,8 +311,8 @@ app.get("/pet/:petId", (req, res) => {
 
 ```typescript
 import Fastify from "fastify";
-import { ContractValidator } from "@cvt/sdk";
-import { fastifyProducerPlugin } from "@cvt/sdk/producer";
+import { ContractValidator } from "@sahina/cvt-sdk";
+import { fastifyProducerPlugin } from "@sahina/cvt-sdk/producer";
 
 const fastify = Fastify();
 const validator = new ContractValidator("localhost:9550");
@@ -330,7 +330,7 @@ fastify.register(fastifyProducerPlugin, {
 Test your API responses against your schema without real consumers:
 
 ```typescript
-import { ProducerTestKit } from "@cvt/sdk/producer";
+import { ProducerTestKit } from "@sahina/cvt-sdk/producer";
 
 describe("Pet API", () => {
   let testKit: ProducerTestKit;
@@ -378,7 +378,7 @@ describe("Pet API", () => {
 Build consumer registrations from captured mock interactions:
 
 ```typescript
-import { createMockAdapter } from "@cvt/sdk/adapters";
+import { createMockAdapter } from "@sahina/cvt-sdk/adapters";
 
 // Capture interactions during tests
 const mock = createMockAdapter({ validator, cache: true });
@@ -485,7 +485,7 @@ import {
   RegisterConsumerOptions,
   ConsumerInfo,
   CanIDeployResult,
-} from "@cvt/sdk";
+} from "@sahina/cvt-sdk";
 ```
 
 ## Error Handling

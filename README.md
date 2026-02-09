@@ -76,7 +76,7 @@ make down
 ### Basic Usage
 
 ```typescript
-import { ContractValidator } from "@cvt/sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("my-api", "./openapi.json");

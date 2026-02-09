@@ -68,7 +68,7 @@ make run-server
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-import { ContractValidator } from "@cvt/sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
 
 describe("Petstore Contract", () => {
   let validator: ContractValidator;
@@ -224,7 +224,7 @@ Build request/response objects and validate them directly:
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-import { ContractValidator } from "@cvt/sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -350,7 +350,7 @@ Wrap your HTTP client for automatic validation of all requests/responses:
 
 ```typescript
 import axios from "axios";
-import { ContractValidator, createAxiosAdapter } from "@cvt/sdk";
+import { ContractValidator, createAxiosAdapter } from "@sahina/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -463,7 +463,7 @@ Use the mock adapter for tests without a real API:
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-import { ContractValidator, createMockAdapter } from "@cvt/sdk";
+import { ContractValidator, createMockAdapter } from "@sahina/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -592,7 +592,7 @@ Register from captured test interactions - endpoints and fields are extracted au
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-import { ContractValidator, createMockAdapter } from "@cvt/sdk";
+import { ContractValidator, createMockAdapter } from "@sahina/cvt-sdk";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -1274,7 +1274,7 @@ CVT supports TLS and API key authentication for production deployments.
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-import { ContractValidator } from "@cvt/sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
 
 const validator = new ContractValidator({
   address: "cvt.internal:9550",
