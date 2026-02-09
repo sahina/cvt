@@ -23,8 +23,8 @@ export interface FetchAdapterConfig extends AdapterConfig {
  *
  * @example
  * ```typescript
- * import { ContractValidator } from '@cvt/sdk';
- * import { createFetchAdapter } from '@cvt/sdk/adapters/fetch';
+ * import { ContractValidator } from '@sahina/cvt-sdk';
+ * import { createFetchAdapter } from '@sahina/cvt-sdk/adapters';
  *
  * const validator = new ContractValidator();
  * await validator.registerSchema('petstore', './openapi.json');

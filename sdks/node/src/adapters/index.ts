@@ -7,11 +7,11 @@
  * @example
  * ```typescript
  * // Axios adapter
- * import { createAxiosAdapter } from '@cvt/sdk/adapters';
+ * import { createAxiosAdapter } from '@sahina/cvt-sdk/adapters';
  * const adapter = createAxiosAdapter({ axios: api, validator });
  *
  * // Fetch adapter (native fetch API)
- * import { createFetchAdapter } from '@cvt/sdk/adapters';
+ * import { createFetchAdapter } from '@sahina/cvt-sdk/adapters';
  * const fetchAdapter = createFetchAdapter({ validator, baseURL: 'http://api.test' });
  * const response = await fetchAdapter.fetch('/pet/1');
  * ```
