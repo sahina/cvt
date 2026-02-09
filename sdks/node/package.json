@@ -1,9 +1,16 @@
 {
-  "name": "@cvt/sdk",
+  "name": "@sahina/cvt-sdk",
   "version": "0.1.0",
   "description": "Contract Validator Toolkit SDK",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "dist/src/**",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",

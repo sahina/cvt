@@ -10,8 +10,29 @@ permissions:
   packages: write
 
 jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Extract version info
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Check if this is a pre-release (contains -alpha, -beta, -rc, etc.)
+          if [[ "$VERSION" =~ -[a-zA-Z] ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
   docker:
     name: Build and Push Docker Image
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,19 +48,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version info
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-          # Check if this is a pre-release (contains -alpha, -beta, -rc, etc.)
-          if [[ "$VERSION" =~ -[a-zA-Z] ]]; then
-            echo "prerelease=true" >> $GITHUB_OUTPUT
-          else
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -48,15 +56,138 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/sahina/cvt-server:${{ steps.version.outputs.version }}
-            ${{ steps.version.outputs.prerelease == 'false' && 'ghcr.io/sahina/cvt-server:latest' || '' }}
+            ghcr.io/sahina/cvt-server:${{ needs.validate.outputs.version }}
+            ${{ needs.validate.outputs.prerelease == 'false' && 'ghcr.io/sahina/cvt-server:latest' || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  publish-node:
+    name: Publish Node.js SDK
+    needs: validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/node
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@sahina'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set version
+        run: npm version ${{ needs.validate.outputs.version }} --no-git-tag-version
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Publish
+        run: npm publish ${{ needs.validate.outputs.prerelease == 'true' && '--tag next' || '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-java:
+    name: Publish Java SDK
+    needs: validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/java
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      - name: Set version
+        run: mvn versions:set -DnewVersion=${{ needs.validate.outputs.version }} -DgenerateBackupPoms=false
+
+      - name: Verify
+        run: mvn verify
+
+      - name: Deploy
+        run: mvn deploy -DskipTests
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-python:
+    name: Publish Python SDK
+    needs: [validate, release]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set version
+        run: sed -i "s/^version = .*/version = \"${{ needs.validate.outputs.version }}\"/" pyproject.toml
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Test
+        run: uv run pytest tests/
+
+      - name: Build
+        run: uv build
+
+      - name: Upload assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sdks/python/dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  go-tag:
+    name: Tag Go SDK
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Create and push Go SDK tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "sdks/go/v${{ needs.validate.outputs.version }}"
+          git push origin "sdks/go/v${{ needs.validate.outputs.version }}"
+
+  release:
+    name: Create GitHub Release
+    needs: [validate, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
+          prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -26,8 +26,8 @@ export interface AxiosAdapterConfig extends AdapterConfig {
  * @example
  * ```typescript
  * import axios from 'axios';
- * import { ContractValidator } from '@cvt/sdk';
- * import { createAxiosAdapter } from '@cvt/sdk/adapters/axios';
+ * import { ContractValidator } from '@sahina/cvt-sdk';
+ * import { createAxiosAdapter } from '@sahina/cvt-sdk/adapters/axios';
  *
  * const validator = new ContractValidator();
  * await validator.registerSchema('petstore', './openapi.json');

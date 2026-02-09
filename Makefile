@@ -603,7 +603,7 @@ tag-push: _check_tag
 	fi; \
 	git push origin v$(TAG)
 	@echo "✅ Tag v$(TAG) pushed to origin"
-	@echo "🚀 Release workflow will build and push Docker image to ghcr.io/sahina/cvt-server"
+	@echo "🚀 Release workflow will publish Docker image + SDK packages"
 
 release: tag-push
 
@@ -623,4 +623,4 @@ prerelease: _check_tag_prerelease
 	fi; \
 	git push origin v$(TAG)
 	@echo "✅ Pre-release tag v$(TAG) pushed to origin"
-	@echo "🚀 Release workflow will build Docker image (will NOT update :latest tag)"
+	@echo "🚀 Release workflow will publish Docker image + SDK packages (pre-release)"
