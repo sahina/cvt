@@ -113,6 +113,7 @@ AI: I'll help you set up CVT. Based on the CVT documentation, here's what we nee
 | [Context Templates](./context-templates.md) | Copy-paste templates for CLAUDE.md, .cursorrules, and other tools |
 | [Common Mistakes](./common-mistakes.md) | Pitfalls to avoid when using AI with CVT |
 | [Advanced Patterns](./advanced-patterns.md) | Schema evolution, CI/CD, and fixture generation workflows |
+| [OpenAPI Schema Generator](./openapi-schema-generator.md) | Adaptive prompt for generating or improving OpenAPI schemas from code |
 
 ---
 
