@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
         'ai-helper/context-templates',
         'ai-helper/common-mistakes',
         'ai-helper/advanced-patterns',
+        'ai-helper/openapi-schema-generator',
       ],
     },
     {
