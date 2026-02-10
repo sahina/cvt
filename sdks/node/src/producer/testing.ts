@@ -3,9 +3,16 @@ import * as grpc from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
 import * as path from "path";
 
-// Resolve path relative to the monorepo root
-const PROJECT_ROOT = path.resolve(__dirname, "../../../..");
-const PROTO_PATH = path.join(PROJECT_ROOT, "api/protos/cvt.proto");
+// Resolve proto path relative to the package root
+// At runtime: dist/src/producer/testing.js -> ../../../proto/cvt.proto
+const PROTO_PATH = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "..",
+  "proto",
+  "cvt.proto",
+);
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,

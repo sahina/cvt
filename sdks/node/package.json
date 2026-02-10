@@ -9,6 +9,7 @@
   },
   "files": [
     "dist/src/**",
+    "proto/**",
     "README.md"
   ],
   "exports": {
@@ -26,7 +27,8 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-proto",
+    "copy-proto": "node -e \"require('fs').mkdirSync('proto',{recursive:true});require('fs').copyFileSync('../../api/protos/cvt.proto','proto/cvt.proto')\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint . --ext .ts",
