@@ -122,7 +122,9 @@ go get github.com/sahina/cvt/sdks/go
     </settings>
     ```
 
-3. Add the GitHub Packages repository and dependency to your `pom.xml`:
+3. Add the GitHub Packages repository and dependency to your build file:
+
+**Maven** (`pom.xml`):
 
     ```xml
     <repositories>
@@ -139,6 +141,24 @@ go get github.com/sahina/cvt/sdks/go
             <version>0.1.0</version>
         </dependency>
     </dependencies>
+    ```
+
+**Gradle** (`build.gradle`):
+
+    ```gradle
+    repositories {
+        maven {
+            url = uri("https://maven.pkg.github.com/sahina/cvt")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
+            }
+        }
+    }
+
+    dependencies {
+        implementation("com.cvt:cvt-sdk:0.1.0")
+    }
     ```
 
 Replace `0.1.0` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
