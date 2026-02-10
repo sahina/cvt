@@ -194,6 +194,19 @@ Do not assume a version. Ask which version the engineer's toolchain supports:
 - **OpenAPI 3.0.3** — broadest tooling support (code generators, API gateways, validators). **Default when unsure.**
 - **OpenAPI 3.1** — uses JSON Schema 2020-12, supports `webhooks` natively. Choose when the toolchain explicitly supports it.
 
+#### Handling Swagger 2.0 Inputs
+
+If the engineer provides a Swagger 2.0 (OpenAPI 2.0) specification, propose migrating it to OpenAPI 3.x as part of the review or reconciliation. Key benefits of migrating:
+
+- Improved component structure (`components/` replaces top-level `definitions/`, `parameters/`, `responses/`)
+- Richer security definitions (OpenID Connect, multiple flows per scheme)
+- Support for `oneOf`/`anyOf`/`allOf` with `discriminator`
+- `requestBody` as a first-class object (replaces `in: body` parameters)
+- Multiple `servers` instead of `host` + `basePath` + `schemes`
+- Native `links` and `callbacks` for describing API workflows
+
+When migrating, preserve the original schema as a reference and produce a side-by-side changelog of structural changes.
+
 ### Format Preferences
 
 Ask the engineer before generating:
@@ -204,7 +217,7 @@ Ask the engineer before generating:
 
 For large schemas (50+ endpoints or 20+ component schemas), recommend splitting:
 
-```
+```text
 openapi/
   openapi.yaml          # Root document with $ref pointers
   paths/
@@ -403,7 +416,7 @@ I want you to generate or improve an OpenAPI schema for this API.
 
 I will provide one or more of the following:
 - Source code (repo, files, controllers, models, tests)
-- An existing OpenAPI / Swagger file
+- An existing OpenAPI/Swagger file
 - High-level context about the API
 
 Please:
