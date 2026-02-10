@@ -68,7 +68,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.cvt:cvt-sdk:0.1.0'
+    implementation("com.cvt:cvt-sdk:0.1.0")
 }
 ```
 
