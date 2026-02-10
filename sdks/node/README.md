@@ -1,33 +1,18 @@
-# Contract Validator Toolkit (CVT) - Node.js SDK
+# @sahina/cvt-sdk
 
-The **CVT Node.js SDK** allows you to validate HTTP interactions (requests and responses) against OpenAPI schemas using the CVT gRPC service.
+The Node.js SDK for **Contract Validator Toolkit (CVT)** — a consumer-driven contract validation platform for OpenAPI v2/v3 specifications.
 
-> **Status**: Fully Implemented
+CVT validates HTTP request/response interactions against registered OpenAPI schemas using a gRPC service. This SDK provides:
+
+- Schema registration and validation against OpenAPI v2/v3 specs
+- HTTP adapters (Axios, Fetch) for automatic traffic validation
+- Server-side middleware (Express, Fastify) for producer validation
+- Breaking change detection between schema versions
+- Consumer registry and deployment safety checks (can-i-deploy)
+
+For full documentation, visit the [CVT Documentation](https://sahina.github.io/cvt/).
 
 ## Installation
-
-### GitHub Packages (recommended)
-
-Using GitHub Packages lets you install all CVT SDKs (Node.js and Java) with a single PAT:
-
-1. Create a GitHub [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope
-
-2. Add a `.npmrc` file to your project root (or `~/.npmrc` for global config):
-
-    ```text
-    @sahina:registry=https://npm.pkg.github.com
-    //npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
-    ```
-
-3. Install:
-
-    ```bash
-    npm install @sahina/cvt-sdk
-    ```
-
-### npmjs
-
-Also available on npmjs (no authentication required):
 
 ```bash
 npm install @sahina/cvt-sdk
@@ -153,7 +138,7 @@ const response = await api.post("/pets", { name: "Fluffy" });
 
 Validate incoming requests and outgoing responses against your OpenAPI contract on the server side.
 
-> **Full documentation:** See [Validation Modes](../../docs/guides/validation-modes.mdx) for detailed behavior, rollout strategy, and metrics information.
+> **Full documentation:** See [Validation Modes](https://sahina.github.io/cvt/docs/guides/validation-modes) for detailed behavior, rollout strategy, and metrics information.
 
 ### Validation Modes
 
@@ -163,7 +148,7 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `"warn"`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `"shadow"` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `shadow` → `warn` → `strict`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.mdx#recommended-rollout-strategy).
+**Recommended rollout:** `shadow` → `warn` → `strict`. See [Recommended Rollout Strategy](https://sahina.github.io/cvt/docs/guides/validation-modes#recommended-rollout-strategy).
 
 ### Express Middleware
 
@@ -253,7 +238,7 @@ if (!result.compatible) {
 | `FIELD_TYPE_CHANGED`   | A field's type was changed            |
 | `ENUM_VALUE_REMOVED`   | An allowed enum value was removed     |
 
-See `examples/breaking-changes.ts` for a complete example.
+See [`examples/breaking-changes.ts`](https://github.com/sahina/cvt/tree/main/sdks/node/examples/breaking-changes.ts) for a complete example.
 
 ## Producer Testing
 
@@ -332,7 +317,7 @@ if (!result.safeToDeploy) {
 }
 ```
 
-See [Producer Testing Guide](../../docs/guides/producer-testing.mdx) for complete documentation.
+See [Producer Testing Guide](https://sahina.github.io/cvt/docs/guides/producer-testing) for complete documentation.
 
 ## Security Configuration
 
