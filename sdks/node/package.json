@@ -9,6 +9,7 @@
   },
   "files": [
     "dist/src/**",
+    "proto/**",
     "README.md"
   ],
   "exports": {
@@ -26,7 +27,8 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-proto",
+    "copy-proto": "mkdir -p proto && cp ../../api/protos/cvt.proto proto/",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint . --ext .ts",
