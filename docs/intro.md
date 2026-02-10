@@ -48,7 +48,7 @@ make run-server
 # Node.js (from npmjs — no auth required)
 npm install @sahina/cvt-sdk
 
-# Python (from GitHub Releases — replace v0.1.0 with latest version)
+# Python (from GitHub Releases — replace v0.1.0 in the URL and 0.1.0 in the filename with latest version)
 pip install "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
 
 # Go
