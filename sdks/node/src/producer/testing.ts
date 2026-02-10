@@ -5,7 +5,14 @@ import * as path from "path";
 
 // Resolve proto path relative to the package root
 // At runtime: dist/src/producer/testing.js -> ../../../proto/cvt.proto
-const PROTO_PATH = path.resolve(__dirname, "..", "..", "..", "proto", "cvt.proto");
+const PROTO_PATH = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "..",
+  "proto",
+  "cvt.proto",
+);
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,
