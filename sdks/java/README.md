@@ -18,7 +18,7 @@ For full documentation, visit the [CVT Documentation](https://sahina.github.io/c
 <dependency>
     <groupId>io.github.sahina</groupId>
     <artifactId>cvt-sdk</artifactId>
-    <version>0.1.0</version>
+    <version>LATEST</version>
 </dependency>
 ```
 
@@ -26,7 +26,7 @@ Or with Gradle:
 
 ```gradle
 dependencies {
-    implementation 'io.github.sahina:cvt-sdk:0.1.0'
+    implementation 'io.github.sahina:cvt-sdk:LATEST'
 }
 ```
 
