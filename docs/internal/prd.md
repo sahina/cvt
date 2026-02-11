@@ -242,7 +242,7 @@ assert result.valid, f"Contract failed: {result.errors}"
 #### Java
 
 ```java
-import com.cvt.ContractValidator;
+import io.github.sahina.sdk.ContractValidator;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 ContractValidator validator = new ContractValidator(new Config().schema("./openapi.yaml"));

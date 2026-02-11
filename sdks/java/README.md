@@ -1,124 +1,59 @@
-# Contract Validator Toolkit (CVT) - Java SDK
+# io.github.sahina:cvt-sdk
 
-The **CVT Java SDK** allows you to validate HTTP interactions (requests and responses) against OpenAPI schemas using the CVT gRPC service.
+The Java SDK for **Contract Validator Toolkit (CVT)** — a consumer-driven contract validation platform for OpenAPI v2/v3 specifications.
 
-> **Status**: Fully Implemented
+CVT validates HTTP request/response interactions against registered OpenAPI schemas using a gRPC service. This SDK provides:
+
+- Schema registration and validation against OpenAPI v2/v3 specs
+- HTTP adapters (OkHttp) for automatic traffic validation
+- Server-side middleware (Spring, Servlet) for producer validation
+- Breaking change detection between schema versions
+- Consumer registry and deployment safety checks (can-i-deploy)
+
+For full documentation, visit the [CVT Documentation](https://sahina.github.io/cvt/).
 
 ## Installation
 
-**Note**: This package is currently for internal/development use.
-
-To use locally, first install to your local Maven repository:
-
-```bash
-cd sdks/java
-mvn install
-```
-
-Then add `mavenLocal()` to your repositories and the dependency:
-
-**Gradle:**
-
-```gradle
-repositories {
-    mavenLocal()
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'com.cvt:cvt-sdk:0.1.0'
-}
-```
-
-**Maven:**
-
 ```xml
 <dependency>
-    <groupId>com.cvt</groupId>
+    <groupId>io.github.sahina</groupId>
     <artifactId>cvt-sdk</artifactId>
-    <version>0.1.0</version>
+    <version>LATEST</version>
 </dependency>
 ```
 
-### Install from GitHub Packages
-
-1. Create a GitHub [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope.
-
-2. Add the repository and credentials to your `~/.m2/settings.xml`:
-
-```xml
-<settings>
-  <servers>
-    <server>
-      <id>github-cvt</id>
-      <username>YOUR_GITHUB_USERNAME</username>
-      <password>YOUR_GITHUB_PAT</password>
-    </server>
-  </servers>
-</settings>
-```
-
-3. Add the GitHub Packages repository to your `pom.xml`:
-
-```xml
-<repositories>
-    <repository>
-        <id>github-cvt</id>
-        <url>https://maven.pkg.github.com/sahina/cvt</url>
-    </repository>
-</repositories>
-
-<dependencies>
-    <dependency>
-        <groupId>com.cvt</groupId>
-        <artifactId>cvt-sdk</artifactId>
-        <version>0.1.0</version>
-    </dependency>
-</dependencies>
-```
-
-For Gradle, add to `build.gradle`:
+Or with Gradle:
 
 ```gradle
-repositories {
-    maven {
-        url = uri("https://maven.pkg.github.com/sahina/cvt")
-        credentials {
-            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
-            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
-        }
-    }
-}
-
 dependencies {
-    implementation 'com.cvt:cvt-sdk:0.1.0'
+    implementation 'io.github.sahina:cvt-sdk:LATEST'
 }
 ```
-
-Replace `0.1.0` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
 
 ## Usage
 
-### Initialize and Register Schema
+### 1. Initialize and Register Schema
+
+You can register a schema from a local file or a URL.
 
 ```java
-import com.cvt.ContractValidator;
+import io.github.sahina.sdk.ContractValidator;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 
 // Register from local file
 validator.registerSchema("my-schema", "path/to/openapi.json");
 
-// Register from URL
+// OR Register from URL
 validator.registerSchema("petstore", "https://petstore.swagger.io/v2/swagger.json");
 ```
 
-### Validate Interactions
+### 2. Validate Interactions
 
 ```java
-import com.cvt.ValidationRequest;
-import com.cvt.ValidationResponse;
-import com.cvt.ValidationResult;
+import io.github.sahina.sdk.ValidationRequest;
+import io.github.sahina.sdk.ValidationResponse;
+import io.github.sahina.sdk.ValidationResult;
 
 ValidationRequest request = ValidationRequest.builder()
     .method("POST")
@@ -133,17 +68,56 @@ ValidationResponse response = ValidationResponse.builder()
 ValidationResult result = validator.validate(request, response);
 
 if (result.isValid()) {
-    System.out.println("✅ Valid interaction");
+    System.out.println("Valid interaction");
 } else {
-    System.err.println("❌ Validation errors: " + result.getErrors());
+    System.err.println("Validation errors: " + result.getErrors());
 }
 ```
+
+## HTTP Adapter (OkHttp)
+
+The SDK includes an OkHttp adapter for automatic HTTP traffic validation:
+
+```java
+import io.github.sahina.sdk.adapters.OkHttpContractAdapter;
+import io.github.sahina.sdk.adapters.AdapterConfig;
+
+ContractValidator validator = new ContractValidator("localhost:9550");
+validator.registerSchema("petstore", "./openapi.json");
+
+OkHttpContractAdapter adapter = new OkHttpContractAdapter(AdapterConfig.builder()
+    .validator(validator)
+    .autoValidate(true)
+    .onValidationFailure(result -> {
+        throw new RuntimeException("Contract violation: " + result.getErrors());
+    })
+    .build());
+
+OkHttpClient client = new OkHttpClient.Builder()
+    .addInterceptor(adapter)
+    .build();
+
+// All requests are now automatically validated
+Request request = new Request.Builder()
+    .url("http://petstore-service/pet/123")
+    .build();
+Response response = client.newCall(request).execute();
+```
+
+### Adapter Options
+
+- `autoValidate`: Enable/disable automatic validation (default: true)
+- `includePaths`: List of paths to include
+- `excludePaths`: List of paths to exclude
+- `onValidationFailure`: Custom error handler
+- `getInteractions()`: Retrieve captured interactions
+- `clearInteractions()`: Reset captured data
 
 ## Producer Validation (Server-Side Middleware)
 
 Validate incoming requests and outgoing responses against your OpenAPI contract on the server side.
 
-> **Full documentation:** See [Validation Modes](../../docs/guides/validation-modes.mdx) for detailed behavior, rollout strategy, and metrics information.
+> **Full documentation:** See [Validation Modes](https://sahina.github.io/cvt/docs/guides/validation-modes) for detailed behavior, rollout strategy, and metrics information.
 
 ### Validation Modes
 
@@ -153,14 +127,14 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 | `ValidationMode.WARN`   | Log, continue     | Log, continue      | Gradual rollout        |
 | `ValidationMode.SHADOW` | Metrics only      | Metrics only       | Initial deployment     |
 
-**Recommended rollout:** `SHADOW` → `WARN` → `STRICT`. See [Recommended Rollout Strategy](../../docs/guides/validation-modes.mdx#recommended-rollout-strategy).
+**Recommended rollout:** `SHADOW` -> `WARN` -> `STRICT`. See [Recommended Rollout Strategy](https://sahina.github.io/cvt/docs/guides/validation-modes#recommended-rollout-strategy).
 
 ### Spring Interceptor
 
 ```java
-import com.cvt.sdk.producer.ProducerConfig;
-import com.cvt.sdk.producer.ValidationMode;
-import com.cvt.sdk.producer.adapters.SpringInterceptor;
+import io.github.sahina.sdk.producer.ProducerConfig;
+import io.github.sahina.sdk.producer.ValidationMode;
+import io.github.sahina.sdk.producer.adapters.SpringInterceptor;
 
 ProducerConfig config = ProducerConfig.builder()
     .schemaId("my-api")
@@ -182,7 +156,7 @@ public class WebConfig implements WebMvcConfigurer {
 ### Servlet Filter
 
 ```java
-import com.cvt.sdk.producer.adapters.ServletFilter;
+import io.github.sahina.sdk.producer.adapters.ServletFilter;
 
 @Bean
 public FilterRegistrationBean<ServletFilter> validationFilter() {
@@ -210,9 +184,9 @@ public FilterRegistrationBean<ServletFilter> validationFilter() {
 Detect breaking changes between OpenAPI schema versions before deployment:
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.CompareResult;
-import com.cvt.sdk.BreakingChange;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.CompareResult;
+import io.github.sahina.sdk.BreakingChange;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 
@@ -244,7 +218,7 @@ if (!result.isCompatible()) {
 | `FIELD_TYPE_CHANGED`   | A field's type was changed            |
 | `ENUM_VALUE_REMOVED`   | An allowed enum value was removed     |
 
-See `examples/BreakingChanges.java` for a complete example.
+See [`examples/BreakingChanges.java`](https://github.com/sahina/cvt/tree/main/sdks/java/src/main/java/io/github/sahina/examples/BreakingChanges.java) for a complete example.
 
 ## Producer Testing
 
@@ -253,9 +227,9 @@ Test that your API handlers return responses matching your OpenAPI specification
 ### ProducerTestKit
 
 ```java
-import com.cvt.sdk.producer.ProducerTestKit;
-import com.cvt.sdk.producer.TestResponseData;
-import com.cvt.sdk.producer.TestValidationResult;
+import io.github.sahina.sdk.producer.ProducerTestKit;
+import io.github.sahina.sdk.producer.TestResponseData;
+import io.github.sahina.sdk.producer.TestValidationResult;
 
 ProducerTestKit testKit = ProducerTestKit.builder()
     .schemaId("user-api")
@@ -284,9 +258,9 @@ try {
 Track which services depend on your API:
 
 ```java
-import com.cvt.sdk.RegisterConsumerOptions;
-import com.cvt.sdk.EndpointUsage;
-import com.cvt.sdk.ConsumerInfo;
+import io.github.sahina.sdk.RegisterConsumerOptions;
+import io.github.sahina.sdk.EndpointUsage;
+import io.github.sahina.sdk.ConsumerInfo;
 
 // Register a consumer after successful contract tests
 ConsumerInfo consumer = validator.registerConsumer(
@@ -314,7 +288,7 @@ validator.deregisterConsumer("order-service", "user-api", "prod");
 Check if a new schema version can be safely deployed:
 
 ```java
-import com.cvt.sdk.CanIDeployResult;
+import io.github.sahina.sdk.CanIDeployResult;
 
 CanIDeployResult result = validator.canIDeploy("user-api", "2.0.0", "prod");
 
@@ -329,111 +303,29 @@ if (!result.isSafeToDeploy()) {
 }
 ```
 
-See [Producer Testing Guide](../../docs/guides/producer-testing.mdx) for complete documentation.
+See [Producer Testing Guide](https://sahina.github.io/cvt/docs/guides/producer-testing) for complete documentation.
+
+## Security Configuration
+
+### TLS
+
+```java
+ContractValidator validator = ContractValidator.builder()
+    .address("localhost:9550")
+    .tlsEnabled(true)
+    .rootCertPath("./certs/ca.crt")
+    .build();
+```
+
+### API Key Authentication
+
+```java
+ContractValidator validator = ContractValidator.builder()
+    .address("localhost:9550")
+    .apiKey("your-api-key")
+    .build();
+```
 
 ## Prerequisites
 
 Ensure the CVT gRPC server is running (default: `localhost:9550`).
-
-## Testing
-
-The Java SDK includes tests covering:
-
-- Client initialization and configuration
-- Schema registration
-- Validation requests and responses
-- Error handling
-
-### Running Tests
-
-```bash
-# Run all tests
-mvn test
-
-# Run tests with coverage
-mvn test jacoco:report
-
-# View coverage report
-open target/site/jacoco/index.html
-
-# Run specific test class
-mvn test -Dtest=ContractValidatorTest
-```
-
-### Test Structure
-
-```shell
-src/test/java/com/cvt/
-└── ContractValidatorTest.java  # Main SDK test suite
-```
-
-### Writing Tests
-
-Example test using JUnit 5:
-
-```java
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.AfterEach;
-import static org.junit.jupiter.api.Assertions.*;
-
-class ContractValidatorTest {
-    private ContractValidator validator;
-
-    @BeforeEach
-    void setUp() {
-        validator = new ContractValidator("localhost:9550");
-    }
-
-    @AfterEach
-    void tearDown() {
-        validator.close();
-    }
-
-    @Test
-    void shouldValidateCorrectInteraction() {
-        validator.registerSchema("test", "src/test/resources/openapi.json");
-
-        ValidationResult result = validator.validate(
-            ValidationRequest.builder()
-                .method("GET")
-                .path("/users")
-                .build(),
-            ValidationResponse.builder()
-                .statusCode(200)
-                .body("[]")
-                .build()
-        );
-
-        assertTrue(result.isValid());
-    }
-}
-```
-
-### Coverage
-
-The SDK targets 60%+ test coverage.
-
-## Development
-
-```bash
-# Build the SDK
-mvn package -DskipTests
-
-# Run linter/verify
-mvn verify -DskipTests
-
-# Generate javadoc
-mvn javadoc:javadoc
-
-# Install to local Maven
-mvn install
-```
-
-## Contributing
-
-Contributions are welcome!
-
-## License
-
-MIT License
