@@ -93,7 +93,7 @@ Using [Node.js/Python/Go/Java] SDK. Import from:
 - Node.js: @sahina/cvt-sdk
 - Python: cvt_sdk
 - Go: github.com/sahina/cvt/sdks/go/cvt
-- Java: com.cvt.sdk
+- Java: io.github.sahina.sdk
 ```
 
 ---

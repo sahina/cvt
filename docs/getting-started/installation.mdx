@@ -136,7 +136,7 @@ go get github.com/sahina/cvt/sdks/go
 
     <dependencies>
         <dependency>
-            <groupId>com.cvt</groupId>
+            <groupId>io.github.sahina</groupId>
             <artifactId>cvt-sdk</artifactId>
             <version>0.1.0</version>
         </dependency>
@@ -157,7 +157,7 @@ go get github.com/sahina/cvt/sdks/go
     }
 
     dependencies {
-        implementation("com.cvt:cvt-sdk:0.1.0")
+        implementation("io.github.sahina:cvt-sdk:0.1.0")
     }
     ```
 
@@ -231,7 +231,7 @@ fmt.Println("Connected!")
   <TabItem value="java" label="Java">
 
 ```java
-import com.cvt.sdk.ContractValidator;
+import io.github.sahina.sdk.ContractValidator;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 System.out.println("Connected!");

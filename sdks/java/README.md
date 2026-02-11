@@ -6,45 +6,33 @@ The **CVT Java SDK** allows you to validate HTTP interactions (requests and resp
 
 ## Installation
 
-**Note**: This package is currently for internal/development use.
+### Maven Central (Recommended)
 
-To use locally, first install to your local Maven repository:
-
-```bash
-cd sdks/java
-mvn install
-```
-
-Then add `mavenLocal()` to your repositories and the dependency:
-
-**Gradle:**
-
-```gradle
-repositories {
-    mavenLocal()
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'com.cvt:cvt-sdk:0.1.0'
-}
-```
+No authentication required.
 
 **Maven:**
 
 ```xml
 <dependency>
-    <groupId>com.cvt</groupId>
+    <groupId>io.github.sahina</groupId>
     <artifactId>cvt-sdk</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 
-### Install from GitHub Packages
+**Gradle:**
 
-1. Create a GitHub [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope.
+```gradle
+dependencies {
+    implementation 'io.github.sahina:cvt-sdk:0.1.0'
+}
+```
 
-2. Add the repository and credentials to your `~/.m2/settings.xml`:
+### GitHub Packages
+
+Alternatively, install from GitHub Packages (requires a GitHub PAT with `read:packages` scope):
+
+1. Add credentials to `~/.m2/settings.xml`:
 
 ```xml
 <settings>
@@ -58,7 +46,7 @@ dependencies {
 </settings>
 ```
 
-3. Add the GitHub Packages repository to your `pom.xml`:
+2. Add the repository and dependency to your `pom.xml`:
 
 ```xml
 <repositories>
@@ -70,39 +58,21 @@ dependencies {
 
 <dependencies>
     <dependency>
-        <groupId>com.cvt</groupId>
+        <groupId>io.github.sahina</groupId>
         <artifactId>cvt-sdk</artifactId>
         <version>0.1.0</version>
     </dependency>
 </dependencies>
 ```
 
-For Gradle, add to `build.gradle`:
-
-```gradle
-repositories {
-    maven {
-        url = uri("https://maven.pkg.github.com/sahina/cvt")
-        credentials {
-            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
-            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
-        }
-    }
-}
-
-dependencies {
-    implementation 'com.cvt:cvt-sdk:0.1.0'
-}
-```
-
-Replace `0.1.0` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
+Replace `0.1.0` with the desired version.
 
 ## Usage
 
 ### Initialize and Register Schema
 
 ```java
-import com.cvt.ContractValidator;
+import io.github.sahina.ContractValidator;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 
@@ -116,9 +86,9 @@ validator.registerSchema("petstore", "https://petstore.swagger.io/v2/swagger.jso
 ### Validate Interactions
 
 ```java
-import com.cvt.ValidationRequest;
-import com.cvt.ValidationResponse;
-import com.cvt.ValidationResult;
+import io.github.sahina.ValidationRequest;
+import io.github.sahina.ValidationResponse;
+import io.github.sahina.ValidationResult;
 
 ValidationRequest request = ValidationRequest.builder()
     .method("POST")
@@ -158,9 +128,9 @@ Validate incoming requests and outgoing responses against your OpenAPI contract 
 ### Spring Interceptor
 
 ```java
-import com.cvt.sdk.producer.ProducerConfig;
-import com.cvt.sdk.producer.ValidationMode;
-import com.cvt.sdk.producer.adapters.SpringInterceptor;
+import io.github.sahina.sdk.producer.ProducerConfig;
+import io.github.sahina.sdk.producer.ValidationMode;
+import io.github.sahina.sdk.producer.adapters.SpringInterceptor;
 
 ProducerConfig config = ProducerConfig.builder()
     .schemaId("my-api")
@@ -182,7 +152,7 @@ public class WebConfig implements WebMvcConfigurer {
 ### Servlet Filter
 
 ```java
-import com.cvt.sdk.producer.adapters.ServletFilter;
+import io.github.sahina.sdk.producer.adapters.ServletFilter;
 
 @Bean
 public FilterRegistrationBean<ServletFilter> validationFilter() {
@@ -210,9 +180,9 @@ public FilterRegistrationBean<ServletFilter> validationFilter() {
 Detect breaking changes between OpenAPI schema versions before deployment:
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.CompareResult;
-import com.cvt.sdk.BreakingChange;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.CompareResult;
+import io.github.sahina.sdk.BreakingChange;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 
@@ -253,9 +223,9 @@ Test that your API handlers return responses matching your OpenAPI specification
 ### ProducerTestKit
 
 ```java
-import com.cvt.sdk.producer.ProducerTestKit;
-import com.cvt.sdk.producer.TestResponseData;
-import com.cvt.sdk.producer.TestValidationResult;
+import io.github.sahina.sdk.producer.ProducerTestKit;
+import io.github.sahina.sdk.producer.TestResponseData;
+import io.github.sahina.sdk.producer.TestValidationResult;
 
 ProducerTestKit testKit = ProducerTestKit.builder()
     .schemaId("user-api")
@@ -284,9 +254,9 @@ try {
 Track which services depend on your API:
 
 ```java
-import com.cvt.sdk.RegisterConsumerOptions;
-import com.cvt.sdk.EndpointUsage;
-import com.cvt.sdk.ConsumerInfo;
+import io.github.sahina.sdk.RegisterConsumerOptions;
+import io.github.sahina.sdk.EndpointUsage;
+import io.github.sahina.sdk.ConsumerInfo;
 
 // Register a consumer after successful contract tests
 ConsumerInfo consumer = validator.registerConsumer(
@@ -314,7 +284,7 @@ validator.deregisterConsumer("order-service", "user-api", "prod");
 Check if a new schema version can be safely deployed:
 
 ```java
-import com.cvt.sdk.CanIDeployResult;
+import io.github.sahina.sdk.CanIDeployResult;
 
 CanIDeployResult result = validator.canIDeploy("user-api", "2.0.0", "prod");
 
@@ -363,7 +333,7 @@ mvn test -Dtest=ContractValidatorTest
 ### Test Structure
 
 ```shell
-src/test/java/com/cvt/
+src/test/java/io/github/sahina/sdk/
 └── ContractValidatorTest.java  # Main SDK test suite
 ```
 

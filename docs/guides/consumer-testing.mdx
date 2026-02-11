@@ -151,10 +151,10 @@ func TestGetPetReturnsValidResponse(t *testing.T) {
 <TabItem value="java" label="Java">
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.ValidationRequest;
-import com.cvt.sdk.ValidationResponse;
-import com.cvt.sdk.ValidationResult;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.ValidationRequest;
+import io.github.sahina.sdk.ValidationResponse;
+import io.github.sahina.sdk.ValidationResult;
 import org.junit.jupiter.api.*;
 
 class PetstoreContractTest {
@@ -309,10 +309,10 @@ if !result.Valid {
 <TabItem value="java" label="Java">
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.ValidationRequest;
-import com.cvt.sdk.ValidationResponse;
-import com.cvt.sdk.ValidationResult;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.ValidationRequest;
+import io.github.sahina.sdk.ValidationResponse;
+import io.github.sahina.sdk.ValidationResult;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 validator.registerSchema("petstore", "./openapi.json");
@@ -427,8 +427,8 @@ resp, _ := client.Get("http://petstore-api/pet/123")
 <TabItem value="java" label="Java">
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.adapters.ValidatingHttpClient;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.adapters.ValidatingHttpClient;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 validator.registerSchema("petstore", "./openapi.json");
@@ -529,8 +529,8 @@ interactions := mock.GetInteractions()
 <TabItem value="java" label="Java">
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.adapters.MockClient;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.adapters.MockClient;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 validator.registerSchema("petstore", "./openapi.json");
@@ -677,10 +677,10 @@ validator.close()
 <TabItem value="java" label="Java">
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.adapters.MockClient;
-import com.cvt.sdk.AutoRegisterConfig;
-import com.cvt.sdk.ConsumerInfo;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.adapters.MockClient;
+import io.github.sahina.sdk.AutoRegisterConfig;
+import io.github.sahina.sdk.ConsumerInfo;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 validator.registerSchema("petstore", "./openapi.json");
@@ -825,8 +825,8 @@ _, err := validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
 <TabItem value="java" label="Java">
 
 ```java
-import com.cvt.sdk.RegisterConsumerOptions;
-import com.cvt.sdk.EndpointUsage;
+import io.github.sahina.sdk.RegisterConsumerOptions;
+import io.github.sahina.sdk.EndpointUsage;
 import java.util.Arrays;
 import java.util.List;
 
@@ -1206,9 +1206,9 @@ validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
 <TabItem value="java" label="Java">
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.RegisterConsumerOptions;
-import com.cvt.sdk.EndpointUsage;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.RegisterConsumerOptions;
+import io.github.sahina.sdk.EndpointUsage;
 import java.util.List;
 
 ContractValidator validator = new ContractValidator("cvt.internal:9550");

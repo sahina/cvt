@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package cvt;
 
-option java_package = "com.cvt.proto";
+option java_package = "io.github.sahina.proto";
 option java_multiple_files = true;
 option go_package = "github.com/sahina/cvt/server/pb";
 

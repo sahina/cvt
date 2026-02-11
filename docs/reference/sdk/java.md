@@ -17,7 +17,31 @@ For information about SDK design patterns, adapter architecture, and cross-langu
 
 ## Installation
 
-Install from GitHub Packages (requires a GitHub PAT with `read:packages` scope):
+### Maven Central (Recommended)
+
+No authentication required.
+
+#### Maven
+
+```xml
+<dependency>
+    <groupId>io.github.sahina</groupId>
+    <artifactId>cvt-sdk</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+
+#### Gradle
+
+```gradle
+dependencies {
+    implementation("io.github.sahina:cvt-sdk:0.1.0")
+}
+```
+
+### GitHub Packages
+
+Alternatively, install from GitHub Packages (requires a GitHub PAT with `read:packages` scope):
 
 1. Add credentials to `~/.m2/settings.xml`:
 
@@ -33,9 +57,7 @@ Install from GitHub Packages (requires a GitHub PAT with `read:packages` scope):
     </settings>
     ```
 
-2. Add the repository and dependency to your build file:
-
-### Maven
+2. Add the repository and dependency to your `pom.xml`:
 
 ```xml
 <repositories>
@@ -47,40 +69,22 @@ Install from GitHub Packages (requires a GitHub PAT with `read:packages` scope):
 
 <dependencies>
     <dependency>
-        <groupId>com.cvt</groupId>
+        <groupId>io.github.sahina</groupId>
         <artifactId>cvt-sdk</artifactId>
         <version>0.1.0</version>
     </dependency>
 </dependencies>
 ```
 
-### Gradle
-
-```gradle
-repositories {
-    maven {
-        url = uri("https://maven.pkg.github.com/sahina/cvt")
-        credentials {
-            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
-            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
-        }
-    }
-}
-
-dependencies {
-    implementation("com.cvt:cvt-sdk:0.1.0")
-}
-```
-
-Replace `0.1.0` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
+Replace `0.1.0` with the desired version.
 
 ## Quick Start
 
 ```java
-import com.cvt.sdk.ContractValidator;
-import com.cvt.sdk.ValidationResult;
-import com.cvt.sdk.ValidationRequest;
-import com.cvt.sdk.ValidationResponse;
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.ValidationResult;
+import io.github.sahina.sdk.ValidationRequest;
+import io.github.sahina.sdk.ValidationResponse;
 
 public class Example {
     public static void main(String[] args) throws Exception {
@@ -344,8 +348,8 @@ void close()
 Automatically validate all OkHttp requests:
 
 ```java
-import com.cvt.sdk.adapters.OkHttpContractAdapter;
-import com.cvt.sdk.adapters.AdapterConfig;
+import io.github.sahina.sdk.adapters.OkHttpContractAdapter;
+import io.github.sahina.sdk.adapters.AdapterConfig;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 validator.registerSchema("petstore", "./openapi.json");
@@ -377,9 +381,9 @@ List<CapturedInteraction> interactions = adapter.getInteractions();
 ### Spring Interceptor
 
 ```java
-import com.cvt.sdk.producer.ProducerConfig;
-import com.cvt.sdk.producer.ValidationMode;
-import com.cvt.sdk.producer.adapters.SpringInterceptor;
+import io.github.sahina.sdk.producer.ProducerConfig;
+import io.github.sahina.sdk.producer.ValidationMode;
+import io.github.sahina.sdk.producer.adapters.SpringInterceptor;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -405,7 +409,7 @@ public class WebConfig implements WebMvcConfigurer {
 ### Servlet Filter
 
 ```java
-import com.cvt.sdk.producer.adapters.ServletFilter;
+import io.github.sahina.sdk.producer.adapters.ServletFilter;
 
 @WebFilter(urlPatterns = "/api/*")
 public class ValidationFilter extends ServletFilter {
@@ -424,9 +428,9 @@ public class ValidationFilter extends ServletFilter {
 Test your API responses against your schema without real consumers:
 
 ```java
-import com.cvt.sdk.producer.ProducerTestKit;
-import com.cvt.sdk.producer.TestResponseData;
-import com.cvt.sdk.producer.TestValidationResult;
+import io.github.sahina.sdk.producer.ProducerTestKit;
+import io.github.sahina.sdk.producer.TestResponseData;
+import io.github.sahina.sdk.producer.TestValidationResult;
 import org.junit.jupiter.api.*;
 
 public class PetHandlerTest {
@@ -512,8 +516,8 @@ result = getPetEndpoint.validateResponse(
 Build consumer info from captured interactions:
 
 ```java
-import com.cvt.sdk.AutoRegisterConfig;
-import com.cvt.sdk.adapters.CapturedInteraction;
+import io.github.sahina.sdk.AutoRegisterConfig;
+import io.github.sahina.sdk.adapters.CapturedInteraction;
 
 // From OkHttp adapter
 OkHttpContractAdapter adapter = ...;
