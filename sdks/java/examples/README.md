@@ -18,11 +18,12 @@ Example code demonstrating the ContractValidator Java SDK.
    mvn compile exec:java -Dexec.mainClass="io.github.sahina.examples.AdvancedUsage"
    ```
 
-   Alternatively, compile and run directly:
+   Alternatively, compile with dependencies and run directly:
 
    ```bash
-   mvn package
-   java -cp "target/cvt-sdk-*.jar:target/classes" io.github.sahina.examples.BasicUsage
+   mvn -DskipTests package dependency:copy-dependencies
+   # Unix/macOS (use ';' instead of ':' on Windows)
+   java -cp "target/classes:target/dependency/*" io.github.sahina.examples.BasicUsage
    ```
 
 ## Examples

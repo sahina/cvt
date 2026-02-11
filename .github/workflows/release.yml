@@ -183,7 +183,7 @@ jobs:
   publish-java-central:
     name: Publish Java SDK to Maven Central
     if: github.event_name == 'push'
-    needs: validate
+    needs: [validate, publish-java]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -206,12 +206,16 @@ jobs:
         env:
           VERSION: ${{ needs.validate.outputs.version }}
 
+      - name: Import GPG key
+        run: echo "$MAVEN_GPG_KEY" | gpg --batch --import
+        env:
+          MAVEN_GPG_KEY: ${{ secrets.MAVEN_GPG_KEY }}
+
       - name: Deploy to Maven Central
         run: mvn deploy -Prelease -DskipTests
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
-          MAVEN_GPG_KEY: ${{ secrets.MAVEN_GPG_KEY }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
   publish-python:

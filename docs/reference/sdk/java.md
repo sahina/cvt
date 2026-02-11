@@ -76,7 +76,25 @@ Alternatively, install from GitHub Packages (requires a GitHub PAT with `read:pa
 </dependencies>
 ```
 
-Replace `0.1.0` with the desired version.
+For Gradle, add to `build.gradle`:
+
+```gradle
+repositories {
+    maven {
+        url = uri("https://maven.pkg.github.com/sahina/cvt")
+        credentials {
+            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
+            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
+        }
+    }
+}
+
+dependencies {
+    implementation("io.github.sahina:cvt-sdk:LATEST")
+}
+```
+
+Replace `LATEST` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
 
 ## Quick Start
 
