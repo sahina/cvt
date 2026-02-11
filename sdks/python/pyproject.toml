@@ -5,8 +5,28 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cvt-sdk"
 version = "0.1.0"
-dependencies = ["grpcio>=1.76.0", "protobuf>=6.33.2", "pytest>=9.0.2"]
+description = "Contract Validator Toolkit - Python SDK for validating HTTP interactions against OpenAPI schemas"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
+authors = [{ name = "sahina" }]
+keywords = ["openapi", "contract-testing", "grpc", "api-validation"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = ["grpcio>=1.76.0", "protobuf>=6.33.2"]
+
+[project.urls]
+Homepage = "https://github.com/sahina/cvt"
+Documentation = "https://github.com/sahina/cvt/tree/main/sdks/python"
+Repository = "https://github.com/sahina/cvt"
+Issues = "https://github.com/sahina/cvt/issues"
 
 [project.optional-dependencies]
 requests = ["requests>=2.32.0"]
@@ -14,6 +34,7 @@ all = ["requests>=2.32.0"]
 
 [dependency-groups]
 dev = [
+  "pytest>=9.0.2",
   "grpcio-tools>=1.76.0",
   "pytest-cov>=7.0.0",
   "pytest-asyncio>=0.24.0",
