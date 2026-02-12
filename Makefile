@@ -147,7 +147,7 @@ build:
 
 build-cli:
 	@echo "🏗️  Building CVT CLI..."
-	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//') || VERSION="dev"; \
+	@_VERSION=$$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//'); VERSION=$${_VERSION:-dev}; \
 	COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "none"); \
 	DATE=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
 	CGO_ENABLED=0 go build -trimpath \
@@ -157,7 +157,7 @@ build-cli:
 
 install-cli: build-cli
 	@echo "📦 Installing CVT CLI to /usr/local/bin..."
-	@sudo install -m 755 cvt /usr/local/bin/cvt
+	@install -m 755 cvt /usr/local/bin/cvt
 	@echo "✅ CVT CLI installed: $$(which cvt)"
 	@cvt version
 
