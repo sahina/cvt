@@ -106,6 +106,19 @@ make prerelease TAG=1.0.0-rc.2
 make release TAG=1.0.0
 ```
 
+## SDK Publishing
+
+The release workflow automatically publishes all SDKs to their public registries:
+
+| SDK | Registry | Mechanism |
+|-----|----------|-----------|
+| Node.js | [npmjs](https://www.npmjs.com/package/@sahina/cvt-sdk) | `npm publish` with `NPM_TOKEN` secret |
+| Java | [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk) | `mvn deploy -Prelease` with GPG signing |
+| Python | [PyPI](https://pypi.org/project/cvt-sdk/) | Trusted publisher (OIDC, no token needed) |
+| Go | `go get` | Git tag `sdks/go/vX.Y.Z` pushed to origin |
+
+All SDK jobs run in parallel after `validate`, so they don't block each other.
+
 ## Docker Images
 
 Released images are available at:

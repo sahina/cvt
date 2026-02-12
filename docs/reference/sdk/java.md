@@ -39,63 +39,6 @@ dependencies {
 }
 ```
 
-### GitHub Packages
-
-Alternatively, install from GitHub Packages (requires a GitHub PAT with `read:packages` scope):
-
-1. Add credentials to `~/.m2/settings.xml`:
-
-    ```xml
-    <settings>
-      <servers>
-        <server>
-          <id>github-cvt</id>
-          <username>YOUR_GITHUB_USERNAME</username>
-          <password>YOUR_GITHUB_PAT</password>
-        </server>
-      </servers>
-    </settings>
-    ```
-
-2. Add the repository and dependency to your `pom.xml`:
-
-```xml
-<repositories>
-    <repository>
-        <id>github-cvt</id>
-        <url>https://maven.pkg.github.com/sahina/cvt</url>
-    </repository>
-</repositories>
-
-<dependencies>
-    <dependency>
-        <groupId>io.github.sahina</groupId>
-        <artifactId>cvt-sdk</artifactId>
-        <version>0.1.0</version>
-    </dependency>
-</dependencies>
-```
-
-For Gradle, add to `build.gradle`:
-
-```gradle
-repositories {
-    maven {
-        url = uri("https://maven.pkg.github.com/sahina/cvt")
-        credentials {
-            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
-            password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
-        }
-    }
-}
-
-dependencies {
-    implementation("io.github.sahina:cvt-sdk:LATEST")
-}
-```
-
-Replace `LATEST` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
-
 ## Quick Start
 
 ```java

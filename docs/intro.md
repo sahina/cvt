@@ -45,16 +45,21 @@ make run-server
 ### 2. Install an SDK
 
 ```bash
-# Node.js (from npmjs — no auth required)
+# Node.js
 npm install @sahina/cvt-sdk
 
-# Python (from GitHub Releases — replace v0.1.0 in the URL and 0.1.0 in the filename with latest version)
-pip install "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
+# Python
+pip install cvt-sdk
 
 # Go
 go get github.com/sahina/cvt/sdks/go
 
-# Java (from GitHub Packages — requires PAT setup, see Installation guide)
+# Java (Maven) — add to pom.xml:
+# <dependency>
+#   <groupId>io.github.sahina</groupId>
+#   <artifactId>cvt-sdk</artifactId>
+#   <version>0.1.3</version>
+# </dependency>
 ```
 
 See [Installation](./getting-started/installation.mdx) for detailed instructions.
