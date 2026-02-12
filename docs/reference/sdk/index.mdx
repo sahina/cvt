@@ -19,7 +19,7 @@ For information about SDK design patterns, adapter architecture, and how SDKs ma
 :::
 
 :::tip Published SDKs
-CVT SDKs are published to package registries: Node.js to [GitHub Packages](https://github.com/sahina/cvt/packages) and [npmjs](https://www.npmjs.com/package/@sahina/cvt-sdk), Java to [GitHub Packages](https://github.com/sahina/cvt/packages) and [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk), Python to [PyPI](https://pypi.org/project/cvt-sdk/) and [GitHub Releases](https://github.com/sahina/cvt/releases), and Go via `go get`.
+CVT SDKs are published to public registries: Node.js to [npmjs](https://www.npmjs.com/package/@sahina/cvt-sdk), Java to [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk), Python to [PyPI](https://pypi.org/project/cvt-sdk/), and Go via `go get`.
 :::
 
 ## Available SDKs
@@ -37,11 +37,7 @@ CVT SDKs are published to package registries: Node.js to [GitHub Packages](https
 <TabItem value="nodejs" label="Node.js">
 
 ```bash
-# From npmjs (no auth required)
 npm install @sahina/cvt-sdk
-
-# Or from GitHub Packages (recommended — single PAT for all SDKs)
-# See Node.js SDK docs for .npmrc setup
 ```
 
 </TabItem>
@@ -62,10 +58,13 @@ go get github.com/sahina/cvt/sdks/go
 </TabItem>
 <TabItem value="java" label="Java">
 
-```bash
-# From GitHub Packages (requires PAT — see Java SDK docs for setup)
-# Maven: add github-cvt repository + dependency to pom.xml
-# Gradle: add maven repository + dependency to build.gradle
+```xml
+<!-- Maven: add to pom.xml (find latest version on Maven Central) -->
+<dependency>
+    <groupId>io.github.sahina</groupId>
+    <artifactId>cvt-sdk</artifactId>
+    <version>0.1.3</version>
+</dependency>
 ```
 
 </TabItem>

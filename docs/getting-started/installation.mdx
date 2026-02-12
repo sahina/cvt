@@ -59,24 +59,6 @@ Install the SDK for your language:
 <Tabs groupId="sdk-language">
   <TabItem value="nodejs" label="Node.js" default>
 
-**GitHub Packages (recommended)** — single PAT covers both Node.js and Java SDKs:
-
-1. Create a GitHub [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope
-2. Add a `.npmrc` file to your project root (or `~/.npmrc` for global config):
-
-    ```text
-    @sahina:registry=https://npm.pkg.github.com
-    //npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
-    ```
-
-3. Install:
-
-    ```bash
-    npm install @sahina/cvt-sdk
-    ```
-
-**Or from npmjs** (no authentication required):
-
 ```bash
 npm install @sahina/cvt-sdk
 ```
@@ -84,16 +66,12 @@ npm install @sahina/cvt-sdk
   </TabItem>
   <TabItem value="python" label="Python">
 
-Install from a GitHub Release asset:
-
 ```bash
-pip install "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
+pip install cvt-sdk
 
 # Or with uv
-uv add "cvt-sdk @ https://github.com/sahina/cvt/releases/download/v0.1.0/cvt_sdk-0.1.0-py3-none-any.whl"
+uv add cvt-sdk
 ```
-
-Replace `v0.1.0` in the URL and `0.1.0` in the filename with the desired version. Available versions can be found on the [Releases](https://github.com/sahina/cvt/releases) page.
 
   </TabItem>
   <TabItem value="go" label="Go">
@@ -105,65 +83,25 @@ go get github.com/sahina/cvt/sdks/go
   </TabItem>
   <TabItem value="java" label="Java">
 
-**GitHub Packages (recommended):**
-
-1. Create a GitHub [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope
-2. Add the repository and credentials to your `~/.m2/settings.xml`:
-
-    ```xml
-    <settings>
-      <servers>
-        <server>
-          <id>github-cvt</id>
-          <username>YOUR_GITHUB_USERNAME</username>
-          <password>YOUR_GITHUB_PAT</password>
-        </server>
-      </servers>
-    </settings>
-    ```
-
-3. Add the GitHub Packages repository and dependency to your build file:
-
 **Maven** (`pom.xml`):
 
-    ```xml
-    <repositories>
-        <repository>
-            <id>github-cvt</id>
-            <url>https://maven.pkg.github.com/sahina/cvt</url>
-        </repository>
-    </repositories>
-
-    <dependencies>
-        <dependency>
-            <groupId>io.github.sahina</groupId>
-            <artifactId>cvt-sdk</artifactId>
-            <version>0.1.0</version>
-        </dependency>
-    </dependencies>
-    ```
+```xml
+<dependency>
+    <groupId>io.github.sahina</groupId>
+    <artifactId>cvt-sdk</artifactId>
+    <version>0.1.3</version> <!-- Replace with latest from Maven Central -->
+</dependency>
+```
 
 **Gradle** (`build.gradle`):
 
-    ```gradle
-    repositories {
-        maven {
-            url = uri("https://maven.pkg.github.com/sahina/cvt")
-            credentials {
-                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
-                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_PAT")
-            }
-        }
-    }
+```gradle
+dependencies {
+    implementation("io.github.sahina:cvt-sdk:0.1.3") // Replace with latest from Maven Central
+}
+```
 
-    dependencies {
-        implementation("io.github.sahina:cvt-sdk:0.1.0")
-    }
-    ```
-
-Provide your credentials by setting `gpr.user` and `gpr.key` in your `~/.gradle/gradle.properties` file, or by exporting `GITHUB_USERNAME` and `GITHUB_PAT` as environment variables.
-
-Replace `0.1.0` with the desired version. Available versions can be found on the project's [GitHub Packages](https://github.com/sahina/cvt/packages) page.
+Find the latest version on [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk).
 
   </TabItem>
 </Tabs>
