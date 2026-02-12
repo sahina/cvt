@@ -217,11 +217,13 @@ cvt generate --schema https://petstore3.swagger.io/api/v3/openapi.json --list  #
 cvt generate --schema ./openapi.json --endpoint "GET /users" --use-examples  # Use schema examples
 ```
 
-**can-i-deploy** - Check deployment safety against registered consumers:
+**can-i-deploy** - Check deployment safety against registered consumers (requires server):
 
 ```bash
-cvt can-i-deploy --schema ./openapi.json --server localhost:9550
-cvt can-i-deploy --schema ./openapi.json --server localhost:9550 --json --timeout 30s
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
+cvt can-i-deploy --schema user-api --version 1.1.0 --env staging --server localhost:9550
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --json  # JSON output for CI/CD
+cvt can-i-deploy --schema my-api --version 2.0.0 --env prod --timeout 60  # Custom timeout
 ```
 
 **wait** - Wait for CVT server to be ready:
@@ -255,7 +257,6 @@ cvt register-schema my-api ./openapi.yaml -q                 # Quiet mode
 cvt serve --port 9550
 cvt serve --port 9550 --metrics-port 9551
 cvt serve --port 9550 --tls --cert server.crt --key server.key
-cvt serve --port 9550 --api-key-auth  # Enable API key authentication
 ```
 
 **version** - Show version information:
