@@ -1,0 +1,59 @@
+version: 2
+project_name: cvt
+
+builds:
+  - id: cvt
+    main: ./cmd/cvt
+    binary: cvt
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.buildDate={{.Date}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+release:
+  github:
+    owner: sahina
+    name: cvt
+  prerelease: auto
+  make_latest: true
+
+brews:
+  - repository:
+      owner: sahina
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/sahina/cvt"
+    description: "Contract Validation Tool - Validate HTTP interactions against OpenAPI specs"
+    license: "MIT"
+    skip_upload: auto
+    test: |
+      system "#{bin}/cvt", "version"
+    install: |
+      bin.install "cvt"

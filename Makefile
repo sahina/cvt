@@ -1,4 +1,4 @@
-.PHONY: all build test test-docker test-server test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability clean generate generate-python generate-go-sdk generate-java-sdk help
+.PHONY: all build build-cli install-cli test test-docker test-server test-cli test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability clean generate generate-python generate-go-sdk generate-java-sdk help
 .PHONY: up down restart logs status
 .PHONY: install-health-probe health check-health watch-health
 .PHONY: run-server run-example
@@ -18,6 +18,8 @@ help:
 	@echo ""
 	@echo "Build commands:"
 	@echo "  make build              - Build Go server, Node.js SDK, and Python SDK"
+	@echo "  make build-cli          - Build CVT CLI binary with version info"
+	@echo "  make install-cli        - Build and install CVT CLI to /usr/local/bin"
 	@echo "  make clean              - Clean build artifacts"
 	@echo "  make generate           - Generate protobuf code for Go"
 	@echo "  make generate-python    - Generate protobuf code for Python"
@@ -36,6 +38,7 @@ help:
 	@echo "  make test-java-sdk      - Run Java SDK tests with coverage"
 	@echo "  make test-coverage      - Run tests with coverage report (HTML + summary)"
 	@echo "  make test-integration   - Run Go server integration tests (requires Docker)"
+	@echo "  make test-cli           - Run CLI unit tests"
 	@echo "  make test-cache         - Run cache behavior tests"
 	@echo ""
 	@echo "Lint commands:"
@@ -141,6 +144,27 @@ build:
 	cd sdks/python && uv sync
 	# cd sdks/java && mvn package
 	@echo "✅ Build complete!"
+
+build-cli:
+	@echo "🏗️  Building CVT CLI..."
+	@_VERSION=$$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//'); VERSION=$${_VERSION:-dev}; \
+	COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "none"); \
+	DATE=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+	CGO_ENABLED=0 go build -trimpath \
+		-ldflags "-s -w -X main.version=$${VERSION} -X main.commit=$${COMMIT} -X main.buildDate=$${DATE}" \
+		-o cvt ./cmd/cvt
+	@echo "✅ CLI built: ./cvt"
+
+install-cli: build-cli
+	@echo "📦 Installing CVT CLI to /usr/local/bin..."
+	@install -m 755 cvt /usr/local/bin/cvt
+	@echo "✅ CVT CLI installed: $$(which cvt)"
+	@cvt version
+
+test-cli:
+	@echo "🧪 Running CLI unit tests..."
+	go test -v -race ./cmd/cvt/...
+	@echo "✅ CLI unit tests passed!"
 
 # Install targets (install dependencies without building)
 install: install-server install-node-sdk install-python-sdk install-go-sdk install-java-sdk
@@ -253,6 +277,7 @@ test-with-observability:
 clean:
 	@echo "🧹 Cleaning build artifacts..."
 	cd server && go clean && rm -f cvt-server server
+	rm -f cvt
 	# cd sdks/java && mvn clean
 	rm -rf sdks/node/dist sdks/node/node_modules
 	# rm -rf sdks/python/.venv

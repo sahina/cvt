@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/users/123",
+    "headers": { "Accept": "application/json" }
+  },
+  "response": {
+    "statusCode": 200,
+    "headers": { "Content-Type": "application/json" },
+    "body": { "id": "123", "name": "Jane Doe", "email": "jane@example.com" }
+  }
+}
