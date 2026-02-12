@@ -210,11 +210,11 @@ cvt compare --old ./local.json --new https://api.example.com/openapi.json  # Mix
 **generate** - Generate test fixtures from schemas (file paths or URLs):
 
 ```bash
-cvt generate --schema ./openapi.json --endpoint "GET /users/{id}"
-cvt generate --schema ./openapi.json --endpoint "POST /users" --output-type request
+cvt generate --schema ./openapi.json --method GET --path /users/{id}
+cvt generate --schema ./openapi.json --method POST --path /users --output-type request
 cvt generate --schema ./openapi.json --list  # List all endpoints
 cvt generate --schema https://petstore3.swagger.io/api/v3/openapi.json --list  # List from URL
-cvt generate --schema ./openapi.json --endpoint "GET /users" --use-examples  # Use schema examples
+cvt generate --schema ./openapi.json --method GET --path /users --use-examples  # Use schema examples
 ```
 
 **can-i-deploy** - Check deployment safety against registered consumers (requires server):
