@@ -53,13 +53,16 @@ pip install cvt-sdk
 
 # Go
 go get github.com/sahina/cvt/sdks/go
+```
 
-# Java (Maven) — add to pom.xml:
-# <dependency>
-#   <groupId>io.github.sahina</groupId>
-#   <artifactId>cvt-sdk</artifactId>
-#   <version>0.1.3</version>
-# </dependency>
+For Java (Maven), add to `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>io.github.sahina</groupId>
+    <artifactId>cvt-sdk</artifactId>
+    <version>0.1.3</version> <!-- Replace with latest from Maven Central -->
+</dependency>
 ```
 
 See [Installation](./getting-started/installation.mdx) for detailed instructions.
