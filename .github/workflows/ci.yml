@@ -164,6 +164,127 @@ jobs:
             sdks/go/coverage.out
             sdks/java/target/
 
+  # Build and smoke-test CLI
+  cli:
+    name: Build & Test CLI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: cmd/cvt/go.sum
+
+      - name: Install dependencies
+        working-directory: ./cmd/cvt
+        run: go mod download
+
+      - name: Build CLI
+        run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//') || VERSION="dev"
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          CGO_ENABLED=0 go build -trimpath \
+            -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${DATE}" \
+            -o cvt ./cmd/cvt
+
+      - name: Run unit tests
+        run: go test -v -race ./cmd/cvt/...
+
+      - name: Smoke test - version
+        run: |
+          ./cvt version
+          ./cvt --version
+
+      - name: Smoke test - help
+        run: |
+          ./cvt --help
+          ./cvt validate --help
+
+      - name: Smoke test - validate (valid interaction)
+        run: |
+          ./cvt validate \
+            --schema examples/schemas/user-api-v1.json \
+            --interaction examples/fixtures/valid-interaction.json
+
+      - name: Smoke test - validate JSON output
+        run: |
+          OUTPUT=$(./cvt validate \
+            --schema examples/schemas/user-api-v1.json \
+            --interaction examples/fixtures/valid-interaction.json \
+            --json)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | jq -e '.valid == true'
+
+      - name: Smoke test - validate (invalid interaction, expect failure)
+        run: |
+          if ./cvt validate \
+            --schema examples/schemas/user-api-v1.json \
+            --interaction examples/fixtures/invalid-interaction.json 2>/dev/null; then
+            echo "Expected validation to fail but it succeeded"
+            exit 1
+          fi
+          echo "Correctly rejected invalid interaction"
+
+      - name: Smoke test - compare (same schema, expect compatible)
+        run: |
+          ./cvt compare \
+            --old examples/schemas/user-api-v1.json \
+            --new examples/schemas/user-api-v1.json
+
+      - name: Smoke test - compare (breaking changes, expect failure)
+        run: |
+          if ./cvt compare \
+            --old examples/schemas/user-api-v1.json \
+            --new examples/schemas/user-api-v2.json 2>/dev/null; then
+            echo "Expected compare to detect breaking changes but it did not"
+            exit 1
+          fi
+          echo "Correctly detected breaking changes"
+
+      - name: Smoke test - compare JSON output
+        run: |
+          OUTPUT=$(./cvt compare \
+            --old examples/schemas/user-api-v1.json \
+            --new examples/schemas/user-api-v2.json \
+            --json || true)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | jq -e '.compatible == false'
+          echo "$OUTPUT" | jq -e '.breaking_changes | length > 0'
+
+      - name: Smoke test - generate (list endpoints)
+        run: |
+          ./cvt generate \
+            --schema examples/schemas/user-api-v1.json \
+            --list
+
+      - name: Smoke test - generate fixture
+        run: |
+          ./cvt generate \
+            --schema examples/schemas/user-api-v1.json \
+            --method GET --path /users/{id}
+
+      - name: Smoke test - generate request body
+        run: |
+          ./cvt generate \
+            --schema examples/schemas/user-api-v1.json \
+            --method POST --path /users \
+            --output-type request
+
+      - name: Smoke test - error handling (nonexistent schema)
+        run: |
+          if ./cvt validate \
+            --schema nonexistent.json \
+            --interaction examples/fixtures/valid-interaction.json 2>/dev/null; then
+            echo "Expected failure for nonexistent schema but succeeded"
+            exit 1
+          fi
+          echo "Correctly failed for nonexistent schema"
+
   # Build and test Node.js SDK
   node-sdk:
     name: Build & Test Node SDK
@@ -321,7 +442,7 @@ jobs:
   docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: [server, node-sdk, python-sdk, go-sdk, java-sdk]
+    needs: [server, cli, node-sdk, python-sdk, go-sdk, java-sdk]
 
     steps:
       - name: Checkout code
@@ -435,6 +556,19 @@ jobs:
       - name: Run Ruff formatter check
         working-directory: ./sdks/python
         run: uv run ruff format --check .
+
+      - name: Run go fmt check for CLI
+        working-directory: ./cmd/cvt
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Go files are not formatted. Run 'go fmt ./...' to fix."
+            gofmt -d .
+            exit 1
+          fi
+
+      - name: Run go vet for CLI
+        working-directory: ./cmd/cvt
+        run: go vet ./...
 
       - name: Run go fmt check for Go SDK
         working-directory: ./sdks/go
