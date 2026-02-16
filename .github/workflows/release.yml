@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
   id-token: write
 
 jobs:
@@ -33,6 +34,15 @@ jobs:
             TAG="${GITHUB_REF#refs/tags/}"
           fi
           VERSION="${TAG#v}"
+
+          # Normalize to full semver (e.g., 0.2 -> 0.2.0)
+          DOTS=$(echo "$VERSION" | tr -cd '.' | wc -c | tr -d ' ')
+          if [ "$DOTS" -eq 0 ]; then
+            VERSION="${VERSION}.0.0"
+          elif [ "$DOTS" -eq 1 ]; then
+            VERSION="${VERSION}.0"
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
