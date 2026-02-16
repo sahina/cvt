@@ -585,7 +585,7 @@ _check_tag:
 ifndef TAG
 	$(error TAG is required. Usage: make $(MAKECMDGOALS) TAG=x.y.z)
 endif
-	@if ! echo "$(TAG)" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$$'; then \
+	@if ! echo "$(TAG)" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$$'; then \
 		echo "❌ TAG must be full semver: x.y.z or x.y.z-suffix"; \
 		echo "   Got: $(TAG)"; \
 		echo "   Example: make $(MAKECMDGOALS) TAG=0.2.0"; \
