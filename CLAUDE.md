@@ -130,10 +130,11 @@ _Phase 3 - Deployment Safety:_
 
 ### SDKs (`sdks/`)
 
-- **Node.js** (`sdks/node/`): TypeScript, npm, Jest - production-ready
-- **Python** (`sdks/python/`): uv package manager, pytest
-- **Go** (`sdks/go/`): Standard Go modules
-- **Java** (`sdks/java/`): Maven build
+- **Node.js** (`sdks/node/`): TypeScript, npm, Jest — [npmjs](https://www.npmjs.com/package/@sahina/cvt-sdk)
+- **Python** (`sdks/python/`): uv, pytest — [PyPI](https://pypi.org/project/cvt-sdk/)
+- **Go** (`sdks/go/`): Standard Go modules — [pkg.go.dev](https://pkg.go.dev/github.com/sahina/cvt/sdks/go)
+- **Java** (`sdks/java/`): Maven — [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk)
+- **Docker**: Server image — [GHCR](https://ghcr.io/sahina/cvt-server)
 - **Shared** (`sdks/shared/`): Test schemas (openapi.json, swagger.json)
 
 ### Proto Definition (`api/protos/cvt.proto`)
