@@ -35,13 +35,19 @@ jobs:
           fi
           VERSION="${TAG#v}"
 
-          # Normalize to full semver (e.g., 0.2 -> 0.2.0)
-          DOTS=$(echo "$VERSION" | tr -cd '.' | wc -c | tr -d ' ')
-          if [ "$DOTS" -eq 0 ]; then
-            VERSION="${VERSION}.0.0"
-          elif [ "$DOTS" -eq 1 ]; then
-            VERSION="${VERSION}.0"
+          # Normalize to full semver (e.g., 0.2 -> 0.2.0, 1.0-rc.1 -> 1.0.0-rc.1)
+          BASE="${VERSION%%-*}"
+          PRE=""
+          if [ "$BASE" != "$VERSION" ]; then
+            PRE="-${VERSION#*-}"
           fi
+          DOTS=$(echo "$BASE" | tr -cd '.' | wc -c | tr -d ' ')
+          if [ "$DOTS" -eq 0 ]; then
+            BASE="${BASE}.0.0"
+          elif [ "$DOTS" -eq 1 ]; then
+            BASE="${BASE}.0"
+          fi
+          VERSION="${BASE}${PRE}"
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
