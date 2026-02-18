@@ -26,10 +26,13 @@ All `registerSchema` methods accept both file paths and URLs. The examples below
 ## Step 1: Start the Server
 
 ```bash
-# Using Docker
+# Using the published Docker image (recommended)
+docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt-server:latest
+
+# Or using Docker Compose (if you've cloned the repository)
 make up
 
-# Or run locally
+# Or build and run locally
 make run-server
 ```
 

@@ -41,7 +41,7 @@ This project uses CVT (Contract Validator Toolkit) for API contract testing.
 ### CVT Server
 
 - Address: localhost:9550
-- Start with: `make up` or `docker run -d -p 9550:9550 ghcr.io/cvt/cvt-server:latest`
+- Start with: `make up` or `docker run -d -p 9550:9550 ghcr.io/sahina/cvt-server:latest`
 
 ### SDK Usage
 
@@ -186,7 +186,7 @@ For highly restricted environments, embed the essential information directly:
 ### Server
 - gRPC port: 9550
 - Metrics port: 9551
-- Start: `docker run -d -p 9550:9550 ghcr.io/cvt/cvt-server:latest`
+- Start: `docker run -d -p 9550:9550 ghcr.io/sahina/cvt-server:latest`
 
 ### Node.js SDK
 

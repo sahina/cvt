@@ -5,8 +5,8 @@ sidebar_position: 1
 description: Install CVT server and SDKs
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 
 # Installation
 
@@ -19,13 +19,8 @@ This guide covers installing the CVT server and client SDKs.
 The easiest way to run CVT is with Docker:
 
 ```bash
-# Using Docker Compose (includes observability stack)
-make up
-
-# Or Docker directly BUT
-
-# Docker image is not published to Docker Hub yet
-# docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/cvt/cvt-server:latest
+# Run the published Docker image directly
+docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt-server:latest
 ```
 
 ### From Source
@@ -42,6 +37,9 @@ make build
 
 # Run locally
 make run-server
+
+# Using Docker Compose (if you cloned the repo. includes observability stack)
+make up
 ```
 
 ### Go Install
@@ -196,4 +194,4 @@ System.out.println("Connected!");
 - **[Quick Start](./quick-start.mdx)** - Your first contract test
 - **[Consumer Testing Guide](../guides/consumer-testing.mdx)** - Test API integrations
 - **[Producer Testing Guide](../guides/producer-testing.mdx)** - Validate your APIs
-- **[Configuration Reference](../reference/configuration.md)** - Server settings
+- **[Configuration Reference](../reference/configuration.mdx)** - Server settings

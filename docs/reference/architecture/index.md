@@ -340,7 +340,7 @@ For detailed information about specific subsystems:
 
 ## Related Documentation
 
-- **[Configuration Reference](../configuration.md)** - Environment variables and settings
+- **[Configuration Reference](../configuration.mdx)** - Environment variables and settings
 - **[API Reference](../api.mdx)** - Complete gRPC API documentation
 - **[Observability Guide](../../operations/observability.md)** - Metrics and monitoring
 - **[Development Guide](../../development/contributing.md)** - Building and testing

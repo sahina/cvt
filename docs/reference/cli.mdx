@@ -533,7 +533,7 @@ cvt serve --api-key-auth
 
 ### Environment Variables
 
-The serve command also respects environment variables. See [Configuration Reference](./configuration.md) for the complete list.
+The serve command also respects environment variables. See [Configuration Reference](./configuration.mdx) for the complete list.
 
 ---
 
@@ -589,7 +589,7 @@ These options work with all commands:
       --server ${{ secrets.CVT_SERVER }} \
       --json > deploy-check.json
 
-    if [ $(jq '.safe_to_deploy' deploy-check.json) != "true" ]; then
+    if [ "$(jq '.safe_to_deploy' deploy-check.json)" != "true" ]; then
       echo "Unsafe to deploy!"
       jq '.affected_consumers' deploy-check.json
       exit 1
@@ -619,5 +619,5 @@ deployment-safety:
 ## Related Documentation
 
 - **[API Reference](./api.mdx)** - gRPC API details
-- **[Configuration Reference](./configuration.md)** - Environment variables
+- **[Configuration Reference](./configuration.mdx)** - Environment variables
 - **[Breaking Changes Guide](../guides/breaking-changes.mdx)** - Understanding schema compatibility

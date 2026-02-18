@@ -33,6 +33,7 @@ const sidebars: SidebarsConfig = {
         'guides/producer-testing',
         'guides/breaking-changes',
         'guides/validation-modes',
+        'guides/ci-cd-integration',
       ],
     },
     {
