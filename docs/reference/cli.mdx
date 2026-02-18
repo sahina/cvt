@@ -589,7 +589,7 @@ These options work with all commands:
       --server ${{ secrets.CVT_SERVER }} \
       --json > deploy-check.json
 
-    if [ $(jq '.safe_to_deploy' deploy-check.json) != "true" ]; then
+    if [ "$(jq '.safe_to_deploy' deploy-check.json)" != "true" ]; then
       echo "Unsafe to deploy!"
       jq '.affected_consumers' deploy-check.json
       exit 1
