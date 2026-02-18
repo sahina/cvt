@@ -35,10 +35,13 @@ Contract testing validates API interactions against a published contract (OpenAP
 ### 1. Start the CVT Server
 
 ```bash
-# Using Docker (recommended)
+# Using the published Docker image (recommended)
+docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt-server:latest
+
+# Or using Docker Compose (if you've cloned the repository)
 make up
 
-# Or run locally
+# Or build and run locally
 make run-server
 ```
 
