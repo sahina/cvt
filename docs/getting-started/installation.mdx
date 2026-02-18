@@ -22,10 +22,8 @@ The easiest way to run CVT is with Docker:
 # Using Docker Compose (includes observability stack)
 make up
 
-# Or Docker directly BUT
-
-# Docker image is not published to Docker Hub yet
-# docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/cvt/cvt-server:latest
+# Or run the published Docker image directly
+docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt-server:latest
 ```
 
 ### From Source

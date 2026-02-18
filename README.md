@@ -185,7 +185,7 @@ See [CLI Reference](docs/reference/cli.mdx) for all commands.
 ## Prerequisites
 
 - **Docker & Docker Compose** (required)
-- **Node.js 18+** (for Node.js SDK)
+- **Node.js 20+** (for Node.js SDK)
 - **Optional**: Go 1.25+, Python 3.12+, Java 21+
 
 ## Documentation

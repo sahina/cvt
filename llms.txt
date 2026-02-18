@@ -15,7 +15,7 @@ CVT enables API contract testing by validating that HTTP interactions conform to
 - [Node.js SDK](/sdks/node/src/index.ts): TypeScript SDK with full type definitions
 - [Python SDK](/sdks/python/cvt_sdk/__init__.py): Python SDK with dataclasses
 - [Go SDK](/sdks/go/cvt/validator.go): Go gRPC client SDK
-- [Java SDK](/sdks/java/src/main/java/com/cvt/sdk/ContractValidator.java): Java gRPC client SDK
+- [Java SDK](/sdks/java/src/main/java/io/github/sahina/sdk/ContractValidator.java): Java gRPC client SDK
 - [Embedded Go Library](/pkg/cvt/validator.go): Local validation without gRPC
 
 ## API Reference

@@ -96,7 +96,7 @@ User: Set up CVT for my Node.js project
 AI: I'll help you set up CVT. Based on the CVT documentation, here's what we need:
 
 1. Start the CVT server:
-   docker run -d -p 9550:9550 ghcr.io/cvt/cvt-server:latest
+   docker run -d -p 9550:9550 ghcr.io/sahina/cvt-server:latest
 
 2. Install the Node.js SDK (see installation guide for details):
    npm install @sahina/cvt-sdk
