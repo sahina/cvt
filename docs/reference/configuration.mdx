@@ -5,6 +5,9 @@ sidebar_position: 3
 description: CVT environment variables and configuration options
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Configuration Reference
 
 ## What is the Configuration Reference?
@@ -21,6 +24,8 @@ This document provides a comprehensive reference for all CVT environment variabl
 | [Storage](#persistent-storage) | `CVT_STORAGE_ENABLED`, `CVT_STORAGE_TYPE` |
 | [PostgreSQL](#postgresql-settings) | `CVT_POSTGRES_HOST`, `CVT_POSTGRES_USER`, `CVT_POSTGRES_PASSWORD` |
 | [Cache](#cache-settings) | `CVT_STORAGE_CACHE_ENABLED`, `CVT_STORAGE_CACHE_MAX_SCHEMAS` |
+| [SDK Client](#sdk-client-configuration) | TLS, API key, and connection settings for SDK clients |
+| [Proxy](#proxy-configuration) | `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` |
 
 ---
 
@@ -162,6 +167,329 @@ validator = ContractValidator(ContractValidatorOptions(
     api_key='your-api-key-here',
 ))
 ```
+
+---
+
+## SDK Client Configuration
+
+Configure how SDK clients connect to the CVT server, including TLS and API key authentication.
+
+### TLS Configuration
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+```typescript
+import { ContractValidator } from "@sahina/cvt-sdk";
+
+const validator = new ContractValidator({
+  address: "cvt.internal:9550",
+  tls: {
+    enabled: true,
+    rootCertPath: "./certs/ca.crt", // Server CA certificate
+    certPath: "./certs/client.crt", // Client certificate (mTLS)
+    keyPath: "./certs/client.key", // Client private key (mTLS)
+  },
+});
+
+// Use validator as normal
+await validator.registerSchema("petstore", "./openapi.json");
+validator.close();
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from cvt_sdk import ContractValidator, ContractValidatorOptions, TLSOptions
+
+validator = ContractValidator(ContractValidatorOptions(
+    address='cvt.internal:9550',
+    tls=TLSOptions(
+        enabled=True,
+        root_cert_path='./certs/ca.crt',
+        cert_path='./certs/client.crt',
+        key_path='./certs/client.key',
+    )
+))
+
+validator.register_schema('petstore', './openapi.json')
+validator.close()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+validator, err := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
+    Address: "cvt.internal:9550",
+    TLS: &cvt.TLSOptions{
+        Enabled:      true,
+        RootCertPath: "./certs/ca.crt",
+        CertPath:     "./certs/client.crt",
+        KeyPath:      "./certs/client.key",
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+defer validator.Close()
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+ContractValidator validator = ContractValidator.builder()
+    .address("cvt.internal:9550")
+    .tlsEnabled(true)
+    .rootCertPath("./certs/ca.crt")
+    .build();
+
+validator.registerSchema("petstore", "./openapi.json");
+validator.close();
+```
+
+</TabItem>
+</Tabs>
+
+### API Key Configuration
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+```typescript
+const validator = new ContractValidator({
+  address: "cvt.internal:9550",
+  apiKey: process.env.CVT_API_KEY, // From environment variable
+});
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import os
+from cvt_sdk import ContractValidator, ContractValidatorOptions
+
+validator = ContractValidator(ContractValidatorOptions(
+    address='cvt.internal:9550',
+    api_key=os.environ.get('CVT_API_KEY'),
+))
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+validator, _ := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
+    Address: "cvt.internal:9550",
+    APIKey:  os.Getenv("CVT_API_KEY"),
+})
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+ContractValidator validator = ContractValidator.builder()
+    .address("cvt.internal:9550")
+    .apiKey(System.getenv("CVT_API_KEY"))
+    .build();
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Proxy Configuration
+
+Many enterprise environments require HTTP traffic to go through a corporate proxy. This section covers how to configure CVT and your tests to work behind a proxy.
+
+### gRPC Traffic (CVT Server Communication)
+
+gRPC uses HTTP/2 and typically doesn't use standard HTTP proxy environment variables. For CVT server communication:
+
+**Option 1: Direct Connection (Recommended)**
+
+Configure your network to allow direct connections to the CVT server on port 9550. This is the simplest approach and avoids proxy complications with gRPC.
+
+**Option 2: gRPC Proxy Support**
+
+If you must proxy gRPC traffic, note that different SDKs have different proxy support:
+
+| SDK | Proxy Mechanism |
+|-----|-----------------|
+| **Python (grpcio)** | Uses `grpc_proxy` / `no_grpc_proxy` environment variables (via gRPC C-core) |
+| **Go (grpc-go)** | Uses standard `HTTPS_PROXY` / `NO_PROXY` environment variables |
+| **Java (grpc-java)** | Uses Java's `ProxySelector` / `Authenticator` mechanism |
+| **Node.js (@grpc/grpc-js)** | No built-in env var support; requires manual proxy configuration |
+
+**Python example:**
+
+```bash
+export grpc_proxy=http://proxy.corporate.com:8080
+export no_grpc_proxy=localhost,127.0.0.1
+```
+
+**Go example:**
+
+```bash
+export HTTPS_PROXY=http://proxy.corporate.com:8080
+export NO_PROXY=localhost,127.0.0.1
+```
+
+### HTTP Traffic (Schema URLs)
+
+When registering schemas from URLs, standard HTTP proxy environment variables apply:
+
+```bash
+# Set proxy for HTTP/HTTPS traffic
+export HTTP_PROXY=http://proxy.corporate.com:8080
+export HTTPS_PROXY=http://proxy.corporate.com:8080
+
+# Bypass proxy for local services
+export NO_PROXY=localhost,127.0.0.1,.internal.corp
+```
+
+### SDK-Specific Configuration
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+Node.js respects `HTTP_PROXY` and `HTTPS_PROXY` environment variables for schema URL fetching:
+
+```typescript
+// Environment variables are picked up automatically
+// HTTP_PROXY=http://proxy:8080 npm test
+
+// Or configure programmatically with a custom agent
+import { HttpsProxyAgent } from 'https-proxy-agent';
+
+const proxyAgent = new HttpsProxyAgent('http://proxy.corporate.com:8080');
+// Use with your HTTP client for API calls
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+Python `requests` library respects standard proxy environment variables:
+
+```python
+import os
+
+# Set programmatically if needed
+os.environ['HTTP_PROXY'] = 'http://proxy.corporate.com:8080'
+os.environ['HTTPS_PROXY'] = 'http://proxy.corporate.com:8080'
+os.environ['NO_PROXY'] = 'localhost,127.0.0.1'
+
+# Or use requests session with explicit proxy
+import requests
+session = requests.Session()
+session.proxies = {
+    'http': 'http://proxy.corporate.com:8080',
+    'https': 'http://proxy.corporate.com:8080',
+}
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+Go respects `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables:
+
+```go
+import (
+    "net/http"
+    "net/url"
+    "os"
+)
+
+// Environment variables are picked up automatically by http.Client
+
+// Or configure explicitly
+proxyURL, _ := url.Parse("http://proxy.corporate.com:8080")
+transport := &http.Transport{
+    Proxy: http.ProxyURL(proxyURL),
+}
+client := &http.Client{Transport: transport}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+Java uses system properties for proxy configuration:
+
+```java
+// Set via JVM arguments
+// -Dhttp.proxyHost=proxy.corporate.com -Dhttp.proxyPort=8080
+// -Dhttps.proxyHost=proxy.corporate.com -Dhttps.proxyPort=8080
+
+// Or programmatically
+System.setProperty("http.proxyHost", "proxy.corporate.com");
+System.setProperty("http.proxyPort", "8080");
+System.setProperty("https.proxyHost", "proxy.corporate.com");
+System.setProperty("https.proxyPort", "8080");
+System.setProperty("http.nonProxyHosts", "localhost|127.0.0.1");
+```
+
+</TabItem>
+</Tabs>
+
+### CI/CD Pipeline Configuration
+
+In CI/CD environments, proxy configuration is typically set at the pipeline level:
+
+**GitHub Actions:**
+```yaml
+env:
+  HTTP_PROXY: ${{ secrets.CORPORATE_PROXY }}
+  HTTPS_PROXY: ${{ secrets.CORPORATE_PROXY }}
+  NO_PROXY: localhost,127.0.0.1
+```
+
+**GitLab CI:**
+```yaml
+variables:
+  HTTP_PROXY: http://proxy.corporate.com:8080
+  HTTPS_PROXY: http://proxy.corporate.com:8080
+  NO_PROXY: localhost,127.0.0.1,cvt
+```
+
+**Jenkins:**
+```groovy
+environment {
+    HTTP_PROXY = 'http://proxy.corporate.com:8080'
+    HTTPS_PROXY = 'http://proxy.corporate.com:8080'
+    NO_PROXY = 'localhost,127.0.0.1'
+}
+```
+
+### SSL Certificate Issues
+
+Corporate proxies often perform SSL inspection, which can cause certificate validation failures. Solutions:
+
+1. **Add corporate CA to trust store:**
+   ```bash
+   # Node.js
+   export NODE_EXTRA_CA_CERTS=/path/to/corporate-ca.crt
+
+   # Python
+   export REQUESTS_CA_BUNDLE=/path/to/corporate-ca.crt
+
+   # Java
+   keytool -import -trustcacerts -file corporate-ca.crt -alias corporate -keystore $JAVA_HOME/lib/security/cacerts
+   ```
+
+2. **Disable SSL verification (development only):**
+   ```bash
+   # NOT recommended for production
+   export NODE_TLS_REJECT_UNAUTHORIZED=0  # Node.js
+   ```
+
+:::warning Security
+Never disable SSL verification in production environments. Always use proper certificate configuration.
+:::
 
 ---
 
@@ -396,6 +724,8 @@ CVT_TLS_KEY_FILE=/etc/cvt/certs/server.key
 
 ## Related Documentation
 
+- **[Consumer Testing Guide](../guides/consumer-testing.mdx)** - Test API integrations
+- **[CI/CD Integration Guide](../guides/ci-cd-integration.mdx)** - Pipeline examples
 - **[CLI Reference](./cli.mdx)** - Command-line options
 - **[Observability Guide](../operations/observability.md)** - Metrics and monitoring
 - **[Development Guide](../development/contributing.md)** - Local development setup

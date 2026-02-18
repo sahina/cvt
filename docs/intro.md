@@ -138,7 +138,7 @@ For detailed system architecture, component design, validation engine, and stora
 
 - **[API Reference](./reference/api.mdx)** - gRPC API documentation
 - **[CLI Reference](./reference/cli.mdx)** - Command-line interface
-- **[Configuration](./reference/configuration.md)** - Environment variables
+- **[Configuration](./reference/configuration.mdx)** - Environment variables
 - **[SDK Documentation](./reference/sdk/)** - Language-specific guides
 
 ### Operations

@@ -474,5 +474,5 @@ const (
 
 ## Related Documentation
 
-- **[Configuration Reference](../reference/configuration.md)** - Environment variables
+- **[Configuration Reference](../reference/configuration.mdx)** - Environment variables
 - **[Development Guide](../development/contributing.md)** - Local development setup

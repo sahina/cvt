@@ -166,7 +166,7 @@ CVT_POSTGRES_DB=cvt \
 make run-server
 ```
 
-See [Configuration Reference](../reference/configuration.md) for all environment variables.
+See [Configuration Reference](../reference/configuration.mdx) for all environment variables.
 
 ## SDK Development
 
@@ -407,6 +407,6 @@ which protoc-gen-go-grpc
 ## Related Documentation
 
 - **[CONTRIBUTING.md](https://github.com/sahina/cvt/blob/main/CONTRIBUTING.md)** - Contribution guidelines and code style
-- **[Configuration Reference](../reference/configuration.md)** - Environment variables
+- **[Configuration Reference](../reference/configuration.mdx)** - Environment variables
 - **[API Reference](../reference/api.mdx)** - gRPC API details
 - **[Observability Guide](../operations/observability.md)** - Metrics and monitoring

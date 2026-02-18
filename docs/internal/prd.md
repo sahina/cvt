@@ -13,7 +13,7 @@ This PRD captures the **original vision and requirements** that guided CVT devel
 - **[Architecture Documentation](../reference/architecture/index.md)** - Current system design and component architecture
 - **[API Reference](../reference/api.mdx)** - Current gRPC service definition
 - **[SDK Documentation](../reference/sdk/index.mdx)** - SDK installation and usage
-- **[Configuration Reference](../reference/configuration.md)** - Environment variables
+- **[Configuration Reference](../reference/configuration.mdx)** - Environment variables
 - **[Development Guide](../development/contributing.md)** - Building and testing
 :::
 

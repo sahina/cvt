@@ -1,0 +1,316 @@
+---
+title: CI/CD Integration Guide
+sidebar_label: CI/CD Integration
+sidebar_position: 5
+description: Integrate CVT contract testing and deployment safety checks into your CI/CD pipelines
+---
+
+# CI/CD Integration Guide
+
+This guide covers how to integrate CVT into your CI/CD pipelines for automated contract testing, consumer registration, and deployment safety checks.
+
+## Overview
+
+A typical CVT-enabled pipeline includes:
+
+1. **Contract tests** - Validate interactions against OpenAPI schemas
+2. **Consumer registration** - Register your service's API dependencies after tests pass
+3. **Deployment safety checks** - Run `can-i-deploy` before deploying schema changes
+
+:::tip Schema-Specific PR Checks
+For PR checks that detect breaking changes when your OpenAPI spec file changes, see the [Breaking Changes CI/CD section](./breaking-changes.mdx#cicd-integration).
+:::
+
+---
+
+## GitHub Actions
+
+### Consumer Contract Tests
+
+```yaml
+name: Contract Tests
+
+on: [push, pull_request]
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    services:
+      cvt:
+        # Note: This image is a placeholder. Build your own image:
+        # docker build -t cvt-server .
+        # Or run CVT server separately
+        image: ghcr.io/your-org/cvt-server:latest
+        ports:
+          - 9550:9550
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run contract tests
+        run: npm test
+
+      - name: Register consumer
+        if: github.ref == 'refs/heads/main'
+        run: |
+          npm run register-consumer -- \
+            --id my-service \
+            --version ${{ github.sha }} \
+            --schema petstore \
+            --env staging
+```
+
+:::note Docker Image
+The published CVT server image is available at `ghcr.io/sahina/cvt-server:latest`. You can also:
+
+1. Build your own image: `docker build -t cvt-server .`
+2. Use `make up` to run CVT locally
+3. Host CVT as a shared service in your infrastructure
+:::
+
+### Producer Deployment Safety
+
+```yaml
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run contract tests
+        run: npm test
+
+      - name: Check deployment safety
+        run: |
+          cvt can-i-deploy \
+            --schema ${{ env.SCHEMA_ID }} \
+            --version ${{ env.VERSION }} \
+            --env prod \
+            --server ${{ secrets.CVT_SERVER }}
+
+      - name: Deploy
+        if: success()
+        run: ./deploy.sh
+```
+
+### Pre-Deploy Safety Check
+
+```yaml
+deploy:
+  needs: [contract-tests]
+  steps:
+    - name: Check if upstream is safe
+      run: |
+        # This checks if any upstream dependencies have breaking changes
+        cvt can-i-deploy \
+          --schema petstore \
+          --version ${{ env.SCHEMA_VERSION }} \
+          --env prod \
+          --json > check.json
+
+        if [ $(jq '.safeToDeploy' check.json) != "true" ]; then
+          echo "Upstream API has breaking changes!"
+          jq '.affectedConsumers[] | select(.willBreak == true) | .consumerId' check.json
+          exit 1
+        fi
+```
+
+---
+
+## GitLab CI
+
+:::note Prerequisites
+The `can-i-deploy` job requires the `cvt` CLI and `jq` to be available. Either use a base image with these tools pre-installed, or add installation steps to your `before_script`.
+:::
+
+### Consumer Contract Tests
+
+```yaml
+stages:
+  - test
+  - deploy
+
+variables:
+  CVT_SERVER: "localhost:9550"
+
+contract-tests:
+  stage: test
+  services:
+    - name: your-registry/cvt-server:latest
+      alias: cvt
+  variables:
+    CVT_SERVER: "cvt:9550"
+  script:
+    - npm ci
+    - npm test
+  artifacts:
+    reports:
+      junit: test-results.xml
+
+register-consumer:
+  stage: deploy
+  only:
+    - main
+  script:
+    - |
+      npm run register-consumer -- \
+        --id my-service \
+        --version $CI_COMMIT_SHA \
+        --schema petstore \
+        --env staging
+
+can-i-deploy:
+  stage: deploy
+  only:
+    - main
+  script:
+    - |
+      cvt can-i-deploy \
+        --schema petstore \
+        --version $SCHEMA_VERSION \
+        --env prod \
+        --json > check.json
+
+      if [ "$(jq '.safeToDeploy' check.json)" != "true" ]; then
+        echo "Breaking changes detected!"
+        jq '.affectedConsumers[] | select(.willBreak == true)' check.json
+        exit 1
+      fi
+```
+
+### Producer Deployment Safety
+
+```yaml
+stages:
+  - test
+  - safety-check
+  - deploy
+
+contract-tests:
+  stage: test
+  script:
+    - npm test
+
+deployment-safety:
+  stage: safety-check
+  script:
+    - cvt can-i-deploy --schema $SCHEMA_ID --version $VERSION --env prod --json
+  allow_failure: false
+
+deploy:
+  stage: deploy
+  script:
+    - ./deploy.sh
+  only:
+    - main
+```
+
+---
+
+## Jenkins
+
+:::note Jenkins plugins
+This example uses `readJSON` from the [Pipeline Utility Steps](https://plugins.jenkins.io/pipeline-utility-steps/) plugin.
+:::
+
+### Consumer Contract Tests
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        CVT_SERVER = 'cvt.internal:9550'
+    }
+
+    stages {
+        stage('Start CVT') {
+            steps {
+                sh 'docker-compose up -d cvt-server'
+                sh 'cvt wait --server localhost:9550 --timeout 60'
+            }
+        }
+
+        stage('Contract Tests') {
+            steps {
+                sh 'npm ci'
+                sh 'npm test'
+            }
+            post {
+                always {
+                    junit 'test-results.xml'
+                }
+            }
+        }
+
+        stage('Register Consumer') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh """
+                    npm run register-consumer -- \\
+                        --id my-service \\
+                        --version ${env.GIT_COMMIT} \\
+                        --schema petstore \\
+                        --env staging
+                """
+            }
+        }
+
+        stage('Can I Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    def result = sh(
+                        script: """
+                            cvt can-i-deploy \\
+                                --schema petstore \\
+                                --version ${env.SCHEMA_VERSION} \\
+                                --env prod \\
+                                --json
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    def json = readJSON text: result
+                    if (!json.safeToDeploy) {
+                        error "Breaking changes detected! Affected consumers: ${json.affectedConsumers}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker-compose down'
+        }
+    }
+}
+```
+
+---
+
+## Next Steps
+
+- **[Consumer Testing Guide](./consumer-testing.mdx)** - Test your API integrations
+- **[Producer Testing Guide](./producer-testing.mdx)** - Validate your own APIs
+- **[Breaking Changes Guide](./breaking-changes.mdx)** - Schema compatibility and can-i-deploy
+- **[Configuration Reference](../reference/configuration.mdx)** - Environment variables and settings

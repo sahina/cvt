@@ -213,7 +213,7 @@ See [CLI Reference](docs/reference/cli.mdx) for all commands.
 | [Architecture](docs/reference/architecture/index.md) | System design and components |
 | [API Reference](docs/reference/api.mdx)              | gRPC API documentation       |
 | [CLI Reference](docs/reference/cli.mdx)              | Command-line interface       |
-| [Configuration](docs/reference/configuration.md)     | Environment variables        |
+| [Configuration](docs/reference/configuration.mdx)    | Environment variables        |
 | [SDK Documentation](docs/reference/sdk/index.mdx)    | Language-specific SDK guides |
 
 ### Operations

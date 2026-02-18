@@ -410,6 +410,208 @@ Recommendation: Coordinate with order-service and notification-service teams bef
 
 ---
 
+## Environment Promotion
+
+CVT tracks consumers per environment, enabling safe promotion workflows.
+
+### Development to Staging to Production
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js">
+
+```typescript
+const validator = new ContractValidator("cvt.internal:9550");
+
+// 1. Register consumer in dev after tests pass
+await validator.registerConsumer({
+  consumerId: "order-service",
+  consumerVersion: "2.1.0",
+  schemaId: "petstore",
+  schemaVersion: "1.0.0",
+  environment: "dev", // Start in dev
+  usedEndpoints: [
+    { method: "GET", path: "/pet/{petId}", usedFields: ["id", "name"] },
+  ],
+});
+
+// 2. Promote to staging after dev validation
+await validator.registerConsumer({
+  consumerId: "order-service",
+  consumerVersion: "2.1.0",
+  schemaId: "petstore",
+  schemaVersion: "1.0.0",
+  environment: "staging", // Promote to staging
+  usedEndpoints: [
+    { method: "GET", path: "/pet/{petId}", usedFields: ["id", "name"] },
+  ],
+});
+
+// 3. Finally promote to production
+await validator.registerConsumer({
+  consumerId: "order-service",
+  consumerVersion: "2.1.0",
+  schemaId: "petstore",
+  schemaVersion: "1.0.0",
+  environment: "prod", // Production ready
+  usedEndpoints: [
+    { method: "GET", path: "/pet/{petId}", usedFields: ["id", "name"] },
+  ],
+});
+
+validator.close();
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from cvt_sdk import ContractValidator, RegisterConsumerOptions, EndpointUsage
+
+validator = ContractValidator('cvt.internal:9550')
+
+endpoints = [
+    EndpointUsage(method='GET', path='/pet/{petId}', used_fields=['id', 'name'])
+]
+
+# 1. Register consumer in dev after tests pass
+validator.register_consumer(RegisterConsumerOptions(
+    consumer_id='order-service',
+    consumer_version='2.1.0',
+    schema_id='petstore',
+    schema_version='1.0.0',
+    environment='dev',  # Start in dev
+    used_endpoints=endpoints
+))
+
+# 2. Promote to staging after dev validation
+validator.register_consumer(RegisterConsumerOptions(
+    consumer_id='order-service',
+    consumer_version='2.1.0',
+    schema_id='petstore',
+    schema_version='1.0.0',
+    environment='staging',  # Promote to staging
+    used_endpoints=endpoints
+))
+
+# 3. Finally promote to production
+validator.register_consumer(RegisterConsumerOptions(
+    consumer_id='order-service',
+    consumer_version='2.1.0',
+    schema_id='petstore',
+    schema_version='1.0.0',
+    environment='prod',  # Production ready
+    used_endpoints=endpoints
+))
+
+validator.close()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+validator, _ := cvt.NewValidator("cvt.internal:9550")
+defer validator.Close()
+
+ctx := context.Background()
+
+endpoints := []cvt.EndpointUsage{
+    {Method: "GET", Path: "/pet/{petId}", UsedFields: []string{"id", "name"}},
+}
+
+// 1. Register consumer in dev after tests pass
+validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
+    ConsumerID:      "order-service",
+    ConsumerVersion: "2.1.0",
+    SchemaID:        "petstore",
+    SchemaVersion:   "1.0.0",
+    Environment:     "dev", // Start in dev
+    UsedEndpoints:   endpoints,
+})
+
+// 2. Promote to staging after dev validation
+validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
+    ConsumerID:      "order-service",
+    ConsumerVersion: "2.1.0",
+    SchemaID:        "petstore",
+    SchemaVersion:   "1.0.0",
+    Environment:     "staging", // Promote to staging
+    UsedEndpoints:   endpoints,
+})
+
+// 3. Finally promote to production
+validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
+    ConsumerID:      "order-service",
+    ConsumerVersion: "2.1.0",
+    SchemaID:        "petstore",
+    SchemaVersion:   "1.0.0",
+    Environment:     "prod", // Production ready
+    UsedEndpoints:   endpoints,
+})
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.RegisterConsumerOptions;
+import io.github.sahina.sdk.EndpointUsage;
+import java.util.List;
+
+ContractValidator validator = new ContractValidator("cvt.internal:9550");
+
+List<EndpointUsage> endpoints = List.of(
+    new EndpointUsage("GET", "/pet/{petId}", List.of("id", "name"))
+);
+
+// 1. Register consumer in dev after tests pass
+validator.registerConsumer(RegisterConsumerOptions.builder()
+    .consumerId("order-service")
+    .consumerVersion("2.1.0")
+    .schemaId("petstore")
+    .schemaVersion("1.0.0")
+    .environment("dev")  // Start in dev
+    .usedEndpoints(endpoints)
+    .build());
+
+// 2. Promote to staging after dev validation
+validator.registerConsumer(RegisterConsumerOptions.builder()
+    .consumerId("order-service")
+    .consumerVersion("2.1.0")
+    .schemaId("petstore")
+    .schemaVersion("1.0.0")
+    .environment("staging")  // Promote to staging
+    .usedEndpoints(endpoints)
+    .build());
+
+// 3. Finally promote to production
+validator.registerConsumer(RegisterConsumerOptions.builder()
+    .consumerId("order-service")
+    .consumerVersion("2.1.0")
+    .schemaId("petstore")
+    .schemaVersion("1.0.0")
+    .environment("prod")  // Production ready
+    .usedEndpoints(endpoints)
+    .build());
+
+validator.close();
+```
+
+</TabItem>
+</Tabs>
+
+### Checking Safety Before Promotion
+
+```bash
+# Before promoting petstore v2.0.0 to production
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod
+
+# Output will show if any prod consumers will break
+```
+
+---
+
 ## CI/CD Integration
 
 ### PR Check for Schema Changes
@@ -608,5 +810,7 @@ public ResponseEntity<Map<String, Object>> getPet(
 
 - **[Consumer Testing Guide](./consumer-testing.mdx)** - Register as a consumer
 - **[Producer Testing Guide](./producer-testing.mdx)** - Validate your API
+- **[CI/CD Integration Guide](./ci-cd-integration.mdx)** - Pipeline examples
+- **[Configuration Reference](../reference/configuration.mdx)** - Environment variables and settings
 - **[CLI Reference](../reference/cli.mdx)** - Command-line options
 - **[API Reference](../reference/api.mdx)** - Message types

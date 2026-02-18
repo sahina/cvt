@@ -507,4 +507,4 @@ The following storage features are planned but not yet implemented:
 
 - **[Architecture Overview](./index.md)** - System architecture
 - **[Validation Engine](./validation-engine.md)** - Validation flow
-- **[Configuration Reference](../configuration.md)** - Storage configuration options
+- **[Configuration Reference](../configuration.mdx)** - Storage configuration options
