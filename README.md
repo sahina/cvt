@@ -4,6 +4,17 @@
   <img src="assets/cvt-infographic.jpg" alt="CVT - Contract Validator Toolkit" style="border-radius: 12px;">
 </p>
 
+<p align="center">
+  <a href="https://github.com/sahina/cvt/actions/workflows/ci.yml"><img src="https://github.com/sahina/cvt/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/sahina/cvt/actions/workflows/release.yml"><img src="https://github.com/sahina/cvt/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="https://github.com/sahina/cvt/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://www.npmjs.com/package/@sahina/cvt-sdk"><img src="https://img.shields.io/npm/v/@sahina/cvt-sdk.svg" alt="npm"></a>
+  <a href="https://pypi.org/project/cvt-sdk/"><img src="https://img.shields.io/pypi/v/cvt-sdk.svg" alt="PyPI"></a>
+  <a href="https://pkg.go.dev/github.com/sahina/cvt/sdks/go"><img src="https://pkg.go.dev/badge/github.com/sahina/cvt/sdks/go.svg" alt="Go Reference"></a>
+  <a href="https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk"><img src="https://img.shields.io/maven-central/v/io.github.sahina/cvt-sdk.svg" alt="Maven Central"></a>
+  <a href="https://ghcr.io/sahina/cvt-server"><img src="https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker" alt="Docker"></a>
+</p>
+
 A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against API contracts. Supports both consumer-side (client) and producer-side (server) validation.
 
 > **Examples**: For complete working examples with real-world usage patterns, see the [CVT Demo Repository](https://github.com/sahina/cvt-demo).
