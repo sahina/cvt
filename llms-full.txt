@@ -2476,18 +2476,17 @@ message ConsumerImpact {
 
 ### Consumer Contract Testing
 
+#### Node.js
+
 ```typescript
-// 1. Register schema
 await validator.registerSchemaWithVersion("user-api", "./openapi.json", "1.0.0");
 
-// 2. Validate interactions during tests
 const result = await validator.validate(
   { method: "GET", path: "/users/123", headers: {} },
   { statusCode: 200, body: { id: "123", name: "John", email: "john@example.com" } }
 );
 assert(result.valid);
 
-// 3. Register as consumer
 await validator.registerConsumer({
   consumerId: "order-service",
   consumerVersion: "2.1.0",
@@ -2500,16 +2499,81 @@ await validator.registerConsumer({
 });
 ```
 
+#### Python
+
+```python
+validator.register_schema_with_version("user-api", "./openapi.json", "1.0.0")
+
+result = validator.validate(
+    request={"method": "GET", "path": "/users/123", "headers": {}},
+    response={"status_code": 200, "body": {"id": "123", "name": "John", "email": "john@example.com"}}
+)
+assert result["valid"]
+
+validator.register_consumer(RegisterConsumerOptions(
+    consumer_id="order-service",
+    consumer_version="2.1.0",
+    schema_id="user-api",
+    schema_version="1.0.0",
+    environment="dev",
+    used_endpoints=[
+        EndpointUsage(method="GET", path="/users/{id}", used_fields=["id", "name", "email"])
+    ]
+))
+```
+
+#### Go
+
+```go
+ctx := context.Background()
+validator.RegisterSchemaWithVersion(ctx, "user-api", "./openapi.json", "1.0.0")
+
+result, _ := validator.Validate(ctx,
+    cvt.ValidationRequest{Method: "GET", Path: "/users/123"},
+    cvt.ValidationResponse{StatusCode: 200, Body: map[string]any{
+        "id": "123", "name": "John", "email": "john@example.com",
+    }},
+)
+assert.True(t, result.Valid)
+
+validator.RegisterConsumer(ctx, cvt.RegisterConsumerOptions{
+    ConsumerID: "order-service", ConsumerVersion: "2.1.0",
+    SchemaID: "user-api", SchemaVersion: "1.0.0", Environment: "dev",
+    UsedEndpoints: []cvt.EndpointUsage{
+        {Method: "GET", Path: "/users/{id}", UsedFields: []string{"id", "name", "email"}},
+    },
+})
+```
+
+#### Java
+
+```java
+validator.registerSchemaWithVersion("user-api", "./openapi.json", "1.0.0");
+
+ValidationResult result = validator.validate(
+    ValidationRequest.builder().method("GET").path("/users/123").build(),
+    ValidationResponse.builder().statusCode(200)
+        .body("{\"id\":\"123\",\"name\":\"John\",\"email\":\"john@example.com\"}").build()
+);
+assertTrue(result.isValid());
+
+validator.registerConsumer(RegisterConsumerOptions.builder()
+    .consumerId("order-service").consumerVersion("2.1.0")
+    .schemaId("user-api").schemaVersion("1.0.0").environment("dev")
+    .usedEndpoints(List.of(
+        new EndpointUsage("GET", "/users/{id}", List.of("id", "name", "email"))
+    )).build());
+```
+
 ### Deployment Safety Check
 
+#### Node.js
+
 ```typescript
-// Before deploying new API version
 const result = await validator.canIDeploy("user-api", "2.0.0", "prod");
 
 if (!result.safeToDeploy) {
-  console.error("UNSAFE TO DEPLOY");
-  console.error(result.summary);
-
+  console.error("UNSAFE TO DEPLOY:", result.summary);
   for (const consumer of result.affectedConsumers) {
     if (consumer.willBreak) {
       console.error(`${consumer.consumerId} v${consumer.consumerVersion} will break:`);
@@ -2518,8 +2582,60 @@ if (!result.safeToDeploy) {
       }
     }
   }
-
   process.exit(1);
+}
+```
+
+#### Python
+
+```python
+result = validator.can_i_deploy("user-api", "2.0.0", "prod")
+
+if not result["safe_to_deploy"]:
+    print("UNSAFE TO DEPLOY:", result["summary"])
+    for consumer in result["affected_consumers"]:
+        if consumer["will_break"]:
+            print(f"  {consumer['consumer_id']} v{consumer['consumer_version']} will break:")
+            for change in consumer["relevant_changes"]:
+                print(f"    - {change['type']}: {change['description']}")
+    sys.exit(1)
+```
+
+#### Go
+
+```go
+result, _ := validator.CanIDeploy(ctx, "user-api", "2.0.0", "prod")
+
+if !result.SafeToDeploy {
+    fmt.Println("UNSAFE TO DEPLOY:", result.Summary)
+    for _, c := range result.AffectedConsumers {
+        if c.WillBreak {
+            fmt.Printf("  %s v%s will break:\n", c.ConsumerID, c.ConsumerVersion)
+            for _, change := range c.RelevantChanges {
+                fmt.Printf("    - %s: %s\n", change.Type, change.Description)
+            }
+        }
+    }
+    os.Exit(1)
+}
+```
+
+#### Java
+
+```java
+CanIDeployResult result = validator.canIDeploy("user-api", "2.0.0", "prod");
+
+if (!result.isSafeToDeploy()) {
+    System.err.println("UNSAFE TO DEPLOY: " + result.getSummary());
+    for (ConsumerImpact c : result.getAffectedConsumers()) {
+        if (c.isWillBreak()) {
+            System.err.println("  " + c.getConsumerId() + " v" + c.getConsumerVersion() + " will break:");
+            for (BreakingChange change : c.getRelevantChanges()) {
+                System.err.println("    - " + change.getType() + ": " + change.getDescription());
+            }
+        }
+    }
+    System.exit(1);
 }
 ```
 
@@ -2566,6 +2682,32 @@ app.add_middleware(ASGIMiddleware, config=ProducerConfig(
     validator=validator,
     mode=ValidationMode.SHADOW,  # Async validation, metrics only
 ))
+```
+
+#### Go (Chi) + Warn Mode
+
+```go
+import (
+    "net/http"
+    "github.com/go-chi/chi/v5"
+    cvt "github.com/sahina/cvt/sdks/go/cvt"
+    "github.com/sahina/cvt/sdks/go/cvt/producer"
+    producerAdapters "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
+)
+
+validator, _ := cvt.NewValidator("localhost:9550")
+validator.RegisterSchema(ctx, "user-api", "./openapi.json")
+
+r := chi.NewRouter()
+r.Use(producerAdapters.ChiMiddleware(producer.Config{
+    SchemaID:  "user-api",
+    Validator: validator,
+    Mode:      producer.ModeWarn,  // Log violations, allow requests
+}))
+
+r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+    json.NewEncoder(w).Encode(map[string]any{"id": chi.URLParam(r, "id"), "name": "John"})
+})
 ```
 
 #### Spring + Warn Mode
@@ -2687,41 +2829,107 @@ validator.registerConsumerFromInteractions(adapter.getInteractions(),
 
 Build consumer registrations automatically from recorded HTTP interactions.
 
+#### Node.js
+
 ```typescript
 import { ContractValidator } from "@sahina/cvt-sdk";
 import { createAxiosAdapter } from "@sahina/cvt-sdk/adapters";
 
-// 1. Set up adapter to capture interactions
 const adapter = createAxiosAdapter({ validator, axios: api });
 
-// 2. Run your integration tests (interactions are captured automatically)
+// Run integration tests — interactions are captured automatically
 await api.get("/users/123");
 await api.post("/users", { name: "Jane" });
-await api.get("/users/123/orders");
 
-// 3. Build consumer registration (dry run)
+// Dry run: inspect what would be registered
 const consumerData = validator.buildConsumerFromInteractions(
   adapter.getInteractions(),
-  {
-    consumerId: "order-service",
-    consumerVersion: "1.0.0",
-    schemaId: "user-api",
-    environment: "dev",
-  }
+  { consumerId: "order-service", consumerVersion: "1.0.0", schemaId: "user-api", environment: "dev" }
 );
 console.log("Endpoints used:", consumerData.usedEndpoints);
 
-// 4. Register consumer (or use registerConsumerFromInteractions for one step)
+// Register consumer from captured interactions
 await validator.registerConsumerFromInteractions(
   adapter.getInteractions(),
-  {
-    consumerId: "order-service",
-    consumerVersion: "1.0.0",
-    schemaId: "user-api",
-    schemaVersion: "1.0.0",
-    environment: "dev",
-  }
+  { consumerId: "order-service", consumerVersion: "1.0.0", schemaId: "user-api", schemaVersion: "1.0.0", environment: "dev" }
 );
+```
+
+#### Python
+
+```python
+from cvt_sdk import ContractValidator
+from cvt_sdk.adapters import create_validating_session
+
+session = create_validating_session(validator)
+
+# Run integration tests — interactions are captured automatically
+session.get("http://localhost:3000/users/123")
+session.post("http://localhost:3000/users", json={"name": "Jane"})
+
+# Dry run: inspect what would be registered
+consumer_data, err = validator.build_consumer_from_interactions(
+    interactions=session.get_interactions(),
+    options={"consumer_id": "order-service", "consumer_version": "1.0.0",
+             "schema_id": "user-api", "environment": "dev"}
+)
+
+# Register consumer from captured interactions
+validator.register_consumer_from_interactions(
+    interactions=session.get_interactions(),
+    options={"consumer_id": "order-service", "consumer_version": "1.0.0",
+             "schema_id": "user-api", "schema_version": "1.0.0", "environment": "dev"}
+)
+```
+
+#### Go
+
+```go
+rt := adapters.NewValidatingRoundTripper(adapters.RoundTripperConfig{
+    Validator: validator, AutoValidate: true,
+})
+client := &http.Client{Transport: rt}
+
+// Run integration tests — interactions are captured automatically
+client.Get("http://localhost:3000/users/123")
+
+// Dry run: inspect what would be registered
+opts, _ := validator.BuildConsumerFromInteractions(ctx, rt.GetInteractions(),
+    cvt.AutoRegisterConfig{
+        ConsumerID: "order-service", ConsumerVersion: "1.0.0",
+        SchemaID: "user-api", Environment: "dev",
+    })
+fmt.Println("Endpoints used:", opts.UsedEndpoints)
+
+// Register consumer from captured interactions
+validator.RegisterConsumerFromInteractions(ctx, rt.GetInteractions(),
+    cvt.AutoRegisterConfig{
+        ConsumerID: "order-service", ConsumerVersion: "1.0.0",
+        SchemaID: "user-api", SchemaVersion: "1.0.0", Environment: "dev",
+    })
+```
+
+#### Java
+
+```java
+OkHttpContractAdapter adapter = new OkHttpContractAdapter(validator);
+OkHttpClient client = adapter.attach(new OkHttpClient.Builder()).build();
+
+// Run integration tests — interactions are captured automatically
+client.newCall(new Request.Builder().url("http://localhost:3000/users/123").build()).execute();
+
+// Dry run: inspect what would be registered
+AutoRegisterUtils.BuildResult consumerData = validator.buildConsumerFromInteractions(
+    adapter.getInteractions(),
+    AutoRegisterConfig.builder()
+        .consumerId("order-service").consumerVersion("1.0.0")
+        .schemaId("user-api").environment("dev").build());
+
+// Register consumer from captured interactions
+validator.registerConsumerFromInteractions(adapter.getInteractions(),
+    AutoRegisterConfig.builder()
+        .consumerId("order-service").consumerVersion("1.0.0")
+        .schemaId("user-api").schemaVersion("1.0.0").environment("dev").build());
 ```
 
 ### CI/CD Integration
@@ -2808,20 +3016,70 @@ echo "All checks passed!"
 
 ### Test Fixture Generation
 
-```typescript
-// Generate fixtures for all endpoints
-const endpoints = await validator.listEndpoints();
+#### Node.js
 
+```typescript
+const endpoints = await validator.listEndpoints();
 for (const ep of endpoints) {
-  if (ep.method === "GET") {
-    const response = await validator.generateResponse(ep.method, ep.path);
-    console.log(`${ep.method} ${ep.path} -> ${response.statusCode}`);
-  } else {
-    const fixture = await validator.generateFixture(ep.method, ep.path);
-    console.log(`${ep.method} ${ep.path} request:`, fixture.request.body);
-    console.log(`${ep.method} ${ep.path} response:`, fixture.response.body);
-  }
+  const fixture = await validator.generateFixture(ep.method, ep.path, { useExamples: true });
+  console.log(`${ep.method} ${ep.path} request:`, fixture.request.body);
+  console.log(`${ep.method} ${ep.path} response:`, fixture.response.body);
 }
+
+// Generate just a response
+const response = await validator.generateResponse("GET", "/users/123");
+// Generate just a request body
+const body = await validator.generateRequestBody("POST", "/users");
+```
+
+#### Python
+
+```python
+endpoints = validator.list_endpoints()
+for ep in endpoints:
+    fixture = validator.generate_fixture(ep["method"], ep["path"],
+        GenerateOptions(use_examples=True))
+    print(f"{ep['method']} {ep['path']} request: {fixture['request']['body']}")
+    print(f"{ep['method']} {ep['path']} response: {fixture['response']['body']}")
+
+# Generate just a response
+response = validator.generate_response("GET", "/users/123")
+# Generate just a request body
+body = validator.generate_request_body("POST", "/users")
+```
+
+#### Go
+
+```go
+endpoints, _ := validator.ListEndpoints(ctx)
+for _, ep := range endpoints {
+    fixture, _ := validator.GenerateFixture(ctx, ep.Method, ep.Path,
+        &cvt.GenerateOptions{UseExamples: true})
+    fmt.Printf("%s %s request: %v\n", ep.Method, ep.Path, fixture.Request.Body)
+    fmt.Printf("%s %s response: %v\n", ep.Method, ep.Path, fixture.Response.Body)
+}
+
+// Generate just a response
+response, _ := validator.GenerateResponse(ctx, "GET", "/users/123", nil)
+// Generate just a request body
+body, _ := validator.GenerateRequestBody(ctx, "POST", "/users", nil)
+```
+
+#### Java
+
+```java
+List<EndpointInfo> endpoints = validator.listEndpoints();
+for (EndpointInfo ep : endpoints) {
+    GeneratedFixture fixture = validator.generateFixture(ep.getMethod(), ep.getPath(),
+        GenerateOptions.builder().useExamples(true).build());
+    System.out.println(ep.getMethod() + " " + ep.getPath() + " request: " + fixture.getRequest().getBody());
+    System.out.println(ep.getMethod() + " " + ep.getPath() + " response: " + fixture.getResponse().getBody());
+}
+
+// Generate just a response
+GeneratedResponse response = validator.generateResponse("GET", "/users/123", null);
+// Generate just a request body
+Object body = validator.generateRequestBody("POST", "/users", null);
 ```
 
 ### Mock Testing Workflow
