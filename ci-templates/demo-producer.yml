@@ -123,7 +123,7 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            ghcr.io/your-org/cvt:latest \
+            ghcr.io/sahina/cvt-server:latest \
             cvt generate --schema "$CVT_SCHEMA_URL" --list
 
           echo ""
@@ -161,7 +161,7 @@ jobs:
             --network host \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            ghcr.io/your-org/cvt:latest \
+            ghcr.io/sahina/cvt-server:latest \
             cvt register-schema "$CVT_SCHEMA_ID" "$CVT_SCHEMA_URL" \
               --version "$CVT_SCHEMA_VERSION" \
               --server "$CVT_SERVER_URL"
@@ -205,7 +205,7 @@ jobs:
           # Requires: schema ID, version, and target environment
           docker run --rm \
             --network host \
-            ghcr.io/your-org/cvt:latest \
+            ghcr.io/sahina/cvt-server:latest \
             cvt can-i-deploy \
               --schema "$CVT_SCHEMA_ID" \
               --version "$CVT_SCHEMA_VERSION" \
@@ -246,6 +246,6 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            ghcr.io/your-org/cvt:latest \
+            ghcr.io/sahina/cvt-server:latest \
             cvt generate --schema "$CVT_SCHEMA_URL" --list >> $GITHUB_STEP_SUMMARY 2>&1 || true
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

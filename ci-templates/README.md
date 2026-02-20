@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: your-org/cvt/.github/actions/cvt-validate@main
+      - uses: sahina/cvt/.github/actions/cvt-validate@main
         with:
           schema-path: "./openapi.json"
           validate-fixtures: "tests/fixtures/*.json"
@@ -67,7 +67,7 @@ Add to your `.gitlab-ci.yml`:
 
 ```yaml
 include:
-  - project: "your-org/cvt"
+  - project: "sahina/cvt"
     file: "/ci-templates/gitlab-ci.yml"
 
 variables:
@@ -90,7 +90,7 @@ Copy the jobs you need from `gitlab-ci.yml` into your own `.gitlab-ci.yml`.
 | Variable          | Default        | Description                 |
 | ----------------- | -------------- | --------------------------- |
 | `CVT_SCHEMA_PATH` | `openapi.json` | Path to your OpenAPI schema |
-| `CVT_GO_VERSION`  | `1.21`         | Go version for building CVT |
+| `CVT_GO_VERSION`  | `1.25`         | Go version for building CVT |
 
 ---
 
@@ -318,6 +318,6 @@ Check that your fixture files have the correct structure:
 
 ## Support
 
-- **Issues**: Report problems at [CVT Issues](https://github.com/your-org/cvt/issues)
+- **Issues**: Report problems at [CVT Issues](https://github.com/sahina/cvt/issues)
 - **Slack**: #platform-cvt
 - **Documentation**: See main [README](../README.md)

@@ -112,7 +112,7 @@ jobs:
       #   - name: Setup Go
       #     uses: actions/setup-go@v5
       #     with:
-      #       go-version: '1.21'
+      #       go-version: '1.25'
       #
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -127,7 +127,7 @@ jobs:
       #
       # The CVT SDK should be in your package.json:
       #   "dependencies": {
-      #     "@your-org/cvt-sdk": "^1.0.0"
+      #     "@sahina/cvt-sdk": "^1.0.0"
       #   }
       #
       - name: Install dependencies
@@ -150,7 +150,7 @@ jobs:
       #
       # EXAMPLE TEST CODE (Jest + CVT SDK):
       # ```javascript
-      # import { ContractValidator, createMockAdapter } from '@your-org/cvt-sdk';
+      # import { ContractValidator, createMockAdapter } from '@sahina/cvt-sdk';
       #
       # const validator = new ContractValidator({
       #   address: process.env.CVT_SERVER_URL,

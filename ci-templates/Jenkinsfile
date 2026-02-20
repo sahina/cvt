@@ -11,8 +11,8 @@ pipeline {
     }
 
     environment {
-        GO_VERSION = '1.21'
-        CVT_REPO = 'https://github.com/your-org/cvt.git'
+        GO_VERSION = '1.25'
+        CVT_REPO = 'https://github.com/sahina/cvt.git'
     }
 
     stages {
