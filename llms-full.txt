@@ -901,7 +901,7 @@ reset_metrics()
 
 ## Go gRPC SDK
 
-Full gRPC client SDK with all 13 RPC methods, TLS, and API key authentication.
+Full gRPC client SDK with all RPC methods, TLS, and API key authentication.
 
 ### Installation
 
