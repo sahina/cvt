@@ -169,7 +169,7 @@ jobs:
           # This is the critical command that determines deployment safety
           docker run --rm \
             --network host \
-            ghcr.io/your-org/cvt:latest \
+            ghcr.io/sahina/cvt-server:latest \
             cvt can-i-deploy \
               --schema "$CVT_SCHEMA_ID" \
               --version "$CVT_SCHEMA_VERSION" \

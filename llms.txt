@@ -14,27 +14,65 @@ CVT enables API contract testing by validating that HTTP interactions conform to
 
 - [Node.js SDK](/sdks/node/src/index.ts): TypeScript SDK with full type definitions
 - [Python SDK](/sdks/python/cvt_sdk/__init__.py): Python SDK with dataclasses
-- [Go SDK](/sdks/go/cvt/validator.go): Go gRPC client SDK
+- [Go gRPC SDK](/sdks/go/cvt/validator.go): Go gRPC client SDK with all RPC methods
 - [Java SDK](/sdks/java/src/main/java/io/github/sahina/sdk/ContractValidator.java): Java gRPC client SDK
 - [Embedded Go Library](/pkg/cvt/validator.go): Local validation without gRPC
+
+## SDK Adapters (HTTP Client Integration)
+
+Transparent contract validation by wrapping HTTP clients. Captures interactions for consumer auto-registration.
+
+- [Node.js Adapters](/sdks/node/src/adapters/): Axios adapter, Fetch adapter, Mock adapter
+- [Python Adapters](/sdks/python/cvt_sdk/adapters/): Requests session (`ContractValidatingSession`), Mock session
+- [Go Adapters](/sdks/go/cvt/adapters/): `ValidatingRoundTripper` (http.RoundTripper), `ValidatingMiddleware`, Mock client
+- [Java Adapters](/sdks/java/src/main/java/io/github/sahina/sdk/adapters/): OkHttp adapter (`OkHttpContractAdapter`), Mock interceptor
+
+## Producer Validation (Server-Side)
+
+Server-side request/response validation with three modes: `strict` (reject invalid), `warn` (log only), `shadow` (async metrics only).
+
+- [Node.js Producer](/sdks/node/src/producer/): Express middleware, Fastify plugin, `ProducerTestKit`
+- [Python Producer](/sdks/python/cvt_sdk/producer/): ASGI middleware (FastAPI), WSGI middleware (Flask), `ProducerTestKit`
+- [Go Producer](/sdks/go/cvt/producer/): Chi, Gin, net/http middleware, `ProducerTestKit`
+- [Java Producer](/sdks/java/src/main/java/io/github/sahina/sdk/producer/): Spring interceptor, Servlet filter, `ProducerTestKit`
 
 ## API Reference
 
 - [gRPC Proto](/api/protos/cvt.proto): Service definition with all RPC methods and message types
+
+## CLI Reference
+
+- `cvt validate` — Validate interactions against schemas (file path or URL)
+- `cvt compare` — Compare schemas for breaking changes
+- `cvt generate` — Generate test fixtures from schemas
+- `cvt serve` — Start the gRPC server
+- `cvt can-i-deploy` — Check deployment safety against consumers
+- `cvt wait` — Wait for CVT server to be ready
+- `cvt register-schema` — Register a schema with the server (file path or URL)
+- `cvt version` — Show version information
 
 ## Guides
 
 - [Consumer Testing Guide](/docs/guides/consumer-testing.mdx): Complete workflow for consumer contract testing
 - [Producer Testing](/docs/guides/producer-testing.mdx): Server-side validation patterns
 - [Validation Modes](/docs/guides/validation-modes.mdx): Shadow, warn, and strict modes for production rollout
+- [CI/CD Integration](/docs/guides/ci-cd-integration.mdx): GitHub Actions, GitLab CI, and Jenkins pipeline examples
 - [Observability](/docs/operations/observability.md): Prometheus metrics and Grafana dashboards
+
+## Deployment
+
+- **Docker Image**: `ghcr.io/sahina/cvt-server` — Pre-built server image
+- [Docker Compose](/docker-compose.yml): Full stack with PostgreSQL and observability
+- [CI Templates](/ci-templates/): GitHub Actions, GitLab CI, and Jenkins templates
 
 ## Examples
 
 - [Go Consumer Example](/examples/go/consumer/main.go): Complete consumer testing workflow
 - [Test Schemas](/sdks/shared/): OpenAPI v2 and v3 example schemas
 
-## Optional
+## Package Registries
 
-- [CI Templates](/ci-templates/): GitHub Actions, GitLab CI, and Jenkins templates
-- [Docker Compose](/docker-compose.yml): Full stack with PostgreSQL and observability
+- **Node.js**: [npmjs.com/@sahina/cvt-sdk](https://www.npmjs.com/package/@sahina/cvt-sdk)
+- **Python**: [pypi.org/project/cvt-sdk](https://pypi.org/project/cvt-sdk/)
+- **Go**: [pkg.go.dev/github.com/sahina/cvt/sdks/go](https://pkg.go.dev/github.com/sahina/cvt/sdks/go)
+- **Java**: [Maven Central io.github.sahina:cvt-sdk](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk)
