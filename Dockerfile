@@ -84,5 +84,6 @@ EXPOSE 9550 9551
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD ["/bin/grpc_health_probe", "-addr=:9550", "-service=cvt.ContractValidator"]
 
-# Run the server by default
-ENTRYPOINT ["cvt", "serve"]
+# Default: run the server; override with `docker run <image> <cmd>`
+ENTRYPOINT ["cvt"]
+CMD ["serve"]

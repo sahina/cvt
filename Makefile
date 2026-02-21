@@ -241,8 +241,8 @@ test-coverage:
 	grep -v "/pb/" coverage.out > coverage.filtered.out || true
 	go tool cover -func=coverage.filtered.out | grep total
 	@echo ""
-	@echo "📄 Detailed HTML coverage report generated: coverage.html"
 	go tool cover -html=coverage.filtered.out -o coverage.html
+	@echo "📄 Detailed HTML coverage report generated: coverage.html"
 	@echo "✅ Run 'open coverage.html' to view the detailed coverage report"
 
 test-integration:

@@ -492,9 +492,9 @@ jobs:
 
       - name: Run go fmt check
         run: |
-          if [ -n "$(gofmt -l ./server/...)" ]; then
+          if [ -n "$(gofmt -l ./server/)" ]; then
             echo "Go files are not formatted. Run 'go fmt ./...' to fix."
-            gofmt -d ./server/...
+            gofmt -d ./server/
             exit 1
           fi
 
@@ -550,9 +550,9 @@ jobs:
 
       - name: Run go fmt check for CLI
         run: |
-          if [ -n "$(gofmt -l ./cmd/cvt/...)" ]; then
+          if [ -n "$(gofmt -l ./cmd/cvt/)" ]; then
             echo "Go files are not formatted. Run 'go fmt ./...' to fix."
-            gofmt -d ./cmd/cvt/...
+            gofmt -d ./cmd/cvt/
             exit 1
           fi
 

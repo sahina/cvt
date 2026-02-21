@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sahina/cvt/server/cvtservice"
@@ -63,6 +65,9 @@ Examples:
 				if envPort := os.Getenv("CVT_PORT"); envPort != "" {
 					if p, err := strconv.Atoi(envPort); err == nil {
 						port = p
+					} else {
+						cvtservice.Warn("Invalid CVT_PORT value, using default",
+							zap.String("value", envPort), zap.Int("default", port))
 					}
 				}
 			}
@@ -70,6 +75,9 @@ Examples:
 				if envMetrics := os.Getenv("CVT_METRICS_PORT"); envMetrics != "" {
 					if p, err := strconv.Atoi(envMetrics); err == nil {
 						metricsPort = p
+					} else {
+						cvtservice.Warn("Invalid CVT_METRICS_PORT value, using default",
+							zap.String("value", envMetrics), zap.Int("default", metricsPort))
 					}
 				}
 			}
@@ -172,8 +180,11 @@ Examples:
 
 			// Start Prometheus metrics HTTP server
 			metricsServer := &http.Server{
-				Addr:    fmt.Sprintf(":%d", metricsPort),
-				Handler: promhttp.Handler(),
+				Addr:         fmt.Sprintf(":%d", metricsPort),
+				Handler:      promhttp.Handler(),
+				ReadTimeout:  5 * time.Second,
+				WriteTimeout: 10 * time.Second,
+				IdleTimeout:  60 * time.Second,
 			}
 			go func() {
 				cvtservice.Info("Metrics server listening", zap.String("address", metricsServer.Addr))
@@ -192,24 +203,32 @@ Examples:
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
-			// Start gRPC server in a goroutine
+			// Start gRPC server in a goroutine with error channel
+			errCh := make(chan error, 1)
 			go func() {
 				cvtservice.Info("Server listening", zap.String("address", listener.Addr().String()))
 				if err := grpcServer.Serve(listener); err != nil {
-					cvtservice.Error("Server failed", zap.Error(err))
+					errCh <- err
 				}
 			}()
 
-			// Wait for shutdown signal
-			sig := <-sigCh
-			cvtservice.Info("Received shutdown signal", zap.String("signal", sig.String()))
+			// Wait for shutdown signal or server error
+			select {
+			case sig := <-sigCh:
+				cvtservice.Info("Received shutdown signal", zap.String("signal", sig.String()))
+			case err := <-errCh:
+				cvtservice.Error("Server failed", zap.Error(err))
+				return fmt.Errorf("gRPC server failed: %w", err)
+			}
 
 			// Set health status to NOT_SERVING before stopping
 			healthService.SetAllServingStatus(grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 			cvtservice.Info("Health status set to NOT_SERVING")
 
-			// Shutdown metrics server
-			if err := metricsServer.Close(); err != nil {
+			// Shutdown metrics server gracefully
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := metricsServer.Shutdown(shutdownCtx); err != nil {
 				cvtservice.Error("Failed to shutdown metrics server", zap.Error(err))
 			} else {
 				cvtservice.Info("Metrics server stopped")

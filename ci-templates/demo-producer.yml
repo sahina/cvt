@@ -124,7 +124,7 @@ jobs:
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             ghcr.io/sahina/cvt:latest \
-            cvt generate --schema "$CVT_SCHEMA_URL" --list
+            generate --schema "$CVT_SCHEMA_URL" --list
 
           echo ""
           echo "Schema is valid OpenAPI!"
@@ -162,7 +162,7 @@ jobs:
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             ghcr.io/sahina/cvt:latest \
-            cvt register-schema "$CVT_SCHEMA_ID" "$CVT_SCHEMA_URL" \
+            register-schema "$CVT_SCHEMA_ID" "$CVT_SCHEMA_URL" \
               --version "$CVT_SCHEMA_VERSION" \
               --server "$CVT_SERVER_URL"
 
@@ -206,7 +206,7 @@ jobs:
           docker run --rm \
             --network host \
             ghcr.io/sahina/cvt:latest \
-            cvt can-i-deploy \
+            can-i-deploy \
               --schema "$CVT_SCHEMA_ID" \
               --version "$CVT_SCHEMA_VERSION" \
               --env "prod" \
@@ -247,5 +247,5 @@ jobs:
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             ghcr.io/sahina/cvt:latest \
-            cvt generate --schema "$CVT_SCHEMA_URL" --list >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            generate --schema "$CVT_SCHEMA_URL" --list >> $GITHUB_STEP_SUMMARY 2>&1 || true
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

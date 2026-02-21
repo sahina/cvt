@@ -67,36 +67,28 @@ func TestServeCmd_Flags(t *testing.T) {
 
 func TestServeCmd_TLSRequiresCertAndKey(t *testing.T) {
 	tests := []struct {
-		name        string
-		setTLS      bool
-		setCert     string
-		setKey      string
-		expectError bool
-		errorMsg    string
+		name     string
+		setCert  string
+		setKey   string
+		errorMsg string
 	}{
 		{
-			name:        "TLS enabled without cert or key",
-			setTLS:      true,
-			setCert:     "",
-			setKey:      "",
-			expectError: true,
-			errorMsg:    "--cert and --key are required",
+			name:     "TLS enabled without cert or key",
+			setCert:  "",
+			setKey:   "",
+			errorMsg: "--cert and --key are required",
 		},
 		{
-			name:        "TLS enabled with cert but no key",
-			setTLS:      true,
-			setCert:     "server.crt",
-			setKey:      "",
-			expectError: true,
-			errorMsg:    "--cert and --key are required",
+			name:     "TLS enabled with cert but no key",
+			setCert:  "server.crt",
+			setKey:   "",
+			errorMsg: "--cert and --key are required",
 		},
 		{
-			name:        "TLS enabled with key but no cert",
-			setTLS:      true,
-			setCert:     "",
-			setKey:      "server.key",
-			expectError: true,
-			errorMsg:    "--cert and --key are required",
+			name:     "TLS enabled with key but no cert",
+			setCert:  "",
+			setKey:   "server.key",
+			errorMsg: "--cert and --key are required",
 		},
 	}
 
@@ -110,10 +102,8 @@ func TestServeCmd_TLSRequiresCertAndKey(t *testing.T) {
 
 			cmd := serveCmd()
 
-			if tt.setTLS {
-				if err := cmd.Flags().Set("tls", "true"); err != nil {
-					t.Fatalf("failed to set tls flag: %v", err)
-				}
+			if err := cmd.Flags().Set("tls", "true"); err != nil {
+				t.Fatalf("failed to set tls flag: %v", err)
 			}
 			if tt.setCert != "" {
 				if err := cmd.Flags().Set("cert", tt.setCert); err != nil {
@@ -127,19 +117,12 @@ func TestServeCmd_TLSRequiresCertAndKey(t *testing.T) {
 			}
 
 			err := cmd.RunE(cmd, []string{})
-
-			if tt.expectError {
-				if err == nil {
-					t.Error("expected error but got nil")
-					return
-				}
-				if !containsString(err.Error(), tt.errorMsg) {
-					t.Errorf("expected error to contain %q, got %q", tt.errorMsg, err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Errorf("unexpected error: %v", err)
-				}
+			if err == nil {
+				t.Error("expected error but got nil")
+				return
+			}
+			if !containsString(err.Error(), tt.errorMsg) {
+				t.Errorf("expected error to contain %q, got %q", tt.errorMsg, err.Error())
 			}
 		})
 	}
