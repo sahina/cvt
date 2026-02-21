@@ -4,5 +4,4 @@ use (
 	.
 	./examples/go/consumer
 	./sdks/go
-	./server
 )
