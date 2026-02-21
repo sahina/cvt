@@ -7,7 +7,7 @@
 .PHONY: metrics grafana prometheus observability-status observability-logs
 .PHONY: lint lint-go lint-node lint-python lint-java ci check-coverage ci-full
 .PHONY: docs-dev docs-build docs-serve docs-deploy docs-install
-.PHONY: tag tag-push release prerelease _check_tag _check_tag_prerelease
+.PHONY: tag tag-push release prerelease _check_tag _check_tag_prerelease check-release
 
 # Default target
 all: build
@@ -707,3 +707,12 @@ delete-release: _check_tag
 	git push origin :refs/tags/v$(TAG) 2>/dev/null && echo "   ✅ Version tag deleted" || echo "   ⏭️  No remote version tag found"; \
 	echo ""; \
 	echo "✅ Cleanup complete for v$(TAG)"
+
+# Check the current release version based on git tags
+check-release:
+	@TAG=$$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null); \
+	if [ -z "$$TAG" ]; then \
+		echo "No releases have been made yet."; \
+	else \
+		echo "Current release: $$TAG"; \
+	fi
