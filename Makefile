@@ -135,9 +135,7 @@ generate-go-sdk:
 	@echo "✅ Protobuf code generated in sdks/go/cvt/proto/"
 
 # Build targets
-build:
-	@echo "🏗️  Building Go server..."
-	cd server && go build -v -o cvt-server .
+build: build-cli
 	@echo "🏗️  Building Node.js SDK..."
 	cd sdks/node && npm ci && npm run build
 	@echo "🏗️  Building Python SDK..."
@@ -172,9 +170,7 @@ install: install-server install-node-sdk install-python-sdk install-go-sdk insta
 
 install-server:
 	@echo "📦 Installing Go server dependencies..."
-	cd server && go mod download
-	cd pkg/cvt && go mod download
-	cd cmd/cvt && go mod download
+	go mod download
 	@echo "✅ Go server dependencies installed!"
 
 install-node-sdk:
@@ -208,7 +204,7 @@ test-docker:
 
 test-server:
 	@echo "🧪 Running server unit tests..."
-	cd server && go test -v ./...
+	go test -v ./server/...
 
 test-node-sdk:
 	@echo "🧪 Running Node.js SDK tests..."
@@ -239,24 +235,24 @@ test-java-sdk:
 
 test-coverage:
 	@echo "🧪 Running server tests with coverage..."
-	cd server && go test -v -coverprofile=coverage.out -covermode=atomic ./...
+	go test -v -coverprofile=coverage.out -covermode=atomic ./server/...
 	@echo ""
 	@echo "📊 Coverage Summary (excluding generated pb/ code):"
-	cd server && grep -v "/pb/" coverage.out > coverage.filtered.out || true
-	cd server && go tool cover -func=coverage.filtered.out | grep total
+	grep -v "/pb/" coverage.out > coverage.filtered.out || true
+	go tool cover -func=coverage.filtered.out | grep total
 	@echo ""
-	@echo "📄 Detailed HTML coverage report generated: server/coverage.html"
-	cd server && go tool cover -html=coverage.filtered.out -o coverage.html
-	@echo "✅ Run 'open server/coverage.html' to view the detailed coverage report"
+	@echo "📄 Detailed HTML coverage report generated: coverage.html"
+	go tool cover -html=coverage.filtered.out -o coverage.html
+	@echo "✅ Run 'open coverage.html' to view the detailed coverage report"
 
 test-integration:
 	@echo "🧪 Running integration tests (requires Docker)..."
-	cd server && go test -v -tags=integration ./...
+	go test -v -tags=integration ./server/...
 	@echo "✅ Integration tests passed!"
 
 test-cache:
 	@echo "🧪 Running cache behavior tests..."
-	cd server && go test -v -run TestCache ./...
+	go test -v -run TestCache ./server/...
 	@echo "✅ Cache tests passed!"
 
 test-all: test-docker
@@ -276,7 +272,6 @@ test-with-observability:
 # Clean targets
 clean:
 	@echo "🧹 Cleaning build artifacts..."
-	cd server && go clean && rm -f cvt-server server
 	rm -f cvt
 	# cd sdks/java && mvn clean
 	rm -rf sdks/node/dist sdks/node/node_modules
@@ -383,7 +378,7 @@ run-server:
 	if [ $$PORT -ne 9550 ]; then \
 		echo "⚠️  Port 9550 is in use. Using port $$PORT instead..."; \
 	fi; \
-	cd server && CVT_PORT=$$PORT go run .
+	CVT_PORT=$$PORT go run ./cmd/cvt serve
 
 run-example:
 	@echo "🧪 Running Node.js SDK example..."
@@ -395,7 +390,7 @@ update: update-server update-go-sdk update-java-sdk update-node-sdk update-pytho
 
 update-server:
 	@echo "🔄 Updating Go server dependencies..."
-	cd server && go get -u ./... && go mod tidy
+	go get -u ./... && go mod tidy
 	@echo "✅ Go server dependencies updated!"
 
 update-go-sdk:
@@ -461,12 +456,7 @@ lint: lint-go lint-node lint-python lint-java
 
 lint-go:
 	@echo "🔍 Linting Go code (server, pkg/cvt, cmd/cvt, sdks/go)..."
-	@echo ">>> Linting server..."
-	cd server && golangci-lint run --timeout=5m ./...
-	@echo ">>> Linting pkg/cvt..."
-	cd pkg/cvt && golangci-lint run --timeout=5m ./...
-	@echo ">>> Linting cmd/cvt..."
-	cd cmd/cvt && golangci-lint run --timeout=5m ./...
+	golangci-lint run --timeout=5m ./server/... ./pkg/... ./cmd/...
 	@echo ">>> Linting sdks/go..."
 	cd sdks/go && golangci-lint run --timeout=5m ./...
 	@echo "✅ Go linting passed!"
@@ -491,7 +481,7 @@ ci: lint
 	@echo ""
 	@echo "🔍 Running CI format checks..."
 	@echo ">>> Checking Go formatting..."
-	@UNFORMATTED=$$(gofmt -l server/ pkg/cvt/ cmd/cvt/ sdks/go/); \
+	@UNFORMATTED=$$(gofmt -l server/ pkg/ cmd/ sdks/go/); \
 	if [ -n "$$UNFORMATTED" ]; then \
 		echo "❌ Go files need formatting. Run: gofmt -w <file>"; \
 		echo "$$UNFORMATTED"; \
@@ -512,9 +502,9 @@ check-coverage:
 	@echo "📊 Checking test coverage (minimum 70%)..."
 	@echo ""
 	@echo ">>> Go Server coverage..."
-	@set -o pipefail; cd server && go test -coverprofile=coverage.out -covermode=atomic ./... 2>&1 | tail -1
-	@cd server && grep -v "/pb/" coverage.out > coverage.filtered.out
-	@cd server && COVERAGE=$$(go tool cover -func=coverage.filtered.out | grep total | awk '{gsub(/%/,""); print $$3}') && \
+	@set -o pipefail; go test -coverprofile=coverage.out -covermode=atomic ./server/... 2>&1 | tail -1
+	@grep -v "/pb/" coverage.out > coverage.filtered.out
+	@COVERAGE=$$(go tool cover -func=coverage.filtered.out | grep total | awk '{gsub(/%/,""); print $$3}') && \
 		echo "    Server coverage: $${COVERAGE}%" && \
 		if [ $$(echo "$${COVERAGE} < 70" | bc -l) -eq 1 ]; then \
 			echo "❌ Server coverage $${COVERAGE}% is below 70%"; \
@@ -663,7 +653,7 @@ delete-release: _check_tag
 	OWNER=$$(echo "$$REPO" | cut -d/ -f1); \
 	echo "⚠️  This will delete ALL artifacts for v$(TAG):"; \
 	echo "   - GitHub Release"; \
-	echo "   - Docker image ghcr.io/$$OWNER/cvt-server:$(TAG)"; \
+	echo "   - Docker image ghcr.io/$$OWNER/cvt:$(TAG)"; \
 	echo "   - npm package @$$OWNER/cvt-sdk@$(TAG)"; \
 	echo "   - Maven package com.cvt:cvt-sdk $(TAG)"; \
 	echo "   - Git tags: v$(TAG) and sdks/go/v$(TAG)"; \
@@ -677,12 +667,12 @@ delete-release: _check_tag
 	echo "🗑️  Deleting GitHub Release..."; \
 	gh release delete "v$(TAG)" --yes --cleanup-tag 2>/dev/null && echo "   ✅ GitHub Release deleted" || echo "   ⏭️  No GitHub Release found"; \
 	echo "🗑️  Deleting Docker image..."; \
-	VERSION_ID=$$(gh api "orgs/$$OWNER/packages/container/cvt-server/versions" --jq ".[] | select(.metadata.container.tags[] == \"$(TAG)\") | .id" 2>/dev/null || true); \
+	VERSION_ID=$$(gh api "orgs/$$OWNER/packages/container/cvt/versions" --jq ".[] | select(.metadata.container.tags[] == \"$(TAG)\") | .id" 2>/dev/null || true); \
 	if [ -z "$$VERSION_ID" ]; then \
-		VERSION_ID=$$(gh api "users/$$OWNER/packages/container/cvt-server/versions" --jq ".[] | select(.metadata.container.tags[] == \"$(TAG)\") | .id" 2>/dev/null || true); \
+		VERSION_ID=$$(gh api "users/$$OWNER/packages/container/cvt/versions" --jq ".[] | select(.metadata.container.tags[] == \"$(TAG)\") | .id" 2>/dev/null || true); \
 	fi; \
 	if [ -n "$$VERSION_ID" ]; then \
-		gh api --method DELETE "users/$$OWNER/packages/container/cvt-server/versions/$$VERSION_ID" 2>/dev/null && echo "   ✅ Docker image deleted" || echo "   ⚠️  Failed to delete Docker image (may need admin access)"; \
+		gh api --method DELETE "users/$$OWNER/packages/container/cvt/versions/$$VERSION_ID" 2>/dev/null && echo "   ✅ Docker image deleted" || echo "   ⚠️  Failed to delete Docker image (may need admin access)"; \
 	else \
 		echo "   ⏭️  No Docker image found"; \
 	fi; \
