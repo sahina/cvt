@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -121,23 +122,9 @@ func TestServeCmd_TLSRequiresCertAndKey(t *testing.T) {
 				t.Error("expected error but got nil")
 				return
 			}
-			if !containsString(err.Error(), tt.errorMsg) {
+			if !strings.Contains(err.Error(), tt.errorMsg) {
 				t.Errorf("expected error to contain %q, got %q", tt.errorMsg, err.Error())
 			}
 		})
 	}
-}
-
-// containsString checks if s contains substr.
-func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

@@ -492,14 +492,16 @@ jobs:
 
       - name: Run go fmt check
         run: |
-          if [ -n "$(gofmt -l ./server/)" ]; then
+          UNFORMATTED=$(gofmt -l ./server/ ./pkg/ ./cmd/cvt/)
+          if [ -n "$UNFORMATTED" ]; then
             echo "Go files are not formatted. Run 'go fmt ./...' to fix."
-            gofmt -d ./server/
+            echo "$UNFORMATTED"
+            gofmt -d ./server/ ./pkg/ ./cmd/cvt/
             exit 1
           fi
 
       - name: Run go vet
-        run: go vet ./server/...
+        run: go vet ./server/... ./pkg/... ./cmd/cvt/...
 
       - name: Install golangci-lint
         run: |
@@ -507,7 +509,7 @@ jobs:
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Run golangci-lint
-        run: golangci-lint run --timeout=5m ./server/...
+        run: golangci-lint run --timeout=5m ./server/... ./pkg/... ./cmd/...
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -547,17 +549,6 @@ jobs:
       - name: Run Ruff formatter check
         working-directory: ./sdks/python
         run: uv run ruff format --check .
-
-      - name: Run go fmt check for CLI
-        run: |
-          if [ -n "$(gofmt -l ./cmd/cvt/)" ]; then
-            echo "Go files are not formatted. Run 'go fmt ./...' to fix."
-            gofmt -d ./cmd/cvt/
-            exit 1
-          fi
-
-      - name: Run go vet for CLI
-        run: go vet ./cmd/cvt/...
 
       - name: Run go fmt check for Go SDK
         working-directory: ./sdks/go
