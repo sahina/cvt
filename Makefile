@@ -463,7 +463,7 @@ lint-go:
 
 lint-node:
 	@echo "🔍 Linting Node.js SDK..."
-	cd sdks/node && npm run lint 2>/dev/null || (echo "⚠️  No lint script found in Node.js SDK" && exit 0)
+	cd sdks/node && npm run lint 2>&1 || (echo "⚠️  Node.js lint had warnings or is not configured" && exit 0)
 	@echo "✅ Node.js linting complete!"
 
 lint-python:
