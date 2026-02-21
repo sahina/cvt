@@ -65,7 +65,7 @@ The server is organized as an importable library (`cvtservice`) with a thin main
 
 ```bash
 # Build the server binary
-go build -o cvt-server .
+go build -o cvt ./cmd/cvt
 
 # Or use Make
 make build
@@ -75,7 +75,7 @@ make build
 
 ```bash
 # Build Docker image
-docker build -t cvt-server .
+docker build -t cvt .
 
 # Or use Docker Compose
 make up
@@ -90,7 +90,7 @@ make up
 go run .
 
 # Or run the built binary
-./cvt-server
+cvt serve
 
 # Or use Make
 make run-server
@@ -276,10 +276,10 @@ grpc-health-probe -addr=localhost:9550 -service=cvt.ContractValidator
 
 ```bash
 # Build image
-docker build -t cvt-server .
+docker build -t cvt .
 
 # Run container
-docker run -p 9550:9550 cvt-server
+docker run -p 9550:9550 cvt
 
 # Run with Docker Compose
 docker compose up -d
@@ -371,7 +371,7 @@ go test -v -coverprofile=coverage.out ./...
 
 ```bash
 # Rebuild without cache
-docker build --no-cache -t cvt-server .
+docker build --no-cache -t cvt .
 
 # Check Docker logs
 docker logs cvt-server

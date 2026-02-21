@@ -61,7 +61,7 @@ Server-side request/response validation with three modes: `strict` (reject inval
 
 ## Deployment
 
-- **Docker Image**: `ghcr.io/sahina/cvt-server` — Pre-built server image
+- **Docker Image**: `ghcr.io/sahina/cvt` — Pre-built server image
 - [Docker Compose](/docker-compose.yml): Full stack with PostgreSQL and observability
 - [CI Templates](/ci-templates/): GitHub Actions, GitLab CI, and Jenkins templates
 

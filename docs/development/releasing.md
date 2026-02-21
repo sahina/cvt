@@ -12,7 +12,7 @@ CVT uses [Semantic Versioning](https://semver.org/) for releases:
 When a version tag is pushed, the release workflow automatically:
 
 1. Builds multi-platform Docker images (`linux/amd64`, `linux/arm64`)
-2. Pushes to GitHub Container Registry (`ghcr.io/sahina/cvt-server`)
+2. Pushes to GitHub Container Registry (`ghcr.io/sahina/cvt`)
 3. Creates a GitHub Release with auto-generated release notes
 
 ## Stable Releases
@@ -124,22 +124,22 @@ All SDK jobs run in parallel after `validate`, so they don't block each other.
 Released images are available at:
 
 ```text
-ghcr.io/sahina/cvt-server:latest     # Latest stable release
-ghcr.io/sahina/cvt-server:1.0.0      # Specific version
-ghcr.io/sahina/cvt-server:1.0.0-rc.1 # Pre-release version
+ghcr.io/sahina/cvt:latest     # Latest stable release
+ghcr.io/sahina/cvt:1.0.0      # Specific version
+ghcr.io/sahina/cvt:1.0.0-rc.1 # Pre-release version
 ```
 
 ### Pulling Images
 
 ```bash
 # Latest stable
-docker pull ghcr.io/sahina/cvt-server:latest
+docker pull ghcr.io/sahina/cvt:latest
 
 # Specific version
-docker pull ghcr.io/sahina/cvt-server:1.0.0
+docker pull ghcr.io/sahina/cvt:1.0.0
 
 # Pre-release
-docker pull ghcr.io/sahina/cvt-server:1.0.0-rc.1
+docker pull ghcr.io/sahina/cvt:1.0.0-rc.1
 ```
 
 ### Platform Support
@@ -187,5 +187,5 @@ make release TAG=1.0.0
 
 ```bash
 # Check if image exists
-docker manifest inspect ghcr.io/sahina/cvt-server:1.0.0
+docker manifest inspect ghcr.io/sahina/cvt:1.0.0
 ```

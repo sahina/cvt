@@ -2945,7 +2945,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       cvt:
-        image: ghcr.io/sahina/cvt-server:latest
+        image: ghcr.io/sahina/cvt:latest
         ports:
           - 9550:9550
     steps:
@@ -3148,15 +3148,15 @@ Response response = mockClient.newCall(new Request.Builder()
 
 ```bash
 # Pull and run
-docker pull ghcr.io/sahina/cvt-server:latest
-docker run -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt-server:latest
+docker pull ghcr.io/sahina/cvt:latest
+docker run -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt:latest
 
 # With environment variables
 docker run -p 9550:9550 \
   -e CVT_STORAGE_ENABLED=true \
   -e CVT_STORAGE_TYPE=sqlite \
   -e LOG_LEVEL=debug \
-  ghcr.io/sahina/cvt-server:latest
+  ghcr.io/sahina/cvt:latest
 ```
 
 ### Docker Compose (Full Stack)
@@ -3187,4 +3187,4 @@ cvt wait --server localhost:9550
 | Python | `cvt-sdk` | [PyPI](https://pypi.org/project/cvt-sdk/) |
 | Go | `github.com/sahina/cvt/sdks/go` | [pkg.go.dev](https://pkg.go.dev/github.com/sahina/cvt/sdks/go) |
 | Java | `io.github.sahina:cvt-sdk` | [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk) |
-| Docker | `ghcr.io/sahina/cvt-server` | [GHCR](https://ghcr.io/sahina/cvt-server) |
+| Docker | `ghcr.io/sahina/cvt` | [GHCR](https://ghcr.io/sahina/cvt) |

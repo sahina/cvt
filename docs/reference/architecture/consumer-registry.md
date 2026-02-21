@@ -459,7 +459,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       cvt:
-        image: ghcr.io/your-org/cvt-server:latest
+        image: ghcr.io/your-org/cvt:latest
         ports:
           - 9550:9550
 
