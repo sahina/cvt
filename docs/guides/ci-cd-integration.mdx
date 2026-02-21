@@ -38,9 +38,9 @@ jobs:
     services:
       cvt:
         # Note: This image is a placeholder. Build your own image:
-        # docker build -t cvt-server .
+        # docker build -t cvt .
         # Or run CVT server separately
-        image: ghcr.io/your-org/cvt-server:latest
+        image: ghcr.io/your-org/cvt:latest
         ports:
           - 9550:9550
 
@@ -69,9 +69,9 @@ jobs:
 ```
 
 :::note Docker Image
-The published CVT server image is available at `ghcr.io/sahina/cvt-server:latest`. You can also:
+The published CVT server image is available at `ghcr.io/sahina/cvt:latest`. You can also:
 
-1. Build your own image: `docker build -t cvt-server .`
+1. Build your own image: `docker build -t cvt .`
 2. Use `make up` to run CVT locally
 3. Host CVT as a shared service in your infrastructure
 :::
@@ -150,7 +150,7 @@ variables:
 contract-tests:
   stage: test
   services:
-    - name: your-registry/cvt-server:latest
+    - name: your-registry/cvt:latest
       alias: cvt
   variables:
     CVT_SERVER: "cvt:9550"

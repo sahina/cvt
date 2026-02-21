@@ -28,7 +28,7 @@ When using AI coding agents with CVT, watch out for these common pitfalls. Share
 - **Don't mock the CVT server** - Run the real CVT server. Mocking bypasses actual validation logic and gives false confidence. The server is lightweight and easy to run:
 
   ```bash
-  docker run -d -p 9550:9550 ghcr.io/sahina/cvt-server:latest
+  docker run -d -p 9550:9550 ghcr.io/sahina/cvt:latest
   ```
 
 - **Don't hardcode server addresses in tests** - Use environment variables or configuration files so tests work in different environments (local, CI, staging).

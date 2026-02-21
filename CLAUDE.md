@@ -34,7 +34,7 @@ cvt/
 make build                 # Build Go server, Node.js SDK, and Python SDK
 make up                    # Start server + observability stack (Docker)
 make down                  # Stop all Docker services
-make run-server            # Run Go server locally on port 9550
+make run-server            # Run cvt serve locally on port 9550
 make run-example           # Run Node.js SDK example
 ```
 
@@ -51,7 +51,7 @@ make test-go-sdk           # Go SDK tests with coverage
 make test-java-sdk         # Java SDK tests with coverage
 
 # Run single Go test
-cd server && go test -v -run TestFunctionName ./...
+go test -v -run TestFunctionName ./server/cvtservice/...
 ```
 
 ### Code Generation (after modifying api/protos/cvt.proto)
@@ -75,7 +75,7 @@ make metrics               # View Prometheus metrics
 
 ### Core Components
 
-**gRPC Server** (`server/`): Go 1.25-based service with RPC methods organized by phase:
+**gRPC Server** (`server/`): Go 1.25-based service started via `cvt serve`, with RPC methods organized by phase:
 
 _Phase 1 - Schema & Validation:_
 
@@ -134,7 +134,7 @@ _Phase 3 - Deployment Safety:_
 - **Python** (`sdks/python/`): uv, pytest — [PyPI](https://pypi.org/project/cvt-sdk/)
 - **Go** (`sdks/go/`): Standard Go modules — [pkg.go.dev](https://pkg.go.dev/github.com/sahina/cvt/sdks/go)
 - **Java** (`sdks/java/`): Maven — [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk)
-- **Docker**: Server image — [GHCR](https://ghcr.io/sahina/cvt-server)
+- **Docker**: Server image — [GHCR](https://ghcr.io/sahina/cvt)
 - **Shared** (`sdks/shared/`): Test schemas (openapi.json, swagger.json)
 
 ### Proto Definition (`api/protos/cvt.proto`)

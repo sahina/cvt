@@ -81,13 +81,17 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./server
-          file: ./server/Dockerfile
+          context: .
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/sahina/cvt-server:${{ needs.validate.outputs.version }}
-            ${{ needs.validate.outputs.prerelease == 'false' && 'ghcr.io/sahina/cvt-server:latest' || '' }}
+            ghcr.io/sahina/cvt:${{ needs.validate.outputs.version }}
+            ${{ needs.validate.outputs.prerelease == 'false' && 'ghcr.io/sahina/cvt:latest' || '' }}
+          build-args: |
+            VERSION=${{ needs.validate.outputs.version }}
+            COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.pushed_at }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -12,7 +12,7 @@
   <a href="https://pypi.org/project/cvt-sdk/"><img src="https://img.shields.io/pypi/v/cvt-sdk.svg" alt="PyPI"></a>
   <a href="https://pkg.go.dev/github.com/sahina/cvt/sdks/go"><img src="https://pkg.go.dev/badge/github.com/sahina/cvt/sdks/go.svg" alt="Go Reference"></a>
   <a href="https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk"><img src="https://img.shields.io/maven-central/v/io.github.sahina/cvt-sdk.svg" alt="Maven Central"></a>
-  <a href="https://ghcr.io/sahina/cvt-server"><img src="https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker" alt="Docker"></a>
+  <a href="https://ghcr.io/sahina/cvt"><img src="https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker" alt="Docker"></a>
 </p>
 
 A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against API contracts. Supports both consumer-side (client) and producer-side (server) validation.

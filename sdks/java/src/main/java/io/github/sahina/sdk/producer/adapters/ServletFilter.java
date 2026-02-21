@@ -213,6 +213,7 @@ public class ServletFilter implements Filter {
         return headers;
     }
 
+    @SuppressWarnings("unchecked")
     private void sendErrorResponse(HttpServletResponse response,
                                    ProducerValidationResult result,
                                    Object customResponse) throws IOException {

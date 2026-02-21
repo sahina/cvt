@@ -85,7 +85,7 @@ server/
 make build
 
 # Or build directly with Go
-cd server && go build -o cvt-server .
+go build -o cvt ./cmd/cvt
 ```
 
 ### Running Locally

@@ -1,4 +1,6 @@
-# Multi-stage Dockerfile for CVT Go Server
+# Multi-stage Dockerfile for CVT (Contract Validator Toolkit)
+# Builds the unified cvt binary that includes both CLI and server commands.
+
 # Stage 1: Build the Go binary
 FROM golang:1.25-alpine AS builder
 
@@ -8,25 +10,32 @@ RUN apk add --no-cache git ca-certificates
 # Set working directory
 WORKDIR /build
 
-# Copy go mod files
+# Copy go mod files first for layer caching
 COPY go.mod go.sum ./
 
 # Download dependencies
 RUN go mod download
 
 # Copy source code
-COPY *.go ./
-COPY pb/ ./pb/
-COPY cvtservice/ ./cvtservice/
-COPY storage/ ./storage/
+COPY cmd/ ./cmd/
+COPY pkg/ ./pkg/
+COPY server/ ./server/
+
+# Build args for multi-platform builds and version injection
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILD_DATE=unknown
 
 # Build the binary with optimizations
 # - CGO_ENABLED=0: Build a static binary
+# - -trimpath: Remove file system paths from binary
 # - -ldflags="-w -s": Strip debug information to reduce size
-# - TARGETOS/TARGETARCH: Set automatically by docker buildx for multi-platform builds
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o cvt-server .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath \
+    -ldflags="-w -s -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE}" \
+    -o cvt ./cmd/cvt
 
 # Stage 2: Create minimal runtime image
 FROM alpine:3.21
@@ -53,11 +62,14 @@ RUN addgroup -g 1000 cvt && \
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /build/cvt-server /app/cvt-server
+COPY --from=builder /build/cvt /app/cvt
 
 # Copy health check script
-COPY healthcheck.sh /app/healthcheck.sh
+COPY server/healthcheck.sh /app/healthcheck.sh
 RUN chmod +x /app/healthcheck.sh
+
+# Add /app to PATH so cvt commands work without full path
+ENV PATH="/app:${PATH}"
 
 # Change ownership
 RUN chown -R cvt:cvt /app
@@ -72,5 +84,6 @@ EXPOSE 9550 9551
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD ["/bin/grpc_health_probe", "-addr=:9550", "-service=cvt.ContractValidator"]
 
-# Run the server
-ENTRYPOINT ["/app/cvt-server"]
+# Default: run the server; override with `docker run <image> <cmd>`
+ENTRYPOINT ["cvt"]
+CMD ["serve"]

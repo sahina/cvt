@@ -36,7 +36,7 @@ Contract testing validates API interactions against a published contract (OpenAP
 
 ```bash
 # Using the published Docker image (recommended)
-docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt-server:latest
+docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt:latest
 
 # Or using Docker Compose (if you've cloned the repository)
 make up

@@ -97,9 +97,8 @@ htmlcov/
 *.dylib
 *.test
 *.out
-# Server executables
+# Server executables (legacy)
 server/server
-server/cvt-server
 # CLI binary at root
 /cvt
 # Test coverage

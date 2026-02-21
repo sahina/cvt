@@ -20,23 +20,19 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-          cache-dependency-path: server/go.sum
+          cache-dependency-path: go.sum
 
       - name: Install dependencies
-        working-directory: ./server
         run: go mod download
 
       - name: Build server
-        working-directory: ./server
-        run: go build -v -o cvt-server .
+        run: go build -v -o cvt ./cmd/cvt
 
       - name: Run tests
-        working-directory: ./server
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./server/...
 
       - name: Generate coverage report
         if: always()
-        working-directory: ./server
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload test coverage
@@ -45,14 +41,13 @@ jobs:
         with:
           name: server-coverage-report
           path: |
-            server/coverage.out
-            server/coverage.html
+            coverage.out
+            coverage.html
 
       - name: Check coverage threshold
-        working-directory: ./server
         run: |
           # Exclude generated protobuf code from coverage calculation
-          grep -v "/pb/" coverage.out > coverage.filtered.out
+          grep -v "/server/pb/" coverage.out > coverage.filtered.out
           coverage=$(go tool cover -func=coverage.filtered.out | grep total | awk '{print $3}' | sed 's/%//')
           echo "Total coverage (excluding generated pb/ code): ${coverage}%"
           if (( $(echo "$coverage < 70" | bc -l) )); then
@@ -177,10 +172,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-          cache-dependency-path: cmd/cvt/go.sum
+          cache-dependency-path: go.sum
 
       - name: Install dependencies
-        working-directory: ./cmd/cvt
         run: go mod download
 
       - name: Build CLI
@@ -454,10 +448,10 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./server
-          file: ./server/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: false
-          tags: cvt-server:latest
+          tags: cvt:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -494,20 +488,20 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-          cache-dependency-path: server/go.sum
+          cache-dependency-path: go.sum
 
       - name: Run go fmt check
-        working-directory: ./server
         run: |
-          if [ -n "$(gofmt -l .)" ]; then
+          UNFORMATTED=$(gofmt -l ./server/ ./pkg/ ./cmd/cvt/)
+          if [ -n "$UNFORMATTED" ]; then
             echo "Go files are not formatted. Run 'go fmt ./...' to fix."
-            gofmt -d .
+            echo "$UNFORMATTED"
+            gofmt -d ./server/ ./pkg/ ./cmd/cvt/
             exit 1
           fi
 
       - name: Run go vet
-        working-directory: ./server
-        run: go vet ./...
+        run: go vet ./server/... ./pkg/... ./cmd/cvt/...
 
       - name: Install golangci-lint
         run: |
@@ -515,8 +509,7 @@ jobs:
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Run golangci-lint
-        working-directory: ./server
-        run: golangci-lint run --timeout=5m
+        run: golangci-lint run --timeout=5m ./server/... ./pkg/... ./cmd/...
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -556,19 +549,6 @@ jobs:
       - name: Run Ruff formatter check
         working-directory: ./sdks/python
         run: uv run ruff format --check .
-
-      - name: Run go fmt check for CLI
-        working-directory: ./cmd/cvt
-        run: |
-          if [ -n "$(gofmt -l .)" ]; then
-            echo "Go files are not formatted. Run 'go fmt ./...' to fix."
-            gofmt -d .
-            exit 1
-          fi
-
-      - name: Run go vet for CLI
-        working-directory: ./cmd/cvt
-        run: go vet ./...
 
       - name: Run go fmt check for Go SDK
         working-directory: ./sdks/go

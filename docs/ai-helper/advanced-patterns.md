@@ -123,7 +123,7 @@ jobs:
 
     services:
       cvt:
-        image: ghcr.io/sahina/cvt-server:latest
+        image: ghcr.io/sahina/cvt:latest
         ports:
           - 9550:9550
           - 9551:9551
@@ -173,7 +173,7 @@ variables:
 contract-tests:
   stage: test
   services:
-    - name: ghcr.io/sahina/cvt-server:latest
+    - name: ghcr.io/sahina/cvt:latest
       alias: cvt-server
   script:
     - npm ci
@@ -185,7 +185,7 @@ contract-tests:
 register-consumer:
   stage: register
   services:
-    - name: ghcr.io/sahina/cvt-server:latest
+    - name: ghcr.io/sahina/cvt:latest
       alias: cvt-server
   script:
     - npm run register-consumer -- \
