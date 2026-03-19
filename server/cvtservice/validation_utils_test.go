@@ -236,30 +236,67 @@ func TestValidateStatusCode(t *testing.T) {
 }
 
 func TestValidateRequestBody(t *testing.T) {
-	// Normal body
-	if err := ValidateRequestBody(`{"key": "value"}`); err != nil {
-		t.Errorf("ValidateRequestBody() unexpected error: %v", err)
+	tests := []struct {
+		name      string
+		body      string
+		wantError bool
+	}{
+		{
+			name:      "valid JSON body",
+			body:      `{"key": "value"}`,
+			wantError: false,
+		},
+		{
+			name:      "empty body (allowed)",
+			body:      "",
+			wantError: false,
+		},
+		{
+			name:      "body exceeds max size",
+			body:      strings.Repeat("x", MaxRequestBodyBytes+1),
+			wantError: true,
+		},
 	}
-	// Empty body (allowed)
-	if err := ValidateRequestBody(""); err != nil {
-		t.Errorf("ValidateRequestBody() unexpected error for empty: %v", err)
-	}
-	// Over limit
-	bigBody := strings.Repeat("x", MaxRequestBodyBytes+1)
-	if err := ValidateRequestBody(bigBody); err == nil {
-		t.Error("ValidateRequestBody() expected error for oversized body")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateRequestBody(tt.body)
+			if (err != nil) != tt.wantError {
+				t.Errorf("ValidateRequestBody() error = %v, wantError %v", err, tt.wantError)
+			}
+		})
 	}
 }
 
 func TestValidateResponseBody(t *testing.T) {
-	if err := ValidateResponseBody(`{"key": "value"}`); err != nil {
-		t.Errorf("ValidateResponseBody() unexpected error: %v", err)
+	tests := []struct {
+		name      string
+		body      string
+		wantError bool
+	}{
+		{
+			name:      "valid JSON body",
+			body:      `{"key": "value"}`,
+			wantError: false,
+		},
+		{
+			name:      "empty body (allowed)",
+			body:      "",
+			wantError: false,
+		},
+		{
+			name:      "body exceeds max size",
+			body:      strings.Repeat("x", MaxResponseBodyBytes+1),
+			wantError: true,
+		},
 	}
-	if err := ValidateResponseBody(""); err != nil {
-		t.Errorf("ValidateResponseBody() unexpected error for empty: %v", err)
-	}
-	bigBody := strings.Repeat("x", MaxResponseBodyBytes+1)
-	if err := ValidateResponseBody(bigBody); err == nil {
-		t.Error("ValidateResponseBody() expected error for oversized body")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateResponseBody(tt.body)
+			if (err != nil) != tt.wantError {
+				t.Errorf("ValidateResponseBody() error = %v, wantError %v", err, tt.wantError)
+			}
+		})
 	}
 }

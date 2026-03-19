@@ -1873,6 +1873,7 @@ func TestConcurrentValidationNoRace(t *testing.T) {
 
 	// Run 10 concurrent validations — race detector will catch shared state mutation
 	var wg sync.WaitGroup
+	errCh := make(chan error, 10)
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
@@ -1888,10 +1889,17 @@ func TestConcurrentValidationNoRace(t *testing.T) {
 					Body:       `[{"id": 1, "name": "Fido"}]`,
 				},
 			})
-			assert.NoError(t, vErr)
+			if vErr != nil {
+				errCh <- vErr
+			}
 		}()
 	}
 	wg.Wait()
+	close(errCh)
+
+	for vErr := range errCh {
+		t.Errorf("ValidateInteraction failed: %v", vErr)
+	}
 }
 
 func TestRouterCachedInSchemaEntry(t *testing.T) {

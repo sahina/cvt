@@ -1696,7 +1696,8 @@ func (s *ValidatorService) RegisterConsumer(ctx context.Context, req *pb.Registe
 		}, nil
 	}
 
-	// Check consumer cap per schema
+	// Check consumer cap per schema (soft cap — not atomic with registration,
+	// so may be briefly exceeded under high concurrency; acceptable at 10K limit)
 	existingConsumers := s.cache.ListConsumers(req.SchemaId, "")
 	if len(existingConsumers) >= MaxConsumersPerSchema {
 		grpcRequestsTotal.WithLabelValues("RegisterConsumer", "failure").Inc()

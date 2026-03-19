@@ -175,8 +175,7 @@ Examples:
 					return fmt.Errorf("failed to migrate storage: %w", migrateErr)
 				}
 				cvtservice.Info("Storage enabled",
-					zap.String("type", string(storageCfg.Type)),
-					zap.String("dsn", storageCfg.DSN))
+					zap.String("type", string(storageCfg.Type)))
 
 				validatorService, err = cvtservice.NewValidatorServiceWithStore(store)
 				if err != nil {
