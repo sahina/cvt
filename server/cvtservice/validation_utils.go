@@ -20,6 +20,15 @@ const (
 
 	// MaxStatusCode is the maximum valid HTTP status code (599)
 	MaxStatusCode = 599
+
+	// MaxRequestBodyBytes is the maximum allowed size for request body in validation (5MB)
+	MaxRequestBodyBytes = 5 * 1024 * 1024
+
+	// MaxResponseBodyBytes is the maximum allowed size for response body in validation (5MB)
+	MaxResponseBodyBytes = 5 * 1024 * 1024
+
+	// MaxConsumersPerSchema is the maximum number of consumers that can be registered per schema
+	MaxConsumersPerSchema = 10000
 )
 
 // validHTTPMethods defines the set of supported HTTP methods.
@@ -87,6 +96,22 @@ func ValidateSchemaContent(schemaContent string) error {
 	contentSize := len([]byte(schemaContent))
 	if contentSize > MaxSchemaContentBytes {
 		return fmt.Errorf("schema content cannot exceed %d bytes (got %d)", MaxSchemaContentBytes, contentSize)
+	}
+	return nil
+}
+
+// ValidateRequestBody validates the request body size.
+func ValidateRequestBody(body string) error {
+	if len(body) > MaxRequestBodyBytes {
+		return fmt.Errorf("request body cannot exceed %d bytes (got %d)", MaxRequestBodyBytes, len(body))
+	}
+	return nil
+}
+
+// ValidateResponseBody validates the response body size.
+func ValidateResponseBody(body string) error {
+	if len(body) > MaxResponseBodyBytes {
+		return fmt.Errorf("response body cannot exceed %d bytes (got %d)", MaxResponseBodyBytes, len(body))
 	}
 	return nil
 }

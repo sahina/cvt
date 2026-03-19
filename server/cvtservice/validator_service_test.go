@@ -3,9 +3,11 @@ package cvtservice
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/sahina/cvt/server/pb"
+	"github.com/sahina/cvt/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1793,4 +1795,120 @@ func TestFilterChangesForConsumer(t *testing.T) {
 		result := filterChangesForConsumer(changes, endpoints)
 		assert.Len(t, result, 0, "POST /users should not match GET /users change")
 	})
+}
+
+func TestNewValidatorServiceWithStore(t *testing.T) {
+	memStore := storage.NewMemoryStore()
+	service, err := NewValidatorServiceWithStore(memStore)
+	require.NoError(t, err)
+	defer service.Close()
+	assert.NotNil(t, service.store)
+}
+
+func TestStoragePersistence(t *testing.T) {
+	memStore := storage.NewMemoryStore()
+	service, err := NewValidatorServiceWithStore(memStore)
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	// Register schema
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "persist-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+
+	// Verify schema is in storage
+	record, err := memStore.GetSchema(context.Background(), "persist-test")
+	require.NoError(t, err)
+	assert.Equal(t, "persist-test", record.SchemaID)
+	assert.NotEmpty(t, record.Content)
+}
+
+func TestStorageReadThrough(t *testing.T) {
+	memStore := storage.NewMemoryStore()
+	service, err := NewValidatorServiceWithStore(memStore)
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	// Register schema (goes to both cache and store)
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "readthrough-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+
+	// Clear the cache to simulate eviction/restart
+	service.cache.Delete("readthrough-test")
+
+	// GetSchema should still work via storage read-through
+	getResp, err := service.GetSchema(context.Background(), &pb.GetSchemaRequest{
+		SchemaId: "readthrough-test",
+	})
+	require.NoError(t, err)
+	assert.True(t, getResp.Found, "Schema should be found via storage read-through")
+	assert.Equal(t, "readthrough-test", getResp.Metadata.SchemaId)
+}
+
+func TestConcurrentValidationNoRace(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "concurrent-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+
+	// Run 10 concurrent validations — race detector will catch shared state mutation
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, vErr := service.ValidateInteraction(context.Background(), &pb.InteractionRequest{
+				SchemaId: "concurrent-test",
+				Request: &pb.RequestData{
+					Method: "GET",
+					Path:   "/pets",
+				},
+				Response: &pb.ResponseData{
+					StatusCode: 200,
+					Body:       `[{"id": 1, "name": "Fido"}]`,
+				},
+			})
+			assert.NoError(t, vErr)
+		}()
+	}
+	wg.Wait()
+}
+
+func TestRouterCachedInSchemaEntry(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "router-cache-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+
+	entry, found := service.cache.Get("router-cache-test")
+	require.True(t, found)
+	assert.NotNil(t, entry.Router, "Router should be cached in SchemaEntry after registration")
 }

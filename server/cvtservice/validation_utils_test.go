@@ -234,3 +234,32 @@ func TestValidateStatusCode(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRequestBody(t *testing.T) {
+	// Normal body
+	if err := ValidateRequestBody(`{"key": "value"}`); err != nil {
+		t.Errorf("ValidateRequestBody() unexpected error: %v", err)
+	}
+	// Empty body (allowed)
+	if err := ValidateRequestBody(""); err != nil {
+		t.Errorf("ValidateRequestBody() unexpected error for empty: %v", err)
+	}
+	// Over limit
+	bigBody := strings.Repeat("x", MaxRequestBodyBytes+1)
+	if err := ValidateRequestBody(bigBody); err == nil {
+		t.Error("ValidateRequestBody() expected error for oversized body")
+	}
+}
+
+func TestValidateResponseBody(t *testing.T) {
+	if err := ValidateResponseBody(`{"key": "value"}`); err != nil {
+		t.Errorf("ValidateResponseBody() unexpected error: %v", err)
+	}
+	if err := ValidateResponseBody(""); err != nil {
+		t.Errorf("ValidateResponseBody() unexpected error for empty: %v", err)
+	}
+	bigBody := strings.Repeat("x", MaxResponseBodyBytes+1)
+	if err := ValidateResponseBody(bigBody); err == nil {
+		t.Error("ValidateResponseBody() expected error for oversized body")
+	}
+}

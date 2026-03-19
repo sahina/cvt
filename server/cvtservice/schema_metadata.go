@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/routers"
 	"github.com/sahina/cvt/server/pb"
 )
 
@@ -21,6 +22,10 @@ type SchemaEntry struct {
 
 	// Metadata contains versioning and ownership information.
 	Metadata *pb.SchemaMetadata
+
+	// Router is the pre-built gorillamux router for this schema.
+	// Built once at registration time to avoid per-request router creation.
+	Router routers.Router
 }
 
 // NewSchemaEntry creates a new SchemaEntry from a parsed document.

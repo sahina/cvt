@@ -14,6 +14,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sahina/cvt/server/cvtservice"
 	"github.com/sahina/cvt/server/pb"
+	"github.com/sahina/cvt/server/storage"
+	_ "github.com/sahina/cvt/server/storage/postgres"
+	_ "github.com/sahina/cvt/server/storage/sqlite"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -158,10 +161,33 @@ Examples:
 			// Create gRPC server with configured options
 			grpcServer := grpc.NewServer(serverOpts...)
 
-			// Create and register the validator service
-			validatorService, err := cvtservice.NewValidatorService()
-			if err != nil {
-				return fmt.Errorf("failed to create validator service: %w", err)
+			// Load storage configuration and create the validator service
+			storageCfg := storage.LoadConfigFromEnv()
+			var validatorService *cvtservice.ValidatorService
+			var err error
+
+			if storageCfg.IsEnabled() {
+				store, storeErr := storage.NewStore(context.Background(), storageCfg)
+				if storeErr != nil {
+					return fmt.Errorf("failed to create storage: %w", storeErr)
+				}
+				if migrateErr := store.Migrate(context.Background()); migrateErr != nil {
+					return fmt.Errorf("failed to migrate storage: %w", migrateErr)
+				}
+				cvtservice.Info("Storage enabled",
+					zap.String("type", string(storageCfg.Type)),
+					zap.String("dsn", storageCfg.DSN))
+
+				validatorService, err = cvtservice.NewValidatorServiceWithStore(store)
+				if err != nil {
+					return fmt.Errorf("failed to create validator service: %w", err)
+				}
+			} else {
+				cvtservice.Info("Storage disabled — using in-memory cache only")
+				validatorService, err = cvtservice.NewValidatorService()
+				if err != nil {
+					return fmt.Errorf("failed to create validator service: %w", err)
+				}
 			}
 			defer validatorService.Close()
 
