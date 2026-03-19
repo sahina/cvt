@@ -506,7 +506,9 @@ jobs:
 
       - name: Install golangci-lint
         run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.7.2
+          LINT_VERSION=$(grep '^"golangci-lint"' mise.toml | sed 's/.*= *"\(.*\)"/\1/')
+          [ -n "${LINT_VERSION}" ] || { echo "ERROR: could not parse golangci-lint version from mise.toml"; exit 1; }
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin "v${LINT_VERSION}"
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: Run golangci-lint
