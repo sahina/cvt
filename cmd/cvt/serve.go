@@ -172,6 +172,7 @@ Examples:
 					return fmt.Errorf("failed to create storage: %w", storeErr)
 				}
 				if migrateErr := store.Migrate(context.Background()); migrateErr != nil {
+					_ = store.Close()
 					return fmt.Errorf("failed to migrate storage: %w", migrateErr)
 				}
 				cvtservice.Info("Storage enabled",
@@ -179,6 +180,7 @@ Examples:
 
 				validatorService, err = cvtservice.NewValidatorServiceWithStore(store)
 				if err != nil {
+					_ = store.Close()
 					return fmt.Errorf("failed to create validator service: %w", err)
 				}
 			} else {
