@@ -1,0 +1,5 @@
+[tools]
+# Only tools without build-tool-level enforcement.
+# Go is enforced by go.mod; Java by pom.xml compiler.release.
+node = "22.14.0"
+"golangci-lint" = "2.7.2"
