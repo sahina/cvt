@@ -234,3 +234,69 @@ func TestValidateStatusCode(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRequestBody(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		wantError bool
+	}{
+		{
+			name:      "valid JSON body",
+			body:      `{"key": "value"}`,
+			wantError: false,
+		},
+		{
+			name:      "empty body (allowed)",
+			body:      "",
+			wantError: false,
+		},
+		{
+			name:      "body exceeds max size",
+			body:      strings.Repeat("x", MaxRequestBodyBytes+1),
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateRequestBody(tt.body)
+			if (err != nil) != tt.wantError {
+				t.Errorf("ValidateRequestBody() error = %v, wantError %v", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestValidateResponseBody(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		wantError bool
+	}{
+		{
+			name:      "valid JSON body",
+			body:      `{"key": "value"}`,
+			wantError: false,
+		},
+		{
+			name:      "empty body (allowed)",
+			body:      "",
+			wantError: false,
+		},
+		{
+			name:      "body exceeds max size",
+			body:      strings.Repeat("x", MaxResponseBodyBytes+1),
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateResponseBody(tt.body)
+			if (err != nil) != tt.wantError {
+				t.Errorf("ValidateResponseBody() error = %v, wantError %v", err, tt.wantError)
+			}
+		})
+	}
+}

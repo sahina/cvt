@@ -17,8 +17,10 @@ import (
 	"github.com/getkin/kin-openapi/openapi2conv"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/sahina/cvt/server/pb"
+	"github.com/sahina/cvt/server/storage"
 	"go.uber.org/zap"
 )
 
@@ -31,6 +33,7 @@ import (
 type ValidatorService struct {
 	pb.UnimplementedContractValidatorServer
 	cache *SchemaCache
+	store storage.Store // Optional persistent storage (nil = cache-only)
 }
 
 // NewValidatorService creates a new instance of ValidatorService with an initialized cache.
@@ -48,6 +51,17 @@ func NewValidatorService() (*ValidatorService, error) {
 	return &ValidatorService{
 		cache: cache,
 	}, nil
+}
+
+// NewValidatorServiceWithStore creates a new ValidatorService with persistent storage.
+// The service uses a read-through cache: reads from cache first, falls back to storage.
+// Writes go to both cache and storage (write-through).
+func NewValidatorServiceWithStore(store storage.Store) (*ValidatorService, error) {
+	cache, err := NewSchemaCache()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create schema cache: %w", err)
+	}
+	return &ValidatorService{cache: cache, store: store}, nil
 }
 
 // NewValidatorServiceWithCache creates a new ValidatorService with a shared cache.
@@ -181,8 +195,47 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 		req.Ownership,
 	)
 
+	// Build router for the schema (cached for per-request reuse)
+	router, routerErr := s.buildRouter(doc)
+	if routerErr != nil {
+		Error("Failed to build router for schema",
+			zap.String("schemaId", req.SchemaId),
+			zap.Error(routerErr))
+		schemasRegistered.WithLabelValues("failure").Inc()
+		grpcRequestsTotal.WithLabelValues("RegisterSchema", "failure").Inc()
+		return &pb.RegisterSchemaResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to build router: %v", routerErr),
+		}, nil
+	}
+	entry.Router = router
+
 	// Store the validated schema in cache with 24-hour TTL
 	s.cache.Set(req.SchemaId, entry)
+
+	// Persist to storage if available (write-through)
+	var storageWarning string
+	if s.store != nil {
+		record := &storage.SchemaRecord{
+			SchemaID:       req.SchemaId,
+			Version:        version,
+			Content:        req.SchemaContent,
+			ContentHash:    entry.Metadata.SchemaHash,
+			OpenAPIVersion: entry.Metadata.OpenapiVersion,
+			EndpointCount:  entry.Metadata.EndpointCount,
+			RegisteredAt:   time.Now(),
+			UpdatedAt:      time.Now(),
+			Ownership:      req.Ownership,
+		}
+		if storeErr := s.store.SetSchema(ctx, record); storeErr != nil {
+			Warn("Failed to persist schema to storage (cache-only mode)",
+				zap.String("schemaId", req.SchemaId),
+				zap.Error(storeErr))
+			storageWarning = " (WARNING: storage write failed, schema is cached only and will be lost on restart)"
+		}
+	}
+
+	successMsg := "Schema registered successfully" + storageWarning
 
 	Info("Schema registered successfully",
 		zap.String("schemaId", req.SchemaId),
@@ -195,7 +248,7 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 
 	return &pb.RegisterSchemaResponse{
 		Success:  true,
-		Message:  "Schema registered successfully",
+		Message:  successMsg,
 		Metadata: entry.Metadata,
 	}, nil
 }
@@ -249,17 +302,10 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 		}, nil
 	}
 
-	// Retrieve the previously registered schema from cache
-	// Support version-specific retrieval
-	var entry *SchemaEntry
-	var found bool
-	if req.SchemaVersion != "" {
-		entry, found = s.cache.GetVersion(schemaID, req.SchemaVersion)
-	} else {
-		entry, found = s.cache.Get(schemaID)
-	}
+	// Retrieve schema (cache first, then storage)
+	entry, found := s.getSchemaEntry(ctx, schemaID, req.SchemaVersion)
 	if !found || entry == nil {
-		Warn("Schema not found in cache", zap.String("schemaId", schemaID))
+		Warn("Schema not found", zap.String("schemaId", schemaID))
 		validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
 		validationErrors.WithLabelValues("schema_not_found").Inc()
 		grpcRequestsTotal.WithLabelValues("ValidateInteraction", "failure").Inc()
@@ -270,28 +316,9 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 	}
 	doc := entry.Document
 
-	// Handle basePath from Swagger 2.0 schemas BEFORE creating HTTP request
-	// OpenAPI 3 converts basePath to server URLs with path components
-	// Strip the basePath from incoming request path if present
-	requestPath := req.Request.Path
-	if len(doc.Servers) > 0 {
-		for _, server := range doc.Servers {
-			// Parse the server URL to extract path component (basePath)
-			if serverURL, err := url.Parse(server.URL); err == nil && serverURL.Path != "" && serverURL.Path != "/" {
-				basePath := strings.TrimSuffix(serverURL.Path, "/")
-				// Strip basePath from the incoming request path
-				if strings.HasPrefix(requestPath, basePath+"/") {
-					originalPath := requestPath
-					requestPath = strings.TrimPrefix(requestPath, basePath)
-					Info("Stripped basePath from request path",
-						zap.String("basePath", basePath),
-						zap.String("originalPath", originalPath),
-						zap.String("strippedPath", requestPath))
-					break
-				}
-			}
-		}
-	}
+	// Handle basePath from Swagger 2.0 schemas and resolve base URL
+	requestPath := stripBasePath(doc, req.Request.Path)
+	baseURL := resolveBaseURL(doc)
 
 	// Create request data with potentially modified path
 	modifiedReqData := &pb.RequestData{
@@ -299,20 +326,6 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 		Path:    requestPath,
 		Headers: req.Request.Headers,
 		Body:    req.Request.Body,
-	}
-
-	// Get the base URL from the first server (if available) to create proper HTTP request
-	// This helps the gorillamux router match against server URLs
-	var baseURL string
-	if len(doc.Servers) > 0 {
-		// Use first server URL as base
-		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil {
-			baseURL = fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
-			Info("Using server URL as base for HTTP request", zap.String("baseURL", baseURL))
-		}
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost"
 	}
 
 	// Create an http.Request object from the request data for validation
@@ -328,100 +341,25 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 		}, nil
 	}
 
-	// Save original server URLs and create copies without path components for routing
-	// When Swagger 2.0 is converted to OpenAPI 3, basePath becomes part of server URLs
-	// But gorillamux router needs server URLs without path components to match routes
-	var originalServers openapi3.Servers
-	if len(doc.Servers) > 0 {
-		serverURLs := make([]string, 0)
-		for _, server := range doc.Servers {
-			serverURLs = append(serverURLs, server.URL)
+	// Use the pre-built router from the schema entry (built at registration time).
+	// Use a local variable to avoid mutating the shared cache entry (data race).
+	router := entry.Router
+	if router == nil {
+		// Fallback: build router on the fly if not cached
+		var routerErr error
+		router, routerErr = s.buildRouter(doc)
+		if routerErr != nil {
+			Error("Failed to create router",
+				zap.String("schemaId", schemaID),
+				zap.Error(routerErr))
+			validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
+			validationErrors.WithLabelValues("router_creation").Inc()
+			grpcRequestsTotal.WithLabelValues("ValidateInteraction", "failure").Inc()
+			return &pb.ValidationResult{
+				Valid:  false,
+				Errors: []string{fmt.Sprintf("Failed to create router: %v", routerErr)},
+			}, nil
 		}
-		Info("Schema has server URLs (before stripping paths)", zap.Strings("serverURLs", serverURLs))
-
-		// Save original servers to restore later
-		originalServers = make(openapi3.Servers, len(doc.Servers))
-		copy(originalServers, doc.Servers)
-
-		// Create new server entries without path components
-		modifiedServers := make(openapi3.Servers, 0, len(doc.Servers))
-		for _, server := range doc.Servers {
-			if serverURL, err := url.Parse(server.URL); err == nil {
-				if serverURL.Path != "" && serverURL.Path != "/" {
-					// Remove path component, keep only scheme + host + port
-					originalURL := server.URL
-					serverURL.Path = ""
-					serverURL.RawPath = ""
-					newServer := &openapi3.Server{
-						URL:         serverURL.String(),
-						Description: server.Description,
-						Variables:   server.Variables,
-					}
-					modifiedServers = append(modifiedServers, newServer)
-					Info("Stripped path from server URL",
-						zap.String("original", originalURL),
-						zap.String("modified", newServer.URL))
-				} else {
-					modifiedServers = append(modifiedServers, server)
-				}
-			} else {
-				modifiedServers = append(modifiedServers, server)
-			}
-		}
-		doc.Servers = modifiedServers
-	} else {
-		Info("Schema has no server URLs defined")
-	}
-
-	// Create a router to match the request to the appropriate OpenAPI operation
-	router, err := gorillamux.NewRouter(doc)
-
-	// Restore original server URLs to avoid affecting subsequent requests
-	if originalServers != nil {
-		doc.Servers = originalServers
-	}
-	if err != nil {
-		Error("Failed to create router",
-			zap.String("schemaId", schemaID),
-			zap.Error(err))
-		validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
-		validationErrors.WithLabelValues("router_creation").Inc()
-		grpcRequestsTotal.WithLabelValues("ValidateInteraction", "failure").Inc()
-		return &pb.ValidationResult{
-			Valid:  false,
-			Errors: []string{fmt.Sprintf("Failed to create router: %v", err)},
-		}, nil
-	}
-
-	// Log available paths and operations for debugging
-	if doc.Paths != nil {
-		pathList := make([]string, 0)
-		for path, pathItem := range doc.Paths.Map() {
-			pathList = append(pathList, path)
-			// Check if the requested path matches
-			if path == httpReq.URL.Path {
-				operations := make([]string, 0)
-				if pathItem.Get != nil {
-					operations = append(operations, "GET")
-				}
-				if pathItem.Post != nil {
-					operations = append(operations, "POST")
-				}
-				if pathItem.Put != nil {
-					operations = append(operations, "PUT")
-				}
-				if pathItem.Delete != nil {
-					operations = append(operations, "DELETE")
-				}
-				Info("Found matching path in schema",
-					zap.String("path", path),
-					zap.Strings("availableOperations", operations))
-			}
-		}
-		Info("Attempting to match request against schema paths",
-			zap.String("requestMethod", method),
-			zap.String("requestPath", httpReq.URL.Path),
-			zap.Strings("availablePaths", pathList))
 	}
 
 	// Find the matching route in the OpenAPI schema based on method and path
@@ -503,6 +441,27 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 		result.ValidatedAgainstHash = entry.Metadata.SchemaHash
 	}
 
+	// Asynchronously record validation to storage
+	if s.store != nil {
+		go func() {
+			record := &storage.ValidationRecord{
+				SchemaID:       schemaID,
+				SchemaVersion:  entry.Metadata.SchemaVersion,
+				SchemaHash:     entry.Metadata.SchemaHash,
+				RequestMethod:  method,
+				RequestPath:    req.Request.Path,
+				ResponseStatus: req.Response.StatusCode,
+				Valid:          result.Valid,
+				Errors:         result.Errors,
+				DurationMs:     time.Since(start).Milliseconds(),
+				ValidatedAt:    time.Now(),
+			}
+			if recErr := s.store.RecordValidation(context.Background(), record); recErr != nil {
+				Warn("Failed to record validation", zap.Error(recErr))
+			}
+		}()
+	}
+
 	return result, nil
 }
 
@@ -543,10 +502,16 @@ func (s *ValidatorService) validateInteractionRequest(req *pb.InteractionRequest
 	if err := ValidateHTTPPath(req.Request.Path); err != nil {
 		return err
 	}
+	if err := ValidateRequestBody(req.Request.Body); err != nil {
+		return err
+	}
 	if req.Response == nil {
 		return fmt.Errorf("ResponseData cannot be null")
 	}
 	if err := ValidateStatusCode(req.Response.StatusCode); err != nil {
+		return err
+	}
+	if err := ValidateResponseBody(req.Response.Body); err != nil {
 		return err
 	}
 	return nil
@@ -569,7 +534,7 @@ func (s *ValidatorService) createHTTPRequestWithBase(reqData *pb.RequestData, ba
 		return nil, err
 	}
 
-	Info("Created HTTP request for validation",
+	Debug("Created HTTP request for validation",
 		zap.String("method", reqData.Method),
 		zap.String("path", reqData.Path),
 		zap.String("baseURL", baseURL),
@@ -595,12 +560,165 @@ func (s *ValidatorService) createHTTPHeaders(headers map[string]string) http.Hea
 	return httpHeaders
 }
 
+// getSchemaEntry retrieves a schema entry, trying cache first then storage.
+func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version string) (*SchemaEntry, bool) {
+	// Try cache first
+	var entry *SchemaEntry
+	var found bool
+	if version != "" {
+		entry, found = s.cache.GetVersion(schemaID, version)
+	} else {
+		entry, found = s.cache.Get(schemaID)
+	}
+	if found && entry != nil {
+		return entry, true
+	}
+
+	// Cache miss — try storage
+	if s.store == nil {
+		return nil, false
+	}
+
+	var record *storage.SchemaRecord
+	var err error
+	if version != "" {
+		record, err = s.store.GetSchemaVersion(ctx, schemaID, version)
+	} else {
+		record, err = s.store.GetSchema(ctx, schemaID)
+	}
+	if err != nil {
+		Warn("Failed to read schema from storage",
+			zap.String("schemaId", schemaID),
+			zap.Error(err))
+		return nil, false
+	}
+	if record == nil {
+		return nil, false
+	}
+
+	// Rehydrate: parse the schema content and populate cache
+	doc, parseErr := s.parseAndConvertSchema([]byte(record.Content))
+	if parseErr != nil {
+		Warn("Failed to rehydrate schema from storage",
+			zap.String("schemaId", schemaID),
+			zap.Error(parseErr))
+		return nil, false
+	}
+
+	// Validate the rehydrated schema
+	loader := openapi3.NewLoader()
+	if valErr := doc.Validate(loader.Context); valErr != nil {
+		Warn("Rehydrated schema failed validation",
+			zap.String("schemaId", schemaID),
+			zap.Error(valErr))
+		return nil, false
+	}
+
+	entry = NewSchemaEntry(schemaID, record.Content, doc, record.Version, record.Ownership)
+
+	// Build router
+	router, routerErr := s.buildRouter(doc)
+	if routerErr != nil {
+		Warn("Failed to build router for rehydrated schema",
+			zap.String("schemaId", schemaID),
+			zap.Error(routerErr))
+		return nil, false
+	}
+	entry.Router = router
+
+	// Repopulate cache — only write to the bare (unversioned) key when the
+	// lookup was unversioned, to avoid promoting an old version into the
+	// "latest" cache slot.
+	if version == "" {
+		s.cache.Set(schemaID, entry)
+	} else {
+		// Store only under the versioned key
+		s.cache.SetVersion(schemaID, record.Version, entry)
+	}
+
+	Info("Rehydrated schema from storage into cache",
+		zap.String("schemaId", schemaID),
+		zap.String("version", record.Version))
+
+	return entry, true
+}
+
+// buildRouter creates a gorillamux router from a document, handling Swagger v2 basePath.
+// It creates a copy of the servers slice to avoid mutating the original document.
+func (s *ValidatorService) buildRouter(doc *openapi3.T) (routers.Router, error) {
+	routingDoc := doc
+	if len(doc.Servers) > 0 {
+		// Shallow-copy the document and replace Servers to avoid mutating the original
+		docCopy := *doc
+		routingDoc = &docCopy
+		modifiedServers := make(openapi3.Servers, 0, len(doc.Servers))
+		for _, server := range doc.Servers {
+			if serverURL, parseErr := url.Parse(server.URL); parseErr == nil {
+				if serverURL.Path != "" && serverURL.Path != "/" {
+					serverURL.Path = ""
+					serverURL.RawPath = ""
+					modifiedServers = append(modifiedServers, &openapi3.Server{
+						URL:         serverURL.String(),
+						Description: server.Description,
+						Variables:   server.Variables,
+					})
+				} else {
+					modifiedServers = append(modifiedServers, server)
+				}
+			} else {
+				modifiedServers = append(modifiedServers, server)
+			}
+		}
+		routingDoc.Servers = modifiedServers
+	}
+	return gorillamux.NewRouter(routingDoc)
+}
+
+// stripBasePath removes the server basePath prefix from the request path if present.
+// This handles Swagger 2.0 schemas that are converted to OpenAPI 3 with server URLs
+// containing path components (e.g., /api/v2).
+func stripBasePath(doc *openapi3.T, requestPath string) string {
+	if len(doc.Servers) > 0 {
+		for _, server := range doc.Servers {
+			if serverURL, err := url.Parse(server.URL); err == nil && serverURL.Path != "" && serverURL.Path != "/" {
+				basePath := strings.TrimSuffix(serverURL.Path, "/")
+				if strings.HasPrefix(requestPath, basePath+"/") {
+					stripped := strings.TrimPrefix(requestPath, basePath)
+					Debug("Stripped basePath from request path",
+						zap.String("basePath", basePath),
+						zap.String("originalPath", requestPath),
+						zap.String("strippedPath", stripped))
+					return stripped
+				}
+			}
+		}
+	}
+	return requestPath
+}
+
+// resolveBaseURL extracts the base URL (scheme + host) from the first server entry.
+// Returns "http://localhost" if no server entries are found or parsing fails.
+func resolveBaseURL(doc *openapi3.T) string {
+	if len(doc.Servers) > 0 {
+		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil &&
+			serverURL.Scheme != "" && serverURL.Host != "" {
+			baseURL := fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
+			Debug("Using server URL as base for HTTP request", zap.String("baseURL", baseURL))
+			return baseURL
+		}
+	}
+	return "http://localhost"
+}
+
 // Close cleans up resources used by the ValidatorService.
 // This should be called when the service is being shut down to
 // properly close the schema cache and release any resources.
 func (s *ValidatorService) Close() {
 	if s.cache != nil {
 		s.cache.Close()
+	}
+	if s.store != nil {
+		_ = s.store.Close()
 	}
 }
 
@@ -676,15 +794,7 @@ func (s *ValidatorService) GetSchema(ctx context.Context, req *pb.GetSchemaReque
 		return &pb.GetSchemaResponse{Found: false}, nil
 	}
 
-	var entry *SchemaEntry
-	var found bool
-
-	if req.SchemaVersion != "" {
-		entry, found = s.cache.GetVersion(req.SchemaId, req.SchemaVersion)
-	} else {
-		entry, found = s.cache.Get(req.SchemaId)
-	}
-
+	entry, found := s.getSchemaEntry(ctx, req.SchemaId, req.SchemaVersion)
 	if !found || entry == nil {
 		grpcRequestsTotal.WithLabelValues("GetSchema", "success").Inc()
 		return &pb.GetSchemaResponse{Found: false}, nil
@@ -718,7 +828,7 @@ func (s *ValidatorService) ListSchemas(ctx context.Context, req *pb.ListSchemasR
 	// Collect schema metadata
 	var schemas []*pb.SchemaMetadata
 	for _, schemaID := range schemaIDs {
-		entry, found := s.cache.Get(schemaID)
+		entry, found := s.getSchemaEntry(ctx, schemaID, "")
 		if !found || entry == nil || entry.Metadata == nil {
 			continue
 		}
@@ -773,7 +883,7 @@ func (s *ValidatorService) CompareSchemas(ctx context.Context, req *pb.CompareSc
 	oldVersion := req.OldVersion
 	if oldVersion == "" {
 		// Get previous version from latest
-		entry, found := s.cache.Get(req.SchemaId)
+		entry, found := s.getSchemaEntry(ctx, req.SchemaId, "")
 		if found && entry != nil && entry.Metadata != nil {
 			oldVersion, _ = s.cache.GetPreviousVersion(req.SchemaId, entry.Metadata.SchemaVersion)
 		}
@@ -782,7 +892,7 @@ func (s *ValidatorService) CompareSchemas(ctx context.Context, req *pb.CompareSc
 	// Get new version
 	newVersion := req.NewVersion
 	if newVersion == "" {
-		entry, found := s.cache.Get(req.SchemaId)
+		entry, found := s.getSchemaEntry(ctx, req.SchemaId, "")
 		if found && entry != nil && entry.Metadata != nil {
 			newVersion = entry.Metadata.SchemaVersion
 		}
@@ -793,10 +903,10 @@ func (s *ValidatorService) CompareSchemas(ctx context.Context, req *pb.CompareSc
 	var oldFound, newFound bool
 
 	if oldVersion != "" {
-		oldEntry, oldFound = s.cache.GetVersion(req.SchemaId, oldVersion)
+		oldEntry, oldFound = s.getSchemaEntry(ctx, req.SchemaId, oldVersion)
 	}
 	if newVersion != "" {
-		newEntry, newFound = s.cache.GetVersion(req.SchemaId, newVersion)
+		newEntry, newFound = s.getSchemaEntry(ctx, req.SchemaId, newVersion)
 	}
 
 	if !oldFound || !newFound || oldEntry == nil || newEntry == nil {
@@ -880,8 +990,8 @@ func (s *ValidatorService) GenerateFixture(ctx context.Context, req *pb.Generate
 		}, nil
 	}
 
-	// Get schema from cache
-	entry, found := s.cache.Get(req.SchemaId)
+	// Get schema (cache first, then storage)
+	entry, found := s.getSchemaEntry(ctx, req.SchemaId, "")
 	if !found || entry == nil {
 		grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
 		return &pb.GenerateFixtureResponse{
@@ -898,7 +1008,7 @@ func (s *ValidatorService) GenerateFixture(ctx context.Context, req *pb.Generate
 	}
 
 	// Find the operation
-	operation, err := s.findOperation(doc, method, req.Path)
+	operation, err := s.findOperation(doc, method, req.Path, entry.Router)
 	if err != nil {
 		grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
 		return &pb.GenerateFixtureResponse{
@@ -1009,7 +1119,7 @@ func (s *ValidatorService) ListEndpoints(ctx context.Context, req *pb.ListEndpoi
 		return &pb.ListEndpointsResponse{Endpoints: nil}, nil
 	}
 
-	entry, found := s.cache.Get(req.SchemaId)
+	entry, found := s.getSchemaEntry(ctx, req.SchemaId, "")
 	if !found || entry == nil {
 		grpcRequestsTotal.WithLabelValues("ListEndpoints", "success").Inc()
 		return &pb.ListEndpointsResponse{Endpoints: nil}, nil
@@ -1041,7 +1151,8 @@ func (s *ValidatorService) ListEndpoints(ctx context.Context, req *pb.ListEndpoi
 }
 
 // findOperation finds the OpenAPI operation for a given method and path.
-func (s *ValidatorService) findOperation(doc *openapi3.T, method, path string) (*openapi3.Operation, error) {
+// If cachedRouter is non-nil, it is used for route matching; otherwise a new router is created.
+func (s *ValidatorService) findOperation(doc *openapi3.T, method, path string, cachedRouter routers.Router) (*openapi3.Operation, error) {
 	// First try exact match
 	pathItem := doc.Paths.Find(path)
 	if pathItem != nil {
@@ -1052,9 +1163,13 @@ func (s *ValidatorService) findOperation(doc *openapi3.T, method, path string) (
 	}
 
 	// Try matching with path parameters using router
-	router, err := gorillamux.NewRouter(doc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create router: %w", err)
+	router := cachedRouter
+	if router == nil {
+		var routerErr error
+		router, routerErr = gorillamux.NewRouter(doc)
+		if routerErr != nil {
+			return nil, fmt.Errorf("failed to create router: %w", routerErr)
+		}
 	}
 
 	req, err := http.NewRequest(method, "http://localhost"+path, nil)
@@ -1374,16 +1489,10 @@ func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb
 		}, nil
 	}
 
-	// Retrieve the schema from cache (support version-specific retrieval)
-	var entry *SchemaEntry
-	var found bool
-	if req.SchemaVersion != "" {
-		entry, found = s.cache.GetVersion(schemaID, req.SchemaVersion)
-	} else {
-		entry, found = s.cache.Get(schemaID)
-	}
+	// Retrieve schema (cache first, then storage)
+	entry, found := s.getSchemaEntry(ctx, schemaID, req.SchemaVersion)
 	if !found || entry == nil {
-		Warn("Schema not found in cache", zap.String("schemaId", schemaID))
+		Warn("Schema not found", zap.String("schemaId", schemaID))
 		validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
 		validationErrors.WithLabelValues("schema_not_found").Inc()
 		grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "failure").Inc()
@@ -1394,30 +1503,9 @@ func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb
 	}
 	doc := entry.Document
 
-	// Handle basePath from Swagger 2.0 schemas
-	requestPath := req.Path
-	if len(doc.Servers) > 0 {
-		for _, server := range doc.Servers {
-			if serverURL, err := url.Parse(server.URL); err == nil && serverURL.Path != "" && serverURL.Path != "/" {
-				basePath := strings.TrimSuffix(serverURL.Path, "/")
-				if strings.HasPrefix(requestPath, basePath+"/") {
-					requestPath = strings.TrimPrefix(requestPath, basePath)
-					break
-				}
-			}
-		}
-	}
-
-	// Create a minimal request for route matching
-	var baseURL string
-	if len(doc.Servers) > 0 {
-		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil {
-			baseURL = fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
-		}
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost"
-	}
+	// Handle basePath from Swagger 2.0 schemas and resolve base URL
+	requestPath := stripBasePath(doc, req.Path)
+	baseURL := resolveBaseURL(doc)
 
 	// Create http.Request for route matching (even though we're only validating response)
 	httpReq, err := http.NewRequest(strings.ToUpper(method), fmt.Sprintf("%s%s", baseURL, requestPath), nil)
@@ -1439,52 +1527,24 @@ func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb
 		}
 	}
 
-	// Save and modify server URLs for routing (same as ValidateInteraction)
-	var originalServers openapi3.Servers
-	if len(doc.Servers) > 0 {
-		originalServers = make(openapi3.Servers, len(doc.Servers))
-		copy(originalServers, doc.Servers)
-
-		modifiedServers := make(openapi3.Servers, 0, len(doc.Servers))
-		for _, server := range doc.Servers {
-			if serverURL, err := url.Parse(server.URL); err == nil {
-				if serverURL.Path != "" && serverURL.Path != "/" {
-					serverURL.Path = ""
-					serverURL.RawPath = ""
-					newServer := &openapi3.Server{
-						URL:         serverURL.String(),
-						Description: server.Description,
-						Variables:   server.Variables,
-					}
-					modifiedServers = append(modifiedServers, newServer)
-				} else {
-					modifiedServers = append(modifiedServers, server)
-				}
-			} else {
-				modifiedServers = append(modifiedServers, server)
-			}
+	// Use the pre-built router from the schema entry (built at registration time).
+	// Use a local variable to avoid mutating the shared cache entry (data race).
+	router := entry.Router
+	if router == nil {
+		var routerErr error
+		router, routerErr = s.buildRouter(doc)
+		if routerErr != nil {
+			Error("Failed to create router",
+				zap.String("schemaId", schemaID),
+				zap.Error(routerErr))
+			validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
+			validationErrors.WithLabelValues("router_creation").Inc()
+			grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "failure").Inc()
+			return &pb.ValidationResult{
+				Valid:  false,
+				Errors: []string{fmt.Sprintf("Failed to create router: %v", routerErr)},
+			}, nil
 		}
-		doc.Servers = modifiedServers
-	}
-
-	// Create router to find the matching operation
-	router, err := gorillamux.NewRouter(doc)
-
-	// Restore original server URLs
-	if originalServers != nil {
-		doc.Servers = originalServers
-	}
-	if err != nil {
-		Error("Failed to create router",
-			zap.String("schemaId", schemaID),
-			zap.Error(err))
-		validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
-		validationErrors.WithLabelValues("router_creation").Inc()
-		grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "failure").Inc()
-		return &pb.ValidationResult{
-			Valid:  false,
-			Errors: []string{fmt.Sprintf("Failed to create router: %v", err)},
-		}, nil
 	}
 
 	// Find the matching route
@@ -1542,16 +1602,37 @@ func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb
 	grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "success").Inc()
 
 	// Include version and hash in result
-	result := &pb.ValidationResult{
+	producerResult := &pb.ValidationResult{
 		Valid:  true,
 		Errors: nil,
 	}
 	if entry.Metadata != nil {
-		result.ValidatedAgainstVersion = entry.Metadata.SchemaVersion
-		result.ValidatedAgainstHash = entry.Metadata.SchemaHash
+		producerResult.ValidatedAgainstVersion = entry.Metadata.SchemaVersion
+		producerResult.ValidatedAgainstHash = entry.Metadata.SchemaHash
 	}
 
-	return result, nil
+	// Asynchronously record validation to storage
+	if s.store != nil {
+		go func() {
+			record := &storage.ValidationRecord{
+				SchemaID:       schemaID,
+				SchemaVersion:  entry.Metadata.SchemaVersion,
+				SchemaHash:     entry.Metadata.SchemaHash,
+				RequestMethod:  method,
+				RequestPath:    req.Path,
+				ResponseStatus: req.Response.StatusCode,
+				Valid:          producerResult.Valid,
+				Errors:         producerResult.Errors,
+				DurationMs:     time.Since(start).Milliseconds(),
+				ValidatedAt:    time.Now(),
+			}
+			if recErr := s.store.RecordValidation(context.Background(), record); recErr != nil {
+				Warn("Failed to record validation", zap.Error(recErr))
+			}
+		}()
+	}
+
+	return producerResult, nil
 }
 
 // validateProducerRequest validates the ValidateProducerRequest.
@@ -1572,6 +1653,9 @@ func (s *ValidatorService) validateProducerRequest(req *pb.ValidateProducerReque
 		return fmt.Errorf("ResponseData cannot be null")
 	}
 	if err := ValidateStatusCode(req.Response.StatusCode); err != nil {
+		return err
+	}
+	if err := ValidateResponseBody(req.Response.Body); err != nil {
 		return err
 	}
 	return nil
@@ -1614,13 +1698,24 @@ func (s *ValidatorService) RegisterConsumer(ctx context.Context, req *pb.Registe
 		req.Environment = "dev" // Default to dev
 	}
 
-	// Verify the schema exists
-	_, found := s.cache.Get(req.SchemaId)
+	// Verify the schema exists (cache or storage)
+	_, found := s.getSchemaEntry(ctx, req.SchemaId, "")
 	if !found {
 		grpcRequestsTotal.WithLabelValues("RegisterConsumer", "failure").Inc()
 		return &pb.RegisterConsumerResponse{
 			Success: false,
 			Message: fmt.Sprintf("schema not found: %s", req.SchemaId),
+		}, nil
+	}
+
+	// Check consumer cap per schema (soft cap — not atomic with registration,
+	// so may be briefly exceeded under high concurrency; acceptable at 10K limit)
+	existingConsumers := s.cache.ListConsumers(req.SchemaId, "")
+	if len(existingConsumers) >= MaxConsumersPerSchema {
+		grpcRequestsTotal.WithLabelValues("RegisterConsumer", "failure").Inc()
+		return &pb.RegisterConsumerResponse{
+			Success: false,
+			Message: fmt.Sprintf("maximum consumers per schema reached (%d)", MaxConsumersPerSchema),
 		}, nil
 	}
 
@@ -1648,6 +1743,31 @@ func (s *ValidatorService) RegisterConsumer(ctx context.Context, req *pb.Registe
 		UsedEndpoints:   usedEndpoints,
 	}
 	s.cache.RegisterConsumer(consumer)
+
+	// Persist to storage if available
+	if s.store != nil {
+		record := &storage.ConsumerRecord{
+			ConsumerID:      req.ConsumerId,
+			ConsumerVersion: req.ConsumerVersion,
+			SchemaID:        req.SchemaId,
+			SchemaVersion:   req.SchemaVersion,
+			Environment:     req.Environment,
+			RegisteredAt:    now,
+			LastValidatedAt: now,
+		}
+		for _, eu := range usedEndpoints {
+			record.UsedEndpoints = append(record.UsedEndpoints, storage.EndpointUsage{
+				Method:     eu.Method,
+				Path:       eu.Path,
+				UsedFields: eu.UsedFields,
+			})
+		}
+		if storeErr := s.store.RegisterConsumer(ctx, record); storeErr != nil {
+			Warn("Failed to persist consumer to storage",
+				zap.String("consumerId", req.ConsumerId),
+				zap.Error(storeErr))
+		}
+	}
 
 	Info("Consumer registered successfully",
 		zap.String("consumerId", req.ConsumerId),
@@ -1771,6 +1891,15 @@ func (s *ValidatorService) DeregisterConsumer(ctx context.Context, req *pb.Dereg
 		}, nil
 	}
 
+	// Remove from storage if available
+	if s.store != nil {
+		if storeErr := s.store.DeregisterConsumer(ctx, req.ConsumerId, req.SchemaId, environment); storeErr != nil {
+			Warn("Failed to remove consumer from storage",
+				zap.String("consumerId", req.ConsumerId),
+				zap.Error(storeErr))
+		}
+	}
+
 	Info("Consumer deregistered successfully",
 		zap.String("consumerId", req.ConsumerId),
 		zap.String("schemaId", req.SchemaId),
@@ -1811,8 +1940,8 @@ func (s *ValidatorService) CanIDeploy(ctx context.Context, req *pb.CanIDeployReq
 		environment = "prod" // Default to prod for deployment safety
 	}
 
-	// Get the new schema version
-	_, found := s.cache.Get(req.SchemaId)
+	// Get the new schema version (cache or storage)
+	_, found := s.getSchemaEntry(ctx, req.SchemaId, "")
 	if !found {
 		grpcRequestsTotal.WithLabelValues("CanIDeploy", "failure").Inc()
 		return &pb.CanIDeployResponse{
@@ -1822,10 +1951,10 @@ func (s *ValidatorService) CanIDeploy(ctx context.Context, req *pb.CanIDeployReq
 	}
 
 	// Get the new schema version entry for comparison
-	newEntry, newFound := s.cache.GetVersion(req.SchemaId, req.NewVersion)
+	newEntry, newFound := s.getSchemaEntry(ctx, req.SchemaId, req.NewVersion)
 	if !newFound || newEntry == nil {
 		// Try to get latest if specific version not found
-		newEntry, newFound = s.cache.Get(req.SchemaId)
+		newEntry, newFound = s.getSchemaEntry(ctx, req.SchemaId, "")
 		if !newFound || newEntry == nil {
 			grpcRequestsTotal.WithLabelValues("CanIDeploy", "failure").Inc()
 			return &pb.CanIDeployResponse{
@@ -1867,7 +1996,7 @@ func (s *ValidatorService) CanIDeploy(ctx context.Context, req *pb.CanIDeployReq
 		}
 
 		// Get the consumer's current schema version for comparison
-		oldEntry, oldFound := s.cache.GetVersion(req.SchemaId, consumer.SchemaVersion)
+		oldEntry, oldFound := s.getSchemaEntry(ctx, req.SchemaId, consumer.SchemaVersion)
 		if !oldFound || oldEntry == nil {
 			// Can't compare if old version not found, mark as potentially affected
 			Info("Cannot find consumer's schema version for comparison",

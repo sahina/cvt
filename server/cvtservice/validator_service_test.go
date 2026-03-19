@@ -3,9 +3,11 @@ package cvtservice
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/sahina/cvt/server/pb"
+	"github.com/sahina/cvt/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1793,4 +1795,274 @@ func TestFilterChangesForConsumer(t *testing.T) {
 		result := filterChangesForConsumer(changes, endpoints)
 		assert.Len(t, result, 0, "POST /users should not match GET /users change")
 	})
+}
+
+func TestNewValidatorServiceWithStore(t *testing.T) {
+	memStore := storage.NewMemoryStore()
+	service, err := NewValidatorServiceWithStore(memStore)
+	require.NoError(t, err)
+	defer service.Close()
+	assert.NotNil(t, service.store)
+}
+
+func TestStoragePersistence(t *testing.T) {
+	memStore := storage.NewMemoryStore()
+	service, err := NewValidatorServiceWithStore(memStore)
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	// Register schema
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "persist-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+
+	// Verify schema is in storage
+	record, err := memStore.GetSchema(context.Background(), "persist-test")
+	require.NoError(t, err)
+	assert.Equal(t, "persist-test", record.SchemaID)
+	assert.NotEmpty(t, record.Content)
+}
+
+func TestStorageReadThrough(t *testing.T) {
+	memStore := storage.NewMemoryStore()
+	service, err := NewValidatorServiceWithStore(memStore)
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	// Register schema (goes to both cache and store)
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "readthrough-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+
+	// Clear the cache to simulate eviction/restart
+	service.cache.Delete("readthrough-test")
+
+	// GetSchema should still work via storage read-through
+	getResp, err := service.GetSchema(context.Background(), &pb.GetSchemaRequest{
+		SchemaId: "readthrough-test",
+	})
+	require.NoError(t, err)
+	assert.True(t, getResp.Found, "Schema should be found via storage read-through")
+	assert.Equal(t, "readthrough-test", getResp.Metadata.SchemaId)
+}
+
+func TestConcurrentValidationNoRace(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "concurrent-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+
+	// Run 10 concurrent validations — race detector will catch shared state mutation
+	var wg sync.WaitGroup
+	errCh := make(chan error, 10)
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, vErr := service.ValidateInteraction(context.Background(), &pb.InteractionRequest{
+				SchemaId: "concurrent-test",
+				Request: &pb.RequestData{
+					Method: "GET",
+					Path:   "/pets",
+				},
+				Response: &pb.ResponseData{
+					StatusCode: 200,
+					Body:       `[{"id": 1, "name": "Fido"}]`,
+				},
+			})
+			if vErr != nil {
+				errCh <- vErr
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+
+	for vErr := range errCh {
+		t.Errorf("ValidateInteraction failed: %v", vErr)
+	}
+}
+
+func TestRouterCachedInSchemaEntry(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "router-cache-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+
+	entry, found := service.cache.Get("router-cache-test")
+	require.True(t, found)
+	assert.NotNil(t, entry.Router, "Router should be cached in SchemaEntry after registration")
+}
+
+// TestGetSchemaEntry_CacheMissNoStore verifies that getSchemaEntry returns nil/false
+// when the schema is not in cache and no storage backend is configured.
+func TestGetSchemaEntry_CacheMissNoStore(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	// No schema registered, no store configured
+	entry, found := service.getSchemaEntry(context.Background(), "nonexistent-schema", "")
+	assert.False(t, found, "Should not find schema without store")
+	assert.Nil(t, entry, "Entry should be nil for nonexistent schema")
+
+	// Also try with a specific version
+	entry, found = service.getSchemaEntry(context.Background(), "nonexistent-schema", "1.0.0")
+	assert.False(t, found, "Should not find versioned schema without store")
+	assert.Nil(t, entry, "Entry should be nil for nonexistent versioned schema")
+}
+
+// TestGetSchemaEntry_VersionSpecificReadThrough verifies that a schema registered with storage
+// can be read back by version after cache eviction.
+func TestGetSchemaEntry_VersionSpecificReadThrough(t *testing.T) {
+	memStore := storage.NewMemoryStore()
+	service, err := NewValidatorServiceWithStore(memStore)
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	// Register schema (info.version in simple-petstore.json is "1.0.0")
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "version-readthrough-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+
+	// Evict from cache
+	service.cache.Delete("version-readthrough-test")
+
+	// Verify cache miss
+	_, found := service.cache.Get("version-readthrough-test")
+	assert.False(t, found, "Schema should not be in cache after eviction")
+
+	// Read back via getSchemaEntry with specific version — should rehydrate from storage
+	entry, found := service.getSchemaEntry(context.Background(), "version-readthrough-test", "1.0.0")
+	require.True(t, found, "Schema should be found via storage read-through")
+	require.NotNil(t, entry)
+	assert.NotNil(t, entry.Document, "Rehydrated entry should have a parsed document")
+	assert.NotNil(t, entry.Router, "Rehydrated entry should have a router")
+	assert.Equal(t, "1.0.0", entry.Metadata.SchemaVersion)
+}
+
+// TestValidateInteraction_RouterFallback verifies that validation still works
+// when entry.Router is nil (fallback path rebuilds the router).
+func TestValidateInteraction_RouterFallback(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
+	require.NoError(t, err)
+
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "router-fallback-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+
+	// Nil out the cached router to force fallback
+	entry, found := service.cache.Get("router-fallback-test")
+	require.True(t, found)
+	entry.Router = nil
+
+	// Validate interaction — should still work via fallback router creation
+	result, err := service.ValidateInteraction(context.Background(), &pb.InteractionRequest{
+		SchemaId: "router-fallback-test",
+		Request: &pb.RequestData{
+			Method:  "GET",
+			Path:    "/pets",
+			Headers: map[string]string{"Content-Type": "application/json"},
+		},
+		Response: &pb.ResponseData{
+			StatusCode: 200,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+			Body:       `[{"id": "1", "name": "Fido"}]`,
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.Valid, "Validation should succeed even with nil router (fallback)")
+}
+
+// TestBuildRouter_SwaggerV2BasePath verifies that a Swagger v2 schema with basePath
+// is correctly handled: the router strips the basePath so that requests with the
+// full path (including basePath prefix) validate correctly.
+func TestBuildRouter_SwaggerV2BasePath(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	content, err := os.ReadFile("testdata/openapi-v2/valid/api-with-basepath.json")
+	require.NoError(t, err)
+
+	// Register the v2 schema with basePath: /api/v2
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "basepath-test",
+		SchemaContent: string(content),
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+
+	// Validate with the full path including basePath prefix — should be stripped
+	result, err := service.ValidateInteraction(context.Background(), &pb.InteractionRequest{
+		SchemaId: "basepath-test",
+		Request: &pb.RequestData{
+			Method:  "GET",
+			Path:    "/api/v2/users",
+			Headers: map[string]string{"Content-Type": "application/json"},
+		},
+		Response: &pb.ResponseData{
+			StatusCode: 200,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+			Body:       `[{"id": "1", "username": "john"}]`,
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.Valid, "Validation should succeed with basePath-prefixed request path")
+
+	// Also validate without the basePath prefix — should also work
+	result, err = service.ValidateInteraction(context.Background(), &pb.InteractionRequest{
+		SchemaId: "basepath-test",
+		Request: &pb.RequestData{
+			Method:  "GET",
+			Path:    "/users",
+			Headers: map[string]string{"Content-Type": "application/json"},
+		},
+		Response: &pb.ResponseData{
+			StatusCode: 200,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+			Body:       `[{"id": "1", "username": "john"}]`,
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.Valid, "Validation should succeed without basePath prefix too")
 }
