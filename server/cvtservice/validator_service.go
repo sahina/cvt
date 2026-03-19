@@ -214,6 +214,7 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 	s.cache.Set(req.SchemaId, entry)
 
 	// Persist to storage if available (write-through)
+	var storageWarning string
 	if s.store != nil {
 		record := &storage.SchemaRecord{
 			SchemaID:       req.SchemaId,
@@ -230,8 +231,11 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 			Warn("Failed to persist schema to storage (cache-only mode)",
 				zap.String("schemaId", req.SchemaId),
 				zap.Error(storeErr))
+			storageWarning = " (WARNING: storage write failed, schema is cached only and will be lost on restart)"
 		}
 	}
+
+	successMsg := "Schema registered successfully" + storageWarning
 
 	Info("Schema registered successfully",
 		zap.String("schemaId", req.SchemaId),
@@ -244,7 +248,7 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 
 	return &pb.RegisterSchemaResponse{
 		Success:  true,
-		Message:  "Schema registered successfully",
+		Message:  successMsg,
 		Metadata: entry.Metadata,
 	}, nil
 }
@@ -312,28 +316,9 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 	}
 	doc := entry.Document
 
-	// Handle basePath from Swagger 2.0 schemas BEFORE creating HTTP request
-	// OpenAPI 3 converts basePath to server URLs with path components
-	// Strip the basePath from incoming request path if present
-	requestPath := req.Request.Path
-	if len(doc.Servers) > 0 {
-		for _, server := range doc.Servers {
-			// Parse the server URL to extract path component (basePath)
-			if serverURL, err := url.Parse(server.URL); err == nil && serverURL.Path != "" && serverURL.Path != "/" {
-				basePath := strings.TrimSuffix(serverURL.Path, "/")
-				// Strip basePath from the incoming request path
-				if strings.HasPrefix(requestPath, basePath+"/") {
-					originalPath := requestPath
-					requestPath = strings.TrimPrefix(requestPath, basePath)
-					Info("Stripped basePath from request path",
-						zap.String("basePath", basePath),
-						zap.String("originalPath", originalPath),
-						zap.String("strippedPath", requestPath))
-					break
-				}
-			}
-		}
-	}
+	// Handle basePath from Swagger 2.0 schemas and resolve base URL
+	requestPath := stripBasePath(doc, req.Request.Path)
+	baseURL := resolveBaseURL(doc)
 
 	// Create request data with potentially modified path
 	modifiedReqData := &pb.RequestData{
@@ -341,20 +326,6 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 		Path:    requestPath,
 		Headers: req.Request.Headers,
 		Body:    req.Request.Body,
-	}
-
-	// Get the base URL from the first server (if available) to create proper HTTP request
-	// This helps the gorillamux router match against server URLs
-	var baseURL string
-	if len(doc.Servers) > 0 {
-		// Use first server URL as base
-		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil {
-			baseURL = fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
-			Info("Using server URL as base for HTTP request", zap.String("baseURL", baseURL))
-		}
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost"
 	}
 
 	// Create an http.Request object from the request data for validation
@@ -468,6 +439,27 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 		result.ValidatedAgainstHash = entry.Metadata.SchemaHash
 	}
 
+	// Asynchronously record validation to storage
+	if s.store != nil {
+		go func() {
+			record := &storage.ValidationRecord{
+				SchemaID:       schemaID,
+				SchemaVersion:  entry.Metadata.SchemaVersion,
+				SchemaHash:     entry.Metadata.SchemaHash,
+				RequestMethod:  method,
+				RequestPath:    req.Request.Path,
+				ResponseStatus: req.Response.StatusCode,
+				Valid:          result.Valid,
+				Errors:         result.Errors,
+				DurationMs:     time.Since(start).Milliseconds(),
+				ValidatedAt:    time.Now(),
+			}
+			if recErr := s.store.RecordValidation(context.Background(), record); recErr != nil {
+				Warn("Failed to record validation", zap.Error(recErr))
+			}
+		}()
+	}
+
 	return result, nil
 }
 
@@ -540,7 +532,7 @@ func (s *ValidatorService) createHTTPRequestWithBase(reqData *pb.RequestData, ba
 		return nil, err
 	}
 
-	Info("Created HTTP request for validation",
+	Debug("Created HTTP request for validation",
 		zap.String("method", reqData.Method),
 		zap.String("path", reqData.Path),
 		zap.String("baseURL", baseURL),
@@ -592,7 +584,13 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 	} else {
 		record, err = s.store.GetSchema(ctx, schemaID)
 	}
-	if err != nil || record == nil {
+	if err != nil {
+		Warn("Failed to read schema from storage",
+			zap.String("schemaId", schemaID),
+			zap.Error(err))
+		return nil, false
+	}
+	if record == nil {
 		return nil, false
 	}
 
@@ -602,6 +600,15 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 		Warn("Failed to rehydrate schema from storage",
 			zap.String("schemaId", schemaID),
 			zap.Error(parseErr))
+		return nil, false
+	}
+
+	// Validate the rehydrated schema
+	loader := openapi3.NewLoader()
+	if valErr := doc.Validate(loader.Context); valErr != nil {
+		Warn("Rehydrated schema failed validation",
+			zap.String("schemaId", schemaID),
+			zap.Error(valErr))
 		return nil, false
 	}
 
@@ -656,6 +663,41 @@ func (s *ValidatorService) buildRouter(doc *openapi3.T) (routers.Router, error) 
 		routingDoc.Servers = modifiedServers
 	}
 	return gorillamux.NewRouter(routingDoc)
+}
+
+// stripBasePath removes the server basePath prefix from the request path if present.
+// This handles Swagger 2.0 schemas that are converted to OpenAPI 3 with server URLs
+// containing path components (e.g., /api/v2).
+func stripBasePath(doc *openapi3.T, requestPath string) string {
+	if len(doc.Servers) > 0 {
+		for _, server := range doc.Servers {
+			if serverURL, err := url.Parse(server.URL); err == nil && serverURL.Path != "" && serverURL.Path != "/" {
+				basePath := strings.TrimSuffix(serverURL.Path, "/")
+				if strings.HasPrefix(requestPath, basePath+"/") {
+					stripped := strings.TrimPrefix(requestPath, basePath)
+					Debug("Stripped basePath from request path",
+						zap.String("basePath", basePath),
+						zap.String("originalPath", requestPath),
+						zap.String("strippedPath", stripped))
+					return stripped
+				}
+			}
+		}
+	}
+	return requestPath
+}
+
+// resolveBaseURL extracts the base URL (scheme + host) from the first server entry.
+// Returns "http://localhost" if no server entries are found or parsing fails.
+func resolveBaseURL(doc *openapi3.T) string {
+	if len(doc.Servers) > 0 {
+		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil {
+			baseURL := fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
+			Debug("Using server URL as base for HTTP request", zap.String("baseURL", baseURL))
+			return baseURL
+		}
+	}
+	return "http://localhost"
 }
 
 // Close cleans up resources used by the ValidatorService.
@@ -956,7 +998,7 @@ func (s *ValidatorService) GenerateFixture(ctx context.Context, req *pb.Generate
 	}
 
 	// Find the operation
-	operation, err := s.findOperation(doc, method, req.Path)
+	operation, err := s.findOperation(doc, method, req.Path, entry.Router)
 	if err != nil {
 		grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
 		return &pb.GenerateFixtureResponse{
@@ -1099,7 +1141,8 @@ func (s *ValidatorService) ListEndpoints(ctx context.Context, req *pb.ListEndpoi
 }
 
 // findOperation finds the OpenAPI operation for a given method and path.
-func (s *ValidatorService) findOperation(doc *openapi3.T, method, path string) (*openapi3.Operation, error) {
+// If cachedRouter is non-nil, it is used for route matching; otherwise a new router is created.
+func (s *ValidatorService) findOperation(doc *openapi3.T, method, path string, cachedRouter routers.Router) (*openapi3.Operation, error) {
 	// First try exact match
 	pathItem := doc.Paths.Find(path)
 	if pathItem != nil {
@@ -1110,9 +1153,13 @@ func (s *ValidatorService) findOperation(doc *openapi3.T, method, path string) (
 	}
 
 	// Try matching with path parameters using router
-	router, err := gorillamux.NewRouter(doc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create router: %w", err)
+	router := cachedRouter
+	if router == nil {
+		var routerErr error
+		router, routerErr = gorillamux.NewRouter(doc)
+		if routerErr != nil {
+			return nil, fmt.Errorf("failed to create router: %w", routerErr)
+		}
 	}
 
 	req, err := http.NewRequest(method, "http://localhost"+path, nil)
@@ -1446,30 +1493,9 @@ func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb
 	}
 	doc := entry.Document
 
-	// Handle basePath from Swagger 2.0 schemas
-	requestPath := req.Path
-	if len(doc.Servers) > 0 {
-		for _, server := range doc.Servers {
-			if serverURL, err := url.Parse(server.URL); err == nil && serverURL.Path != "" && serverURL.Path != "/" {
-				basePath := strings.TrimSuffix(serverURL.Path, "/")
-				if strings.HasPrefix(requestPath, basePath+"/") {
-					requestPath = strings.TrimPrefix(requestPath, basePath)
-					break
-				}
-			}
-		}
-	}
-
-	// Create a minimal request for route matching
-	var baseURL string
-	if len(doc.Servers) > 0 {
-		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil {
-			baseURL = fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
-		}
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost"
-	}
+	// Handle basePath from Swagger 2.0 schemas and resolve base URL
+	requestPath := stripBasePath(doc, req.Path)
+	baseURL := resolveBaseURL(doc)
 
 	// Create http.Request for route matching (even though we're only validating response)
 	httpReq, err := http.NewRequest(strings.ToUpper(method), fmt.Sprintf("%s%s", baseURL, requestPath), nil)
@@ -1564,16 +1590,37 @@ func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb
 	grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "success").Inc()
 
 	// Include version and hash in result
-	result := &pb.ValidationResult{
+	producerResult := &pb.ValidationResult{
 		Valid:  true,
 		Errors: nil,
 	}
 	if entry.Metadata != nil {
-		result.ValidatedAgainstVersion = entry.Metadata.SchemaVersion
-		result.ValidatedAgainstHash = entry.Metadata.SchemaHash
+		producerResult.ValidatedAgainstVersion = entry.Metadata.SchemaVersion
+		producerResult.ValidatedAgainstHash = entry.Metadata.SchemaHash
 	}
 
-	return result, nil
+	// Asynchronously record validation to storage
+	if s.store != nil {
+		go func() {
+			record := &storage.ValidationRecord{
+				SchemaID:       schemaID,
+				SchemaVersion:  entry.Metadata.SchemaVersion,
+				SchemaHash:     entry.Metadata.SchemaHash,
+				RequestMethod:  method,
+				RequestPath:    req.Path,
+				ResponseStatus: req.Response.StatusCode,
+				Valid:          producerResult.Valid,
+				Errors:         producerResult.Errors,
+				DurationMs:     time.Since(start).Milliseconds(),
+				ValidatedAt:    time.Now(),
+			}
+			if recErr := s.store.RecordValidation(context.Background(), record); recErr != nil {
+				Warn("Failed to record validation", zap.Error(recErr))
+			}
+		}()
+	}
+
+	return producerResult, nil
 }
 
 // validateProducerRequest validates the ValidateProducerRequest.

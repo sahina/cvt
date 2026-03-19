@@ -93,7 +93,7 @@ func ValidateSchemaContent(schemaContent string) error {
 	if strings.TrimSpace(schemaContent) == "" {
 		return fmt.Errorf("schema content cannot be null or empty")
 	}
-	contentSize := len([]byte(schemaContent))
+	contentSize := len(schemaContent)
 	if contentSize > MaxSchemaContentBytes {
 		return fmt.Errorf("schema content cannot exceed %d bytes (got %d)", MaxSchemaContentBytes, contentSize)
 	}
