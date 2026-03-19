@@ -341,11 +341,13 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 		}, nil
 	}
 
-	// Use the pre-built router from the schema entry (built at registration time)
-	if entry.Router == nil {
+	// Use the pre-built router from the schema entry (built at registration time).
+	// Use a local variable to avoid mutating the shared cache entry (data race).
+	router := entry.Router
+	if router == nil {
 		// Fallback: build router on the fly if not cached
 		var routerErr error
-		entry.Router, routerErr = s.buildRouter(doc)
+		router, routerErr = s.buildRouter(doc)
 		if routerErr != nil {
 			Error("Failed to create router",
 				zap.String("schemaId", schemaID),
@@ -361,7 +363,7 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 	}
 
 	// Find the matching route in the OpenAPI schema based on method and path
-	route, pathParams, err := entry.Router.FindRoute(httpReq)
+	route, pathParams, err := router.FindRoute(httpReq)
 	if err != nil {
 		Error("Route not found",
 			zap.String("method", method),
@@ -624,8 +626,15 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 	}
 	entry.Router = router
 
-	// Repopulate cache
-	s.cache.Set(schemaID, entry)
+	// Repopulate cache — only write to the bare (unversioned) key when the
+	// lookup was unversioned, to avoid promoting an old version into the
+	// "latest" cache slot.
+	if version == "" {
+		s.cache.Set(schemaID, entry)
+	} else {
+		// Store only under the versioned key
+		s.cache.SetVersion(schemaID, record.Version, entry)
+	}
 
 	Info("Rehydrated schema from storage into cache",
 		zap.String("schemaId", schemaID),
@@ -691,7 +700,8 @@ func stripBasePath(doc *openapi3.T, requestPath string) string {
 // Returns "http://localhost" if no server entries are found or parsing fails.
 func resolveBaseURL(doc *openapi3.T) string {
 	if len(doc.Servers) > 0 {
-		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil {
+		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil &&
+			serverURL.Scheme != "" && serverURL.Host != "" {
 			baseURL := fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
 			Debug("Using server URL as base for HTTP request", zap.String("baseURL", baseURL))
 			return baseURL
@@ -1517,10 +1527,12 @@ func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb
 		}
 	}
 
-	// Use the pre-built router from the schema entry (built at registration time)
-	if entry.Router == nil {
+	// Use the pre-built router from the schema entry (built at registration time).
+	// Use a local variable to avoid mutating the shared cache entry (data race).
+	router := entry.Router
+	if router == nil {
 		var routerErr error
-		entry.Router, routerErr = s.buildRouter(doc)
+		router, routerErr = s.buildRouter(doc)
 		if routerErr != nil {
 			Error("Failed to create router",
 				zap.String("schemaId", schemaID),
@@ -1536,7 +1548,7 @@ func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb
 	}
 
 	// Find the matching route
-	route, pathParams, err := entry.Router.FindRoute(httpReq)
+	route, pathParams, err := router.FindRoute(httpReq)
 	if err != nil {
 		Error("Route not found",
 			zap.String("method", method),

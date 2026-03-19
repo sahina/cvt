@@ -133,6 +133,16 @@ func (sc *SchemaCache) Set(schemaID string, entry *SchemaEntry) {
 	sc.cache.Wait()
 }
 
+// SetVersion stores a schema entry under its versioned key only, without
+// overwriting the bare (unversioned) "latest" slot. Use this when rehydrating
+// a specific version from storage to avoid promoting an old version as latest.
+func (sc *SchemaCache) SetVersion(schemaID, version string, entry *SchemaEntry) {
+	versionedKey := makeVersionedKey(schemaID, version)
+	sc.cache.SetWithTTL(versionedKey, entry, 1, SchemaTTL)
+	sc.trackVersion(schemaID, version)
+	sc.cache.Wait()
+}
+
 // SetLegacy stores a schema document in the cache (for backward compatibility).
 // This creates a minimal SchemaEntry without metadata.
 //
