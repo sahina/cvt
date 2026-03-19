@@ -69,7 +69,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: "mise.toml"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: sdks/node/package-lock.json
 
@@ -292,7 +292,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: "mise.toml"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: sdks/node/package-lock.json
 
@@ -517,7 +517,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: "mise.toml"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: sdks/node/package-lock.json
 
