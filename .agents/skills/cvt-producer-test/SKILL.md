@@ -1,7 +1,7 @@
 ---
 name: cvt-producer-test
 description: Validate API responses against OpenAPI schema using ProducerTestKit
-sdk_version: "0.1.0"
+sdk_version: "0.4.0"
 ---
 
 # CVT Producer Testing
