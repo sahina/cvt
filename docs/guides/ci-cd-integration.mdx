@@ -37,10 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       cvt:
-        # Note: This image is a placeholder. Build your own image:
-        # docker build -t cvt .
-        # Or run CVT server separately
-        image: ghcr.io/your-org/cvt:latest
+        image: ghcr.io/sahina/cvt:latest
         ports:
           - 9550:9550
 
@@ -122,9 +119,9 @@ deploy:
           --env prod \
           --json > check.json
 
-        if [ "$(jq '.safeToDeploy' check.json)" != "true" ]; then
+        if [ "$(jq '.safe_to_deploy' check.json)" != "true" ]; then
           echo "Upstream API has breaking changes!"
-          jq '.affectedConsumers[] | select(.willBreak == true) | .consumerId' check.json
+          jq '.affected_consumers[] | select(.will_break == true) | .consumer_id' check.json
           exit 1
         fi
 ```
@@ -150,7 +147,7 @@ variables:
 contract-tests:
   stage: test
   services:
-    - name: your-registry/cvt:latest
+    - name: ghcr.io/sahina/cvt:latest
       alias: cvt
   variables:
     CVT_SERVER: "cvt:9550"
@@ -185,9 +182,9 @@ can-i-deploy:
         --env prod \
         --json > check.json
 
-      if [ "$(jq '.safeToDeploy' check.json)" != "true" ]; then
+      if [ "$(jq '.safe_to_deploy' check.json)" != "true" ]; then
         echo "Breaking changes detected!"
-        jq '.affectedConsumers[] | select(.willBreak == true)' check.json
+        jq '.affected_consumers[] | select(.will_break == true)' check.json
         exit 1
       fi
 ```
@@ -290,8 +287,8 @@ pipeline {
                     ).trim()
 
                     def json = readJSON text: result
-                    if (!json.safeToDeploy) {
-                        error "Breaking changes detected! Affected consumers: ${json.affectedConsumers}"
+                    if (!json.safe_to_deploy) {
+                        error "Breaking changes detected! Affected consumers: ${json.affected_consumers}"
                     }
                 }
             }

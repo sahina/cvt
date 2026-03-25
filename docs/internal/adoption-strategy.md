@@ -223,7 +223,7 @@ Breaking changes detected before deployment
 | 1. Schema only         | Register existing OpenAPI spec                 | Low    |
 | 2. Consumer tests      | Add tests for one critical upstream dependency | Medium |
 | 3. Full coverage       | Test all external integrations                 | High   |
-| 4. Producer validation | Validate incoming requests (when available)    | Medium |
+| 4. Producer validation | Validate responses with producer test kit       | Medium |
 
 **Provide tooling:**
 

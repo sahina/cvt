@@ -353,7 +353,8 @@ Wrap your HTTP client for automatic validation of all requests/responses:
 
 ```typescript
 import axios from "axios";
-import { ContractValidator, createAxiosAdapter } from "@sahina/cvt-sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
+import { createAxiosAdapter } from "@sahina/cvt-sdk/adapters";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -364,7 +365,6 @@ const api = axios.create({ baseURL: "http://petstore-api" });
 createAxiosAdapter({
   axios: api,
   validator,
-  schemaId: "petstore",
   autoValidate: true,
   onValidationFailure: (result) => {
     throw new Error(`Contract violation: ${result.errors.join(", ")}`);
@@ -381,8 +381,8 @@ validator.close();
 <TabItem value="python" label="Python">
 
 ```python
-import requests
-from cvt_sdk import ContractValidator, create_validating_session
+from cvt_sdk import ContractValidator
+from cvt_sdk.adapters import create_validating_session
 
 validator = ContractValidator('localhost:9550')
 validator.register_schema('petstore', './openapi.json')
@@ -390,9 +390,7 @@ validator.register_schema('petstore', './openapi.json')
 # Create validating session - all traffic is validated automatically
 session = create_validating_session(
     validator=validator,
-    schema_id='petstore',
     auto_validate=True,
-    on_validation_failure=lambda result: raise_error(result)
 )
 
 # Use normally - validation happens transparently
@@ -411,16 +409,16 @@ defer validator.Close()
 ctx := context.Background()
 validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
-// Wrap http.Client with validating transport
-transport := adapters.NewValidatingTransport(validator, adapters.TransportConfig{
-    SchemaID:     "petstore",
+// Wrap http.Client with validating round tripper
+rt := adapters.NewValidatingRoundTripper(adapters.RoundTripperConfig{
+    Validator:    validator,
     AutoValidate: true,
-    OnValidationFailure: func(result *cvt.ValidationResult) error {
+    OnValidationFailure: func(result *cvt.ValidationResult, req *http.Request, resp *http.Response) error {
         return fmt.Errorf("contract violation: %v", result.Errors)
     },
 })
 
-client := &http.Client{Transport: transport}
+client := &http.Client{Transport: rt}
 
 // Use normally - validation happens transparently
 resp, _ := client.Get("http://petstore-api/pet/123")
@@ -466,13 +464,14 @@ Use the mock adapter for tests without a real API:
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-import { ContractValidator, createMockAdapter } from "@sahina/cvt-sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
+import { createMockAdapter } from "@sahina/cvt-sdk/adapters";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
 
 // Create mock adapter that auto-generates responses from schema
-const mock = createMockAdapter({ validator, schemaId: "petstore", cache: true });
+const mock = createMockAdapter({ validator, cache: true });
 
 // Make requests - responses are generated from OpenAPI schema
 const response = await mock.fetch("http://mock.petstore/pet/456");
@@ -488,13 +487,14 @@ validator.close();
 <TabItem value="python" label="Python">
 
 ```python
-from cvt_sdk import ContractValidator, create_mock_session
+from cvt_sdk import ContractValidator
+from cvt_sdk.adapters import create_mock_session
 
 validator = ContractValidator('localhost:9550')
 validator.register_schema('petstore', './openapi.json')
 
 # Create mock session that auto-generates responses from schema
-mock = create_mock_session(validator=validator, schema_id='petstore', cache=True)
+mock = create_mock_session(validator=validator, cache=True)
 
 # Make requests - responses are generated from OpenAPI schema
 response = mock.get('http://mock.petstore/pet/456')
@@ -595,7 +595,8 @@ Register from captured test interactions - endpoints and fields are extracted au
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-import { ContractValidator, createMockAdapter } from "@sahina/cvt-sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
+import { createMockAdapter } from "@sahina/cvt-sdk/adapters";
 
 const validator = new ContractValidator("localhost:9550");
 await validator.registerSchema("petstore", "./openapi.json");
@@ -650,7 +651,8 @@ fmt.Printf("Registered %s with %d endpoints\n", consumerInfo.ConsumerID, len(con
 <TabItem value="python" label="Python">
 
 ```python
-from cvt_sdk import ContractValidator, create_mock_session
+from cvt_sdk import ContractValidator
+from cvt_sdk.adapters import create_mock_session
 
 validator = ContractValidator('localhost:9550')
 validator.register_schema('petstore', './openapi.json')
@@ -663,13 +665,17 @@ mock.get('http://mock.petstore/pet/123')
 mock.post('http://mock.petstore/pet', json={})
 
 # Auto-register consumer from captured interactions
+from cvt_sdk import AutoRegisterConfig
+
 consumer_info = validator.register_consumer_from_interactions(
     mock.get_interactions(),
-    consumer_id='order-service',
-    consumer_version='2.1.0',
-    environment='dev',
-    schema_version='1.0.0',
-    # schema_id auto-extracted from URL: http://mock.petstore/... -> 'petstore'
+    AutoRegisterConfig(
+        consumer_id='order-service',
+        consumer_version='2.1.0',
+        environment='dev',
+        schema_version='1.0.0',
+        # schema_id auto-extracted from URL: http://mock.petstore/... -> 'petstore'
+    ),
 )
 
 print(f"Registered {consumer_info['consumer_id']} with {len(consumer_info['used_endpoints'])} endpoints")

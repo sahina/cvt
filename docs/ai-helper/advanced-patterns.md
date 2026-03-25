@@ -20,11 +20,15 @@ Managing API changes safely requires understanding breaking changes and coordina
 Use `compareSchemas` to understand the impact of API changes:
 
 ```typescript
-// Compare old and new schema versions
-const comparison = await validator.compareSchemas(oldSchema, newSchema);
+// Register both schema versions first
+await validator.registerSchemaWithVersion('user-api', './v1/openapi.json', '1.0.0');
+await validator.registerSchemaWithVersion('user-api', './v2/openapi.json', '2.0.0');
 
+// Compare schema versions by ID
+const comparison = await validator.compareSchemas('user-api', '1.0.0', '2.0.0');
+
+console.log('Compatible:', comparison.compatible);
 console.log('Breaking changes:', comparison.breakingChanges);
-console.log('Non-breaking changes:', comparison.nonBreakingChanges);
 ```
 
 AI agents can help interpret the results:
@@ -87,7 +91,7 @@ if (!result.safeToDeploy) {
   for (const consumer of result.affectedConsumers) {
     if (consumer.willBreak) {
       console.error(`- ${consumer.consumerId} v${consumer.consumerVersion} will break`);
-      console.error(`  Reason: ${consumer.breakageReason}`);
+      consumer.relevantChanges.forEach(c => console.error(`  - ${c.description}`));
     }
   }
   process.exit(1);
@@ -215,7 +219,6 @@ If you already have tests, add contract validation:
 
 ```typescript
 // jest.setup.ts
-import fs from 'fs';
 import { ContractValidator } from '@sahina/cvt-sdk';
 
 let validator: ContractValidator;
@@ -223,9 +226,8 @@ let validator: ContractValidator;
 beforeAll(async () => {
   validator = new ContractValidator(process.env.CVT_SERVER || 'localhost:9550');
 
-  // Register all schemas your tests need
-  const userApiSchema = fs.readFileSync('./contracts/user-api.json', 'utf-8');
-  await validator.registerSchema('user-api', userApiSchema);
+  // Register all schemas your tests need (pass a file path or URL)
+  await validator.registerSchema('user-api', './contracts/user-api.json');
 
   // Make validator available globally
   (global as any).cvtValidator = validator;
@@ -244,7 +246,7 @@ describe('User API Contract', () => {
   it('GET /users/{id} returns valid response', async () => {
     // Your actual API call
     const response = await fetch('http://user-service/users/123');
-    const body = await response.text();
+    const body = await response.json();
 
     // Validate against contract
     const result = await validator.validate(
@@ -284,8 +286,8 @@ const testUser = {
 
 // 3. Validate customized fixture still complies
 const preValidation = await validator.validate(
-  { method: 'POST', path: '/users', body: JSON.stringify(testUser) },
-  { statusCode: 201, body: '{"id": "generated-id"}' }
+  { method: 'POST', path: '/users', body: testUser },
+  { statusCode: 201, body: { id: 'generated-id' } }
 );
 
 expect(preValidation.valid).toBe(true);

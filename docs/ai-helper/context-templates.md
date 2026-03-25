@@ -116,7 +116,7 @@ This project uses CVT for API contract testing.
 
 When writing contract tests:
 
-1. Register schema first: `validator.registerSchema('api-name', schemaContent)`
+1. Register schema first: `validator.registerSchema('api-name', './path/to/openapi.json')`
 2. Validate interactions: `validator.validate(request, response)`
 3. Check result.valid and result.errors
 
@@ -144,7 +144,7 @@ Documentation:
 - Consumer testing guide: https://sahina.github.io/cvt/docs/guides/consumer-testing
 
 Key APIs:
-- registerSchema(schemaId, content) - Register an OpenAPI schema
+- registerSchema(schemaId, schemaPath) - Register an OpenAPI schema (file path or URL)
 - validate(request, response) - Validate an interaction
 - registerConsumer(...) - Register as a consumer for deployment checks
 - canIDeploy(...) - Check if schema changes are safe to deploy
@@ -194,11 +194,11 @@ For highly restricted environments, embed the essential information directly:
 import { ContractValidator } from '@sahina/cvt-sdk';
 
 const validator = new ContractValidator('localhost:9550');
-await validator.registerSchema('api-name', schemaContent);
+await validator.registerSchema('api-name', './path/to/openapi.json');
 
 const result = await validator.validate(
   { method: 'GET', path: '/users/123' },
-  { statusCode: 200, body: '{"id": "123"}' }
+  { statusCode: 200, body: { id: '123' } }
 );
 ```
 
@@ -208,11 +208,11 @@ const result = await validator.validate(
 from cvt_sdk import ContractValidator
 
 validator = ContractValidator('localhost:9550')
-validator.register_schema('api-name', schema_content)
+validator.register_schema('api-name', './path/to/openapi.json')
 
 result = validator.validate(
     request={'method': 'GET', 'path': '/users/123'},
-    response={'status_code': 200, 'body': '{"id": "123"}'}
+    response={'status_code': 200, 'body': {'id': '123'}}
 )
 ```
 ````

@@ -2,7 +2,7 @@
 
 **Status:** DRAFT v1  
 **Date:** January 29, 2025  
-**Author:** [Your Name]  
+**Author:** CVT Team  
 **Project:** CVT (Contract Validator Toolkit)
 
 ---
@@ -659,7 +659,7 @@ Best for rapid iteration and debugging.
 
 ```bash
 # Terminal 1: CVT Server
-cd server && go run ./cmd/server --config ../config/cvt.yaml
+go run ./cmd/cvt serve --port 9550
 
 # Terminal 2: Capture Sidecar
 cd capture && go run ./cmd/cvt-capture \
@@ -1235,7 +1235,7 @@ The following areas need detailed design and implementation:
 
 | Version  | Date       | Author   | Changes       |
 | -------- | ---------- | -------- | ------------- |
-| Draft v1 | 2025-01-29 | [Author] | Initial draft |
+| Draft v1 | 2025-01-29 | CVT Team | Initial draft |
 
 ---
 

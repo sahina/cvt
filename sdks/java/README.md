@@ -18,7 +18,7 @@ For full documentation, visit the [CVT Documentation](https://sahina.github.io/c
 <dependency>
     <groupId>io.github.sahina</groupId>
     <artifactId>cvt-sdk</artifactId>
-    <version>LATEST</version>
+    <version>0.1.0</version> <!-- Replace with latest from Maven Central -->
 </dependency>
 ```
 
@@ -26,7 +26,7 @@ Or with Gradle:
 
 ```gradle
 dependencies {
-    implementation 'io.github.sahina:cvt-sdk:LATEST'
+    implementation 'io.github.sahina:cvt-sdk:0.1.0' // Replace with latest from Maven Central
 }
 ```
 
@@ -81,17 +81,17 @@ The SDK includes an OkHttp adapter for automatic HTTP traffic validation:
 ```java
 import io.github.sahina.sdk.adapters.OkHttpContractAdapter;
 import io.github.sahina.sdk.adapters.AdapterConfig;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 validator.registerSchema("petstore", "./openapi.json");
 
-OkHttpContractAdapter adapter = new OkHttpContractAdapter(AdapterConfig.builder()
-    .validator(validator)
-    .autoValidate(true)
-    .onValidationFailure(result -> {
-        throw new RuntimeException("Contract violation: " + result.getErrors());
-    })
-    .build());
+OkHttpContractAdapter adapter = new OkHttpContractAdapter(validator)
+    .withConfig(AdapterConfig.builder()
+        .autoValidate(true)
+        .build());
 
 OkHttpClient client = new OkHttpClient.Builder()
     .addInterceptor(adapter)
@@ -211,12 +211,14 @@ if (!result.isCompatible()) {
 
 ### Breaking Change Types
 
-| Type                   | Description                           |
-| ---------------------- | ------------------------------------- |
-| `ENDPOINT_REMOVED`     | An endpoint was removed               |
-| `REQUIRED_FIELD_ADDED` | A required field was added to request |
-| `FIELD_TYPE_CHANGED`   | A field's type was changed            |
-| `ENUM_VALUE_REMOVED`   | An allowed enum value was removed     |
+| Type                        | Description                                    |
+| --------------------------- | ---------------------------------------------- |
+| `ENDPOINT_REMOVED`          | An endpoint was removed                        |
+| `REQUIRED_FIELD_ADDED`      | A required field was added to request          |
+| `TYPE_CHANGED`              | A field's type was changed incompatibly        |
+| `REQUIRED_PARAMETER_ADDED`  | A required query/path/header param was added   |
+| `RESPONSE_SCHEMA_CHANGED`   | Response schema was changed incompatibly       |
+| `ENUM_VALUE_REMOVED`        | An allowed enum value was removed              |
 
 See [`examples/BreakingChanges.java`](https://github.com/sahina/cvt/tree/main/sdks/java/src/main/java/io/github/sahina/examples/BreakingChanges.java) for a complete example.
 
@@ -271,8 +273,7 @@ ConsumerInfo consumer = validator.registerConsumer(
         .schemaVersion("1.0.0")
         .environment("prod")
         .usedEndpoints(List.of(
-            new EndpointUsage("GET", "/users/{id}", List.of("id", "email"))
-        ))
+            new EndpointUsage("GET", "/users/{id}", List.of("id", "email"))))
         .build()
 );
 

@@ -38,7 +38,7 @@ pip install -e sdks/python
 ```python
 from cvt_sdk import ContractValidator
 
-validator = ContractValidator(host="localhost:9550")
+validator = ContractValidator("localhost:9550")
 
 # Register from local file
 validator.register_schema("my-schema", "path/to/openapi.json")
@@ -66,10 +66,10 @@ response = {
 
 result = validator.validate(request, response)
 
-if result.valid:
-    print("✅ Valid interaction")
+if result["valid"]:
+    print("Valid interaction")
 else:
-    print(f"❌ Validation errors: {result.errors}")
+    print(f"Validation errors: {result['errors']}")
 ```
 
 ## HTTP Adapter (Requests)
@@ -80,16 +80,15 @@ The SDK includes a Requests adapter for automatic HTTP traffic validation:
 from cvt_sdk import ContractValidator
 from cvt_sdk.adapters import ContractValidatingSession
 
-validator = ContractValidator(host="localhost:9550")
+validator = ContractValidator("localhost:9550")
 validator.register_schema("petstore", "./openapi.json")
 
 # Create a validating session (drop-in replacement for requests.Session)
 session = ContractValidatingSession(
-    validator=validator,
-    schema_id="petstore",
+    validator,
     auto_validate=True,
     exclude_paths=["/health", "/metrics"],
-    on_validation_failure=lambda result, interaction: print(f"Failed: {result.errors}")
+    on_validation_failure=lambda result, req, resp: print(f"Failed: {result['errors']}")
 )
 
 # All requests are now automatically validated
@@ -128,7 +127,7 @@ from cvt_sdk import ContractValidator
 from cvt_sdk.producer import ProducerConfig, ValidationMode
 from cvt_sdk.producer.adapters import ASGIMiddleware
 
-validator = ContractValidator(host="localhost:9550")
+validator = ContractValidator("localhost:9550")
 validator.register_schema("my-api", "./openapi.json")
 
 config = ProducerConfig(
@@ -146,7 +145,7 @@ app.add_middleware(ASGIMiddleware, config=config)
 ```python
 from cvt_sdk.producer.adapters import WSGIMiddleware
 
-app.wsgi_app = WSGIMiddleware(app.wsgi_app, config=config)
+app.wsgi_app = WSGIMiddleware(app.wsgi_app, config)
 ```
 
 ### Configuration Options
@@ -168,7 +167,7 @@ Detect breaking changes between OpenAPI schema versions before deployment:
 ```python
 from cvt_sdk import ContractValidator
 
-validator = ContractValidator(host="localhost:9550")
+validator = ContractValidator("localhost:9550")
 
 # Register both schema versions
 validator.register_schema_with_version("my-api", "./openapi-v1.json", "1.0.0")
@@ -177,23 +176,25 @@ validator.register_schema_with_version("my-api", "./openapi-v2.json", "2.0.0")
 # Compare versions
 result = validator.compare_schemas("my-api", "1.0.0", "2.0.0")
 
-if not result.compatible:
+if not result["compatible"]:
     print("Breaking changes detected:")
-    for change in result.breaking_changes:
-        print(f"- [{change.type}] {change.description}")
-        if change.path:
-            print(f"  Path: {change.method} {change.path}")
+    for change in result["breaking_changes"]:
+        print(f"- [{change['type']}] {change['description']}")
+        if change["path"]:
+            print(f"  Path: {change['method']} {change['path']}")
     sys.exit(1)  # Fail CI build
 ```
 
 ### Breaking Change Types
 
-| Type                   | Description                           |
-| ---------------------- | ------------------------------------- |
-| `ENDPOINT_REMOVED`     | An endpoint was removed               |
-| `REQUIRED_FIELD_ADDED` | A required field was added to request |
-| `FIELD_TYPE_CHANGED`   | A field's type was changed            |
-| `ENUM_VALUE_REMOVED`   | An allowed enum value was removed     |
+| Type                        | Description                                    |
+| --------------------------- | ---------------------------------------------- |
+| `ENDPOINT_REMOVED`          | An endpoint was removed                        |
+| `REQUIRED_FIELD_ADDED`      | A required field was added to request          |
+| `TYPE_CHANGED`              | A field's type was changed incompatibly        |
+| `REQUIRED_PARAMETER_ADDED`  | A required query/path/header param was added   |
+| `RESPONSE_SCHEMA_CHANGED`   | Response schema was changed incompatibly       |
+| `ENUM_VALUE_REMOVED`        | An allowed enum value was removed              |
 
 See `examples/breaking_changes.py` for a complete example.
 
@@ -204,9 +205,9 @@ Test that your API handlers return responses matching your OpenAPI specification
 ### ProducerTestKit
 
 ```python
-from cvt_sdk.producer import ProducerTestKit, TestConfig, TestResponseData
+from cvt_sdk.producer import ProducerTestKit, ProducerTestConfig
 
-test_kit = ProducerTestKit(TestConfig(
+test_kit = ProducerTestKit(ProducerTestConfig(
     schema_id="user-api",
     server_address="localhost:9550",
 ))
@@ -215,10 +216,8 @@ test_kit = ProducerTestKit(TestConfig(
 result = test_kit.validate_response(
     method="GET",
     path="/users/123",
-    response=TestResponseData(
-        status_code=200,
-        body={"id": "123", "name": "Alice", "email": "alice@example.com"},
-    ),
+    status_code=200,
+    body={"id": "123", "name": "Alice", "email": "alice@example.com"},
 )
 
 assert result.valid
@@ -232,20 +231,22 @@ test_kit.close()
 Track which services depend on your API:
 
 ```python
+from cvt_sdk import RegisterConsumerOptions, EndpointUsage
+
 # Register a consumer after successful contract tests
-consumer = validator.register_consumer(
+consumer = validator.register_consumer(RegisterConsumerOptions(
     consumer_id="order-service",
     consumer_version="2.1.0",
     schema_id="user-api",
     schema_version="1.0.0",
     environment="prod",
     used_endpoints=[
-        {"method": "GET", "path": "/users/{id}", "used_fields": ["id", "email"]},
+        EndpointUsage(method="GET", path="/users/{id}", used_fields=["id", "email"]),
     ],
-)
+))
 
 # List all consumers of a schema
-consumers = validator.list_consumers(schema_id="user-api", environment="prod")
+consumers = validator.list_consumers("user-api", "prod")
 
 # Deregister a consumer
 validator.deregister_consumer("order-service", "user-api", "prod")
@@ -256,17 +257,13 @@ validator.deregister_consumer("order-service", "user-api", "prod")
 Check if a new schema version can be safely deployed:
 
 ```python
-result = validator.can_i_deploy(
-    schema_id="user-api",
-    new_version="2.0.0",
-    environment="prod",
-)
+result = validator.can_i_deploy("user-api", "2.0.0", "prod")
 
-if not result.safe_to_deploy:
-    print(f"Cannot deploy: {result.summary}")
-    for consumer in result.affected_consumers:
-        if consumer.will_break:
-            print(f"- {consumer.consumer_id} will break")
+if not result["safe_to_deploy"]:
+    print(f"Cannot deploy: {result['summary']}")
+    for consumer in result["affected_consumers"]:
+        if consumer["will_break"]:
+            print(f"- {consumer['consumer_id']} will break")
     sys.exit(1)
 ```
 
@@ -277,22 +274,28 @@ See [Producer Testing Guide](../../docs/guides/producer-testing.mdx) for complet
 ### TLS
 
 ```python
-validator = ContractValidator(
-    host="localhost:9550",
-    tls_enabled=True,
-    tls_root_cert="./certs/ca.crt",
-    tls_client_cert="./certs/client.crt",  # For mTLS
-    tls_client_key="./certs/client.key"    # For mTLS
-)
+from cvt_sdk import ContractValidator, ContractValidatorOptions, TLSOptions
+
+validator = ContractValidator(ContractValidatorOptions(
+    address="localhost:9550",
+    tls=TLSOptions(
+        enabled=True,
+        root_cert_path="./certs/ca.crt",
+        cert_path="./certs/client.crt",  # For mTLS
+        key_path="./certs/client.key",   # For mTLS
+    ),
+))
 ```
 
 ### API Key Authentication
 
 ```python
-validator = ContractValidator(
-    host="localhost:9550",
-    api_key="your-api-key-here"
-)
+from cvt_sdk import ContractValidator, ContractValidatorOptions
+
+validator = ContractValidator(ContractValidatorOptions(
+    address="localhost:9550",
+    api_key="your-api-key-here",
+))
 ```
 
 ## Prerequisites
@@ -350,7 +353,7 @@ from cvt_sdk import ContractValidator
 @pytest.fixture
 def validator():
     """Create validator instance for testing."""
-    v = ContractValidator(host="localhost:9550")
+    v = ContractValidator("localhost:9550")
     yield v
     v.close()
 
@@ -363,7 +366,7 @@ def test_validate_correct_interaction(validator):
         response={"status_code": 200, "body": []}
     )
 
-    assert result.valid is True
+    assert result["valid"] is True
 
 def test_validate_incorrect_interaction(validator):
     """Test validation of an incorrect interaction."""
@@ -374,8 +377,8 @@ def test_validate_incorrect_interaction(validator):
         response={"status_code": 500}  # Should be 200
     )
 
-    assert result.valid is False
-    assert len(result.errors) > 0
+    assert result["valid"] is False
+    assert len(result["errors"]) > 0
 ```
 
 ### Coverage

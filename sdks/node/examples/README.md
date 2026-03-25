@@ -58,6 +58,15 @@ Breaking change detection between schema versions:
 npx ts-node examples/breaking-changes.ts
 ```
 
+### shared.ts
+
+Common utilities shared across examples:
+
+- Type definitions for Petstore API entities (Pet, User, Order, etc.)
+- Helper functions for creating sample data
+- Schema path constants
+- Validation result logging utilities
+
 ## Troubleshooting
 
 **Server connection errors?** Ensure the server is running: `make up` from repository root.

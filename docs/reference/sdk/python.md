@@ -197,7 +197,7 @@ def list_consumers(schema_id: str, environment: str = None) -> list[ConsumerInfo
 Removes a consumer registration.
 
 ```python
-def deregister_consumer(consumer_id: str, schema_id: str, environment: str = None) -> None
+def deregister_consumer(consumer_id: str, schema_id: str, environment: str) -> None
 ```
 
 ##### can_i_deploy
@@ -205,7 +205,7 @@ def deregister_consumer(consumer_id: str, schema_id: str, environment: str = Non
 Checks if a schema version can be safely deployed.
 
 ```python
-def can_i_deploy(schema_id: str, new_version: str, environment: str = "prod") -> CanIDeployResult
+def can_i_deploy(schema_id: str, new_version: str, environment: str) -> CanIDeployResult
 ```
 
 ##### close
@@ -354,6 +354,7 @@ def test_detects_invalid_response(test_kit):
 Build consumer registrations from captured mock interactions:
 
 ```python
+from cvt_sdk import AutoRegisterConfig
 from cvt_sdk.adapters import create_validating_session
 
 # Capture interactions during tests
@@ -361,27 +362,24 @@ session = create_validating_session(validator, auto_validate=True)
 session.get("http://mock.petstore/pet/123")
 session.post("http://mock.petstore/pet", json={"name": "doggie"})
 
+config = AutoRegisterConfig(
+    consumer_id="order-service",
+    consumer_version="2.1.0",
+    environment="dev",
+    schema_version="1.0.0",
+)
+
 # Build registration options (preview)
 opts = validator.build_consumer_from_interactions(
     session.get_interactions(),
-    {
-        "consumer_id": "order-service",
-        "consumer_version": "2.1.0",
-        "environment": "dev",
-        "schema_version": "1.0.0",
-    }
+    config,
 )
-print(f"Would register {len(opts.get('used_endpoints', []))} endpoints")
+print(f"Would register {len(opts.used_endpoints or [])} endpoints")
 
 # Or register directly
 info = validator.register_consumer_from_interactions(
     session.get_interactions(),
-    {
-        "consumer_id": "order-service",
-        "consumer_version": "2.1.0",
-        "environment": "dev",
-        "schema_version": "1.0.0",
-    }
+    config,
 )
 ```
 

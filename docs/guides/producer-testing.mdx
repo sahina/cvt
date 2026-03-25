@@ -528,7 +528,7 @@ consumers = validator.list_consumers("petstore", "prod")
 
 print(f"{len(consumers)} services depend on petstore in prod")
 for consumer in consumers:
-    print(f"- {consumer.consumer_id} v{consumer.consumer_version}")
+    print(f"- {consumer['consumer_id']} v{consumer['consumer_version']}")
 ```
 
 </TabItem>
@@ -621,15 +621,16 @@ const response = await validator.generateResponse("GET", "/pet/{petId}", {
 <TabItem value="python" label="Python">
 
 ```python
+from cvt_sdk import GenerateOptions
+
 # Generate complete request/response fixture
 fixture = validator.generate_fixture("GET", "/pet/{petId}")
-print(fixture.request)   # { method, path, headers, body }
-print(fixture.response)  # { status_code, headers, body }
+print(fixture["request"])   # { method, path, headers, body }
+print(fixture["response"])  # { status_code, headers, body }
 
 # Generate response only with schema examples
 response = validator.generate_response("GET", "/pet/{petId}",
-    status_code=200,
-    use_examples=True,
+    GenerateOptions(status_code=200, use_examples=True),
 )
 ```
 
@@ -638,7 +639,7 @@ response = validator.generate_response("GET", "/pet/{petId}",
 
 ```go
 // Generate complete request/response fixture
-fixture, err := validator.GenerateFixture(ctx, "GET", "/pet/{petId}")
+fixture, err := validator.GenerateFixture(ctx, "GET", "/pet/{petId}", nil)
 if err != nil {
     log.Fatal(err)
 }
@@ -647,7 +648,7 @@ fmt.Println(fixture.Response)  // { StatusCode, Headers, Body }
 
 // Generate response only with schema examples
 response, err := validator.GenerateResponse(ctx, "GET", "/pet/{petId}",
-    cvt.GenerateResponseOptions{
+    &cvt.GenerateOptions{
         StatusCode:  200,
         UseExamples: true,
     },
@@ -682,13 +683,13 @@ ResponseFixture response = validator.generateResponse("GET", "/pet/{petId}",
 cvt generate --schema ./openapi.json --list
 
 # Generate fixture for an endpoint
-cvt generate --schema ./openapi.json --endpoint "GET /pet/{petId}"
+cvt generate --schema ./openapi.json --method GET --path /pet/{petId}
 
 # Generate request only
-cvt generate --schema ./openapi.json --endpoint "POST /pet" --output-type request
+cvt generate --schema ./openapi.json --method POST --path /pet --output-type request
 
 # Use examples from schema
-cvt generate --schema ./openapi.json --endpoint "GET /pet/{petId}" --use-examples
+cvt generate --schema ./openapi.json --method GET --path /pet/{petId} --use-examples
 ```
 
 ---
@@ -869,46 +870,28 @@ Ensure the schema is registered before running producer tests:
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-await validator.registerSchema({
-  schemaId: "petstore",
-  schemaVersion: "1.0.0",
-  content: fs.readFileSync("./openapi.json", "utf-8"),
-});
+await validator.registerSchema("petstore", "./openapi.json");
 ```
 
 </TabItem>
 <TabItem value="python" label="Python">
 
 ```python
-validator.register_schema(
-    schema_id="petstore",
-    schema_version="1.0.0",
-    content=open("./openapi.json").read(),
-)
+validator.register_schema("petstore", "./openapi.json")
 ```
 
 </TabItem>
 <TabItem value="go" label="Go">
 
 ```go
-content, _ := os.ReadFile("./openapi.json")
-err := validator.RegisterSchema(ctx, cvt.RegisterSchemaOptions{
-    SchemaID:      "petstore",
-    SchemaVersion: "1.0.0",
-    Content:       string(content),
-})
+err := validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 ```
 
 </TabItem>
 <TabItem value="java" label="Java">
 
 ```java
-String content = Files.readString(Path.of("./openapi.json"));
-validator.registerSchema(RegisterSchemaOptions.builder()
-    .schemaId("petstore")
-    .schemaVersion("1.0.0")
-    .content(content)
-    .build());
+validator.registerSchema("petstore", "./openapi.json");
 ```
 
 </TabItem>

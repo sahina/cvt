@@ -96,7 +96,7 @@ All SDKs provide a consistent interface for contract validation:
 | Node.js | TypeScript   | Dynamic proto loading, Axios/Fetch adapters |
 | Python  | Python 3.11+ | requests/httpx adapters, uv package manager |
 | Go      | Go 1.25+     | http.RoundTripper adapter                   |
-| Java    | Java 21+     | Gradle build, Spring/Servlet middleware     |
+| Java    | Java 21+     | Maven build, Spring/Servlet middleware      |
 
 SDKs are **pure validator clients** - they handle gRPC communication, configuration, and authentication but do not execute HTTP requests themselves.
 

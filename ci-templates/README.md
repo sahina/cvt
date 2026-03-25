@@ -10,22 +10,17 @@ Choose your CI/CD platform and follow the instructions below.
 
 ## GitHub Actions
 
-### Option 1: Copy the Workflow (Recommended)
+### Demo Workflows
 
-Copy `github-workflow.yml` to your repository:
+This directory contains three demo workflows for GitHub Actions:
 
-```bash
-mkdir -p .github/workflows
-cp github-workflow.yml .github/workflows/contract-validation.yml
-```
+- **`demo-consumer.yml`** - Demonstrates how an API consumer runs contract tests and registers API usage with the CVT server
+- **`demo-producer.yml`** - Demonstrates how an API producer validates schema changes and checks consumer compatibility
+- **`demo-can-i-deploy.yml`** - Demonstrates the deployment safety check that verifies schema changes won't break consumers
 
-Edit the file to match your project structure:
+Copy any of these to your repository's `.github/workflows/` directory and customize for your project.
 
-- Update `openapi.json` path to your schema location
-- Update `tests/fixtures/*.json` to your fixture location
-- Update the CVT repository reference
-
-### Option 2: Use the Composite Action
+### Use the Composite Action
 
 Reference the CVT action directly in your workflow:
 
@@ -49,48 +44,48 @@ jobs:
 
 ### Action Inputs
 
-| Input                      | Required | Default      | Description                                |
-| -------------------------- | -------- | ------------ | ------------------------------------------ |
-| `schema-path`              | Yes      | -            | Path to your OpenAPI schema                |
-| `schema-id`                | No       | `api-schema` | Unique identifier for the schema           |
-| `validate-fixtures`        | No       | -            | Glob pattern for fixture files to validate |
-| `compare-with`             | No       | -            | Path to previous schema version            |
-| `fail-on-breaking-changes` | No       | `true`       | Fail build on breaking changes             |
+| Input                      | Required | Default      | Description                                    |
+| -------------------------- | -------- | ------------ | ---------------------------------------------- |
+| `schema-path`              | Yes      | -            | Path to your OpenAPI schema                    |
+| `schema-id`                | No       | `api-schema` | Unique identifier for the schema               |
+| `cvt-server`               | No       | -            | CVT server address (if using server mode)      |
+| `validate-fixtures`        | No       | -            | Glob pattern for fixture files to validate     |
+| `compare-with`             | No       | -            | Path to previous schema version                |
+| `fail-on-breaking-changes` | No       | `true`       | Fail build on breaking changes                 |
+| `go-version`               | No       | `1.25`       | Go version to use for building CVT CLI         |
 
 ---
 
 ## GitLab CI
 
-### Option 1: Include the Template
-
-Add to your `.gitlab-ci.yml`:
+You can adapt the GitHub Actions demo workflows for GitLab CI. The CVT CLI commands are the same across all platforms. Here is an example `.gitlab-ci.yml` configuration:
 
 ```yaml
-include:
-  - project: "sahina/cvt"
-    file: "/ci-templates/gitlab-ci.yml"
-
 variables:
   CVT_SCHEMA_PATH: "api/openapi.json"
+
+cvt:validate-schema:
+  image: ghcr.io/sahina/cvt:latest
+  script:
+    - cvt generate --schema "$CVT_SCHEMA_PATH" --list
+
+cvt:breaking-changes:
+  image: ghcr.io/sahina/cvt:latest
+  script:
+    - git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    - git show origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:$CVT_SCHEMA_PATH > /tmp/old.json || true
+    - cvt compare --old /tmp/old.json --new "$CVT_SCHEMA_PATH"
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+
+cvt:validate-fixtures:
+  image: ghcr.io/sahina/cvt:latest
+  script:
+    - |
+      for f in tests/fixtures/*.json; do
+        cvt validate --schema "$CVT_SCHEMA_PATH" --interaction "$f"
+      done
 ```
-
-This gives you these jobs:
-
-- `cvt:validate-schema` - Validates the schema is correct
-- `cvt:breaking-changes` - Checks for breaking changes in MRs
-- `cvt:validate-fixtures` - Validates fixture files
-- `cvt:generate-fixtures` - Generates fixtures (manual trigger)
-
-### Option 2: Copy Specific Jobs
-
-Copy the jobs you need from `gitlab-ci.yml` into your own `.gitlab-ci.yml`.
-
-### Variables
-
-| Variable          | Default        | Description                 |
-| ----------------- | -------------- | --------------------------- |
-| `CVT_SCHEMA_PATH` | `openapi.json` | Path to your OpenAPI schema |
-| `CVT_GO_VERSION`  | `1.25`         | Go version for building CVT |
 
 ---
 
@@ -210,7 +205,7 @@ describe("API Contract Tests", () => {
 
 ```python
 import pytest
-from cvt_sdk import ContractValidator
+from cvt_sdk import ContractValidator, GenerateOptions
 
 @pytest.fixture
 def validator():
@@ -220,7 +215,7 @@ def validator():
     v.close()
 
 def test_post_users_contract(validator):
-    response = validator.generate_response('POST', '/users', status_code=201)
+    response = validator.generate_response('POST', '/users', GenerateOptions(status_code=201))
     result = validator.validate(
         {'method': 'POST', 'path': '/users', 'body': {'name': 'Test'}},
         {'status_code': 201, 'body': response['body']}

@@ -13,8 +13,9 @@ When a version tag is pushed, the release workflow automatically:
 
 1. Builds multi-platform Docker images (`linux/amd64`, `linux/arm64`)
 2. Pushes to GitHub Container Registry (`ghcr.io/sahina/cvt`)
-3. Creates a GitHub Release with auto-generated release notes
-4. Updates agent skills version (`.agents/skills/VERSION`, SKILL.md frontmatter, template version comments)
+3. Creates a GitHub Release with cross-platform CLI binaries via GoReleaser
+4. Publishes all SDK packages (Node.js, Java, Python, Go) to their registries
+5. Updates agent skills version (`.agents/skills/VERSION`, SKILL.md frontmatter, template version comments)
 
 ## Stable Releases
 
@@ -153,13 +154,28 @@ All images are built for multiple platforms:
 
 ## Makefile Commands
 
-| Command                            | Description                       |
-| ---------------------------------- | --------------------------------- |
-| `make tag TAG=x.y.z`               | Create a local git tag            |
-| `make tag-push TAG=x.y.z`          | Create and push a git tag         |
-| `make release TAG=x.y.z`           | Alias for `tag-push`              |
-| `make prerelease TAG=x.y.z-suffix` | Create and push a pre-release tag |
-| `make check-release`               | Show the current release version  |
+| Command                              | Description                                        |
+| ------------------------------------ | -------------------------------------------------- |
+| `make tag TAG=x.y.z`                 | Create a local git tag                             |
+| `make tag-push TAG=x.y.z`            | Create and push a git tag                          |
+| `make release TAG=x.y.z`             | Alias for `tag-push`                               |
+| `make prerelease TAG=x.y.z-suffix`   | Create and push a pre-release tag                  |
+| `make check-release`                 | Show the current release version                   |
+| `make delete-release TAG=x.y.z`      | Delete a release and all associated artifacts      |
+
+## CLI Binaries
+
+The release workflow uses [GoReleaser](https://goreleaser.com/) to build cross-platform CLI binaries attached to each GitHub Release. These include binaries for macOS (amd64, arm64), Linux (amd64, arm64), and Windows (amd64).
+
+## Deleting a Release
+
+To delete a release and all its associated artifacts (GitHub Release, Docker image, npm/Maven packages, git tags):
+
+```bash
+make delete-release TAG=1.0.0
+```
+
+This will prompt for confirmation before deleting.
 
 ## Troubleshooting
 

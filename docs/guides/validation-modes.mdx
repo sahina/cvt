@@ -169,9 +169,9 @@ All modes emit Prometheus metrics for monitoring:
 
 | Metric                            | Description                                         |
 | --------------------------------- | --------------------------------------------------- |
-| `cvt_validation_requests_total`   | Total validations by schema, endpoint, mode         |
-| `cvt_validation_errors_total`     | Validation failures by schema, endpoint, error type |
-| `cvt_validation_duration_seconds` | Validation latency histogram                        |
+| `cvt_validations_total`           | Total validations by schema, method, result         |
+| `cvt_validation_errors_total`     | Validation failures by error category               |
+| `cvt_validation_duration_seconds` | Validation latency histogram by schema and method   |
 
 Use these metrics to:
 

@@ -27,7 +27,7 @@ public class AdvancedUsage {
 
         String schemaPath = getSchemaPath();
 
-        try (ContractValidator validator = new ContractValidator("localhost:50052")) {
+        try (ContractValidator validator = new ContractValidator()) {
             System.out.println("📋 Registering OpenAPI schema...");
             validator.registerSchema("advanced-schema", schemaPath);
             System.out.println("✅ Schema registered successfully\n");

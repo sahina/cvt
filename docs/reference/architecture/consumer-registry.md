@@ -283,11 +283,11 @@ if oldType != newType && !isCompatibleTypeChange(oldType, newType) {
 
 // Some type changes are safe (widening)
 func isCompatibleTypeChange(old, new string) bool {
-    // integer -> number is safe
-    // int32 -> int64 is safe
     compatibleChanges := map[string][]string{
         "integer": {"number"},
         "int32":   {"int64", "integer", "number"},
+        "int64":   {"number"},
+        "float":   {"double", "number"},
     }
     return contains(compatibleChanges[old], new)
 }
@@ -459,7 +459,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       cvt:
-        image: ghcr.io/your-org/cvt:latest
+        image: ghcr.io/sahina/cvt:latest
         ports:
           - 9550:9550
 
