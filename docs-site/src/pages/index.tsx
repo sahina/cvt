@@ -11,6 +11,7 @@ type FeatureItem = {
   title: string;
   icon: string;
   description: string;
+  link: string;
 };
 
 const FeatureList: FeatureItem[] = [
@@ -19,36 +20,42 @@ const FeatureList: FeatureItem[] = [
     icon: '⬡',
     description:
       'Validate HTTP request/response interactions against OpenAPI v2/v3 specifications with comprehensive schema validation.',
+    link: '/docs/guides/validation-modes',
   },
   {
     title: 'Consumer Contract Testing',
     icon: '⇄',
     description:
       'Register consumer expectations and validate that producers meet those contracts throughout the development lifecycle.',
+    link: '/docs/guides/consumer-testing',
   },
   {
     title: 'Producer Validation',
     icon: '✓',
     description:
       'Ensure producer responses conform to published API specifications with detailed error reporting.',
+    link: '/docs/guides/producer-testing',
   },
   {
     title: 'Multi-language SDKs',
     icon: '◈',
     description:
       'Native SDKs for Node.js, Python, Go, and Java make integration seamless in any tech stack.',
+    link: '/docs/reference/sdk/',
   },
   {
     title: 'Breaking Change Detection',
     icon: '△',
     description:
       'Compare schema versions to detect breaking changes before they impact consumers.',
+    link: '/docs/guides/breaking-changes',
   },
   {
     title: 'Safe Deployment Checks',
     icon: '⊘',
     description:
       "CanIDeploy verification ensures schema changes won't break registered consumer contracts.",
+    link: '/docs/guides/breaking-changes#deployment-safety-can-i-deploy',
   },
 ];
 
@@ -143,14 +150,16 @@ var result = client.validateInteraction(
   },
 ];
 
-function Feature({title, icon, description}: FeatureItem) {
+function Feature({title, icon, description, link}: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
-      <div className={styles.featureCard}>
-        <div className={styles.featureIcon}>{icon}</div>
-        <Heading as="h3">{title}</Heading>
-        <p>{description}</p>
-      </div>
+      <Link to={link} className={styles.featureCardLink}>
+        <div className={styles.featureCard}>
+          <div className={styles.featureIcon}>{icon}</div>
+          <Heading as="h3">{title}</Heading>
+          <p>{description}</p>
+        </div>
+      </Link>
     </div>
   );
 }

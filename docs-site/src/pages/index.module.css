@@ -124,6 +124,13 @@
   row-gap: 1.5rem;
 }
 
+.featureCardLink {
+  text-decoration: none !important;
+  color: inherit !important;
+  display: block;
+  height: 100%;
+}
+
 .featureCard {
   padding: 1.75rem;
   border-radius: 10px;
