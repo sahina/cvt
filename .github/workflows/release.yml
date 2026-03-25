@@ -95,6 +95,48 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  update-agent-skills:
+    name: Update Agent Skills Version
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update skills VERSION file
+        run: echo "$VERSION" > .agents/skills/VERSION
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+
+      - name: Update sdk_version in SKILL.md frontmatter
+        run: |
+          find .agents/skills -name 'SKILL.md' -exec sed -i "s/^sdk_version: .*/sdk_version: \"$VERSION\"/" {} +
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+
+      - name: Update template version comments
+        run: |
+          find .agents/skills -name '*.tmpl' -exec sed -i "s|CVT SDK v[0-9][0-9.]*[-a-zA-Z.0-9]*|CVT SDK v$VERSION|" {} +
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+
+      - name: Commit version updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet .agents/; then
+            echo "No agent skills version changes needed"
+          else
+            git add .agents/
+            git commit -m "chore: bump agent skills version to $VERSION [skip ci]"
+            git push origin HEAD:main
+          fi
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+
   publish-node:
     name: Publish Node.js SDK
     if: github.event_name == 'push'

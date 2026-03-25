@@ -706,3 +706,7 @@ check-release:
 	else \
 		echo "Current release: $$TAG"; \
 	fi
+	@SKILLS_VER=$$(cat .agents/skills/VERSION 2>/dev/null); \
+	if [ -n "$$SKILLS_VER" ]; then \
+		echo "Agent skills version: $$SKILLS_VER"; \
+	fi

@@ -14,6 +14,7 @@ When a version tag is pushed, the release workflow automatically:
 1. Builds multi-platform Docker images (`linux/amd64`, `linux/arm64`)
 2. Pushes to GitHub Container Registry (`ghcr.io/sahina/cvt`)
 3. Creates a GitHub Release with auto-generated release notes
+4. Updates agent skills version (`.agents/skills/VERSION`, SKILL.md frontmatter, template version comments)
 
 ## Stable Releases
 
@@ -110,12 +111,13 @@ make release TAG=1.0.0
 
 The release workflow automatically publishes all SDKs to their public registries:
 
-| SDK     | Registry                                                                        | Mechanism                                 |
-| ------- | ------------------------------------------------------------------------------- | ----------------------------------------- |
-| Node.js | [npmjs](https://www.npmjs.com/package/@sahina/cvt-sdk)                          | `npm publish` with `NPM_TOKEN` secret     |
-| Java    | [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk) | `mvn deploy -Prelease` with GPG signing   |
-| Python  | [PyPI](https://pypi.org/project/cvt-sdk/)                                       | Trusted publisher (OIDC, no token needed) |
-| Go      | `go get`                                                                        | Git tag `sdks/go/vX.Y.Z` pushed to origin |
+| SDK          | Registry                                                                        | Mechanism                                 |
+| ------------ | ------------------------------------------------------------------------------- | ----------------------------------------- |
+| Node.js      | [npmjs](https://www.npmjs.com/package/@sahina/cvt-sdk)                          | `npm publish` with `NPM_TOKEN` secret     |
+| Java         | [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk) | `mvn deploy -Prelease` with GPG signing   |
+| Python       | [PyPI](https://pypi.org/project/cvt-sdk/)                                       | Trusted publisher (OIDC, no token needed) |
+| Go           | `go get`                                                                        | Git tag `sdks/go/vX.Y.Z` pushed to origin |
+| Agent Skills | `.agents/skills/`                                                               | VERSION file + SKILL.md frontmatter + template comments auto-bumped |
 
 All SDK jobs run in parallel after `validate`, so they don't block each other.
 
