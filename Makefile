@@ -580,27 +580,27 @@ ci-full: ci check-coverage
 # Documentation commands
 docs-install:
 	@echo "📦 Installing documentation dependencies..."
-	cd docs-site && npm install
+	cd docs-site && pnpm install
 	@echo "✅ Documentation dependencies installed!"
 
 docs-dev: docs-install
 	@echo "🚀 Starting documentation development server..."
 	@echo "📖 Open http://localhost:4100/cvt/ in your browser"
-	cd docs-site && npm start
+	cd docs-site && pnpm start
 
 docs-build: docs-install
 	@echo "🏗️  Building documentation site..."
-	cd docs-site && npm run build
+	cd docs-site && pnpm run build
 	@echo "✅ Documentation built in docs-site/build/"
 
 docs-serve: docs-build
 	@echo "🌐 Serving built documentation..."
 	@echo "📖 Open http://localhost:4100/cvt/ in your browser"
-	cd docs-site && npm run serve
+	cd docs-site && pnpm run serve
 
 docs-deploy: docs-build
 	@echo "🚀 Deploying documentation to GitHub Pages..."
-	cd docs-site && npm run deploy
+	cd docs-site && pnpm run deploy
 	@echo "✅ Documentation deployed!"
 
 # Release commands - helper targets for TAG validation
