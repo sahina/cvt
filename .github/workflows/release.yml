@@ -102,9 +102,10 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main branch
         uses: actions/checkout@v6
         with:
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update skills VERSION file
