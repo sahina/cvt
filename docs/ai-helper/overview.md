@@ -138,7 +138,7 @@ AI: I'll help you set up CVT. Based on the CVT documentation, here's what we nee
 
 ## Next Steps
 
-- **[Agent Skills](./../../../.agents/skills/README.md)** - Use agent skills for guided CVT workflows (recommended)
+- **[Agent Skills](https://github.com/sahina/cvt/tree/main/.agents/skills)** - Use agent skills for guided CVT workflows (recommended)
 - **[Context Templates](./context-templates.md)** - Set up your AI tool with CVT context (for llms.txt approach)
 - **[Consumer Testing Guide](https://sahina.github.io/cvt/docs/guides/consumer-testing)** - Learn the full consumer testing workflow
 - **[API Reference](https://sahina.github.io/cvt/docs/reference/api)** - Complete API documentation
