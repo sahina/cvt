@@ -32,12 +32,15 @@ func TestProducerGetUser(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
+	// ValidateResponseParams uses nested Response (not flat fields)
 	result, err := kit.ValidateResponse(context.Background(), producer.ValidateResponseParams{
-		Method:     "GET",
-		Path:       "/users/123",
-		StatusCode: w.Code,
-		Body:       w.Body.Bytes(),
-		Headers:    w.Header(),
+		Method: "GET",
+		Path:   "/users/123",
+		Response: producer.TestResponseData{
+			StatusCode: w.Code,
+			Body:       w.Body.Bytes(),
+			Headers:    flattenHeaders(w.Header()),
+		},
 	})
 	if err != nil {
 		t.Fatalf("validation error: %v", err)
@@ -45,4 +48,15 @@ func TestProducerGetUser(t *testing.T) {
 	if !result.Valid {
 		t.Errorf("expected valid response, got errors: %v", result.Errors)
 	}
+}
+
+// flattenHeaders converts http.Header (map[string][]string) to map[string]string
+func flattenHeaders(h http.Header) map[string]string {
+	flat := make(map[string]string, len(h))
+	for k, v := range h {
+		if len(v) > 0 {
+			flat[k] = v[0]
+		}
+	}
+	return flat
 }

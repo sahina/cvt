@@ -24,8 +24,14 @@ func main() {
 
 	ctx := context.Background()
 	// Register both schema versions (adapt paths)
-	v.RegisterSchema(ctx, "my-api", "./schemas/openapi-v1.json")
-	v.RegisterSchema(ctx, "my-api", "./schemas/openapi-v2.json")
+	if err := v.RegisterSchema(ctx, "my-api", "./schemas/openapi-v1.json"); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to register v1 schema: %v\n", err)
+		os.Exit(1)
+	}
+	if err := v.RegisterSchema(ctx, "my-api", "./schemas/openapi-v2.json"); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to register v2 schema: %v\n", err)
+		os.Exit(1)
+	}
 
 	result, err := v.CompareSchemas(ctx, "my-api", "1.0.0", "2.0.0")
 	if err != nil {

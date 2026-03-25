@@ -7,8 +7,6 @@ import io.github.sahina.sdk.ValidationRequest;
 import io.github.sahina.sdk.ValidationResponse;
 import io.github.sahina.sdk.ValidationResult;
 import org.junit.jupiter.api.*;
-import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,9 +25,10 @@ class ConsumerContractTest {
 
     @Test
     void shouldValidateListUsers() {
+        // body() accepts String — pass JSON strings
         ValidationResult result = validator.validate(
             new ValidationRequest.Builder().method("GET").path("/users").header("Accept", "application/json").build(),
-            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body(List.of(Map.of("id", "1", "name", "Alice"))).build()
+            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body("[{\"id\":\"1\",\"name\":\"Alice\"}]").build()
         );
         assertTrue(result.isValid());
     }
@@ -38,7 +37,7 @@ class ConsumerContractTest {
     void shouldValidateGetUser() {
         ValidationResult result = validator.validate(
             new ValidationRequest.Builder().method("GET").path("/users/1").header("Accept", "application/json").build(),
-            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body(Map.of("id", "1", "name", "Alice", "email", "alice@example.com")).build()
+            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body("{\"id\":\"1\",\"name\":\"Alice\",\"email\":\"alice@example.com\"}").build()
         );
         assertTrue(result.isValid());
     }
@@ -46,8 +45,8 @@ class ConsumerContractTest {
     @Test
     void shouldValidateCreateUser() {
         ValidationResult result = validator.validate(
-            new ValidationRequest.Builder().method("POST").path("/users").header("Content-Type", "application/json").body(Map.of("name", "Bob", "email", "bob@example.com")).build(),
-            new ValidationResponse.Builder().statusCode(201).header("Content-Type", "application/json").body(Map.of("id", "2", "name", "Bob", "email", "bob@example.com")).build()
+            new ValidationRequest.Builder().method("POST").path("/users").header("Content-Type", "application/json").body("{\"name\":\"Bob\",\"email\":\"bob@example.com\"}").build(),
+            new ValidationResponse.Builder().statusCode(201).header("Content-Type", "application/json").body("{\"id\":\"2\",\"name\":\"Bob\",\"email\":\"bob@example.com\"}").build()
         );
         assertTrue(result.isValid());
     }

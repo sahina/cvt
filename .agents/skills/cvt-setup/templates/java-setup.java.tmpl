@@ -7,7 +7,6 @@ import io.github.sahina.sdk.ValidationRequest;
 import io.github.sahina.sdk.ValidationResponse;
 import io.github.sahina.sdk.ValidationResult;
 import org.junit.jupiter.api.*;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,9 +27,10 @@ class ContractTest {
 
     @Test
     void shouldValidateGetUser() {
+        // body() accepts String — pass JSON string, not Map
         ValidationResult result = validator.validate(
             new ValidationRequest.Builder().method("GET").path("/users/123").header("Accept", "application/json").build(),
-            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body(Map.of("id", "123", "name", "Jane Doe")).build()
+            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body("{\"id\":\"123\",\"name\":\"Jane Doe\"}").build()
         );
         assertTrue(result.isValid(), "Expected valid interaction but got errors: " + result.getErrors());
     }

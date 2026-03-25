@@ -33,9 +33,14 @@ class ProducerContractTest {
         // Call your actual API
         ResponseEntity<Map> response = restTemplate.getForEntity("/users/123", Map.class);
 
+        // TestResponseData uses builder pattern (no direct constructor)
         TestValidationResult result = kit.validateResponse(
             "GET", "/users/123",
-            new TestResponseData(response.getStatusCode().value(), response.getBody(), Map.of("Content-Type", "application/json"))
+            TestResponseData.builder()
+                .statusCode(response.getStatusCode().value())
+                .body(response.getBody())
+                .header("Content-Type", "application/json")
+                .build()
         );
         assertTrue(result.isValid(), "Expected valid response: " + result.getErrors());
     }
