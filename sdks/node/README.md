@@ -231,12 +231,14 @@ if (!result.compatible) {
 
 ### Breaking Change Types
 
-| Type                   | Description                           |
-| ---------------------- | ------------------------------------- |
-| `ENDPOINT_REMOVED`     | An endpoint was removed               |
-| `REQUIRED_FIELD_ADDED` | A required field was added to request |
-| `FIELD_TYPE_CHANGED`   | A field's type was changed            |
-| `ENUM_VALUE_REMOVED`   | An allowed enum value was removed     |
+| Type                        | Description                                    |
+| --------------------------- | ---------------------------------------------- |
+| `ENDPOINT_REMOVED`          | An endpoint was removed                        |
+| `REQUIRED_FIELD_ADDED`      | A required field was added to request          |
+| `TYPE_CHANGED`              | A field's type was changed incompatibly        |
+| `REQUIRED_PARAMETER_ADDED`  | A required query/path/header param was added   |
+| `RESPONSE_SCHEMA_CHANGED`   | Response schema was changed incompatibly       |
+| `ENUM_VALUE_REMOVED`        | An allowed enum value was removed              |
 
 See [`examples/breaking-changes.ts`](https://github.com/sahina/cvt/tree/main/sdks/node/examples/breaking-changes.ts) for a complete example.
 
