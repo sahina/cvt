@@ -43,10 +43,8 @@
       "last 1 safari version"
     ]
   },
-  "pnpm": {
-    "overrides": {
-      "serialize-javascript": "^7.0.5"
-    }
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
   },
   "engines": {
     "node": ">=20.0.0"

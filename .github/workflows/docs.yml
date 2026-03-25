@@ -29,19 +29,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+          cache: 'npm'
+          cache-dependency-path: docs-site/package-lock.json
 
       - name: Install dependencies
         working-directory: docs-site
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Build documentation
         working-directory: docs-site
-        run: pnpm run build
+        run: npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
