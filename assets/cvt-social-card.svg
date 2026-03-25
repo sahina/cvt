@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="social-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <linearGradient id="social-badge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="40%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="social-at" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.6)"/>
+      <stop offset="100%" stop-color="white"/>
+    </linearGradient>
+    <linearGradient id="social-ab" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.3)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.7)"/>
+    </linearGradient>
+    <filter id="social-glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="social-badge-shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="rgba(5,150,105,0.4)"/>
+    </filter>
+    <pattern id="social-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#social-bg)"/>
+  <!-- Subtle grid pattern -->
+  <rect width="1200" height="630" fill="url(#social-grid)"/>
+  <!-- Badge icon -->
+  <g transform="translate(440, 140)" filter="url(#social-badge-shadow)">
+    <rect width="120" height="120" rx="16" fill="url(#social-badge)"/>
+    <rect width="120" height="120" rx="16" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+    <svg viewBox="0 0 100 100" width="120" height="120">
+      <path d="M14 22 L42 22" stroke="url(#social-at)" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+      <path d="M35 13 L45 22 L35 31" stroke="white" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M86 78 L58 78" stroke="url(#social-ab)" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+      <path d="M65 69 L55 78 L65 87" stroke="rgba(255,255,255,0.55)" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="50" cy="50" r="13" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+      <path d="M42 50 L48 56 L58 43" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#social-glow)"/>
+    </svg>
+  </g>
+  <!-- CVT text -->
+  <text x="580" y="224" font-family="monospace" font-size="64" font-weight="700" fill="#e4e4e7" letter-spacing="6">CVT</text>
+  <!-- Tagline -->
+  <text x="600" y="340" font-family="sans-serif" font-size="24" fill="#a1a1aa" text-anchor="middle">Contract Validator Toolkit</text>
+  <text x="600" y="380" font-family="sans-serif" font-size="18" fill="#71717a" text-anchor="middle">Consumer-driven contract validation for OpenAPI specifications</text>
+  <!-- Bottom accent line -->
+  <rect x="500" y="430" width="200" height="3" rx="1.5" fill="#059669" opacity="0.6"/>
+</svg>

@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Contract Validator Toolkit',
   tagline: 'Consumer and producer contract validation for OpenAPI specifications',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   // Production URL
   url: 'https://sahina.github.io',
@@ -28,6 +28,39 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossorigin: 'anonymous',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        href: '/cvt/img/favicon.ico',
+        sizes: '48x48',
+      },
+    },
+  ],
 
   // Markdown/MDX configuration
   markdown: {
