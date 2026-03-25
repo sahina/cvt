@@ -6,14 +6,14 @@ Compatible with Claude Code, Codex CLI, Gemini CLI, Cursor, and other SKILL.md-c
 
 ## Consumer Journey
 
-| Phase | Skill | Description |
-|-------|-------|-------------|
-| Setup | `/cvt-setup` | Install SDK, configure server, create first test |
-| Write Tests | `/cvt-write-contract` | Write consumer contract tests |
-| Producer Testing | `/cvt-producer-test` | Validate API responses against schema |
-| CI/CD | `/cvt-ci` | Integrate CVT into CI/CD pipelines |
-| Breaking Changes | `/cvt-breaking-changes` | Detect breaking schema changes |
-| Troubleshoot | `/cvt-troubleshoot` | Diagnose common CVT issues |
+| Phase            | Skill                   | Description                                      |
+| ---------------- | ----------------------- | ------------------------------------------------ |
+| Setup            | `/cvt-setup`            | Install SDK, configure server, create first test |
+| Write Tests      | `/cvt-write-contract`   | Write consumer contract tests                    |
+| Producer Testing | `/cvt-producer-test`    | Validate API responses against schema            |
+| CI/CD            | `/cvt-ci`               | Integrate CVT into CI/CD pipelines               |
+| Breaking Changes | `/cvt-breaking-changes` | Detect breaking schema changes                   |
+| Troubleshoot     | `/cvt-troubleshoot`     | Diagnose common CVT issues                       |
 
 ## Install
 
