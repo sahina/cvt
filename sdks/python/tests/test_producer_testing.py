@@ -23,7 +23,7 @@ class TestTestConfig:
     def test_default_server_address(self):
         """Test default server address."""
         config = TestConfig(schema_id="test-api")
-        assert config.server_address == "localhost:50051"
+        assert config.server_address == "localhost:9550"
 
     def test_custom_server_address(self):
         """Test custom server address."""

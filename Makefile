@@ -476,8 +476,41 @@ lint-java:
 	cd sdks/java && mvn verify -DskipTests 2>/dev/null || echo "⚠️  Java linting skipped (maven verify not configured)"
 	@echo "✅ Java linting complete!"
 
+# Validate agent skill templates
+lint-skills:
+	@echo ""
+	@echo "🔍 Validating agent skill templates..."
+	@FAIL=0; \
+	echo ">>> Checking Python templates parse..."; \
+	for f in .agents/skills/*/templates/*.py.tmpl; do \
+		[ -f "$$f" ] || continue; \
+		if python3 -c "import ast, sys; ast.parse(open(sys.argv[1]).read())" "$$f" 2>/dev/null; then \
+			echo "    ✅ $$f"; \
+		else \
+			echo "    ❌ $$f"; FAIL=1; \
+		fi; \
+	done; \
+	echo ">>> Checking SKILL.md template references..."; \
+	for skill_dir in .agents/skills/*/; do \
+		[ -f "$$skill_dir/SKILL.md" ] || continue; \
+		skill_name=$$(basename "$$skill_dir"); \
+		if [ -d "$$skill_dir/templates" ] && [ -z "$$(ls -A "$$skill_dir/templates/" 2>/dev/null)" ]; then \
+			echo "    ❌ $$skill_dir/templates/ exists but is empty"; FAIL=1; \
+		fi; \
+	done; \
+	echo ">>> Checking VERSION file exists..."; \
+	if [ -f .agents/skills/VERSION ]; then \
+		echo "    ✅ VERSION: $$(cat .agents/skills/VERSION)"; \
+	else \
+		echo "    ❌ .agents/skills/VERSION missing"; FAIL=1; \
+	fi; \
+	if [ "$$FAIL" -eq 1 ]; then \
+		echo "❌ Skill template validation failed!"; exit 1; \
+	fi; \
+	echo "✅ All skill template checks passed!"
+
 # CI target - runs all checks that CI runs
-ci: lint
+ci: lint lint-skills
 	@echo ""
 	@echo "🔍 Running CI format checks..."
 	@echo ">>> Checking Go formatting..."
@@ -705,4 +738,8 @@ check-release:
 		echo "No releases have been made yet."; \
 	else \
 		echo "Current release: $$TAG"; \
+	fi
+	@SKILLS_VER=$$(cat .agents/skills/VERSION 2>/dev/null); \
+	if [ -n "$$SKILLS_VER" ]; then \
+		echo "Agent skills version: $$SKILLS_VER"; \
 	fi

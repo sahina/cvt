@@ -1,0 +1,19 @@
+# CVT SDK v0.1.0 — cvt-sdk
+# Minimal CVT contract test — adapt schema path and endpoint to your API
+import os
+import pytest
+from cvt_sdk import ContractValidator
+
+@pytest.fixture(scope="module")
+def validator():
+    v = ContractValidator(os.environ.get("CVT_SERVER", "localhost:9550"))
+    v.register_schema("my-api", "./path/to/openapi.json")
+    yield v
+    v.close()
+
+def test_get_user(validator):
+    result = validator.validate(
+        request={"method": "GET", "path": "/users/123", "headers": {"Accept": "application/json"}},
+        response={"status_code": 200, "headers": {"Content-Type": "application/json"}, "body": {"id": "123", "name": "Jane Doe"}},
+    )
+    assert result["valid"]

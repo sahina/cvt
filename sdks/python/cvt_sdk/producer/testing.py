@@ -11,7 +11,7 @@ Example with TLS and API key:
     >>> # Create test kit
     >>> test_kit = ProducerTestKit(ProducerTestConfig(
     ...     schema_id="user-api",
-    ...     server_address="localhost:50051",
+    ...     server_address="localhost:9550",
     ...     tls=TLSOptions(enabled=True, root_cert_path="./certs/ca.crt"),
     ...     api_key="cvt-dev-key-12345",
     ... ))
@@ -74,8 +74,8 @@ class ProducerTestConfig:
     schema_version: Optional[str] = None
     """Optional schema version to validate against."""
 
-    server_address: str = "localhost:50051"
-    """Server address (default: "localhost:50051")."""
+    server_address: str = "localhost:9550"
+    """Server address (default: "localhost:9550")."""
 
     api_key: Optional[str] = None
     """API key for authentication (optional)."""
@@ -170,7 +170,7 @@ class ProducerTestKit:
         ... def test_kit():
         ...     kit = ProducerTestKit(ProducerTestConfig(
         ...         schema_id="user-api",
-        ...         server_address="localhost:50051",
+        ...         server_address="localhost:9550",
         ...     ))
         ...     yield kit
         ...     kit.close()

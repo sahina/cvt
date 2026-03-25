@@ -85,6 +85,20 @@ describe("ProducerTestKit", () => {
       testKit.close();
     });
 
+    it("should use localhost:9550 as default address when no serverAddress is provided", () => {
+      const grpc = jest.requireMock("@grpc/grpc-js");
+      const mockContractValidator =
+        grpc.loadPackageDefinition().cvt.ContractValidator;
+      mockContractValidator.mockClear();
+
+      const testKit = new ProducerTestKit({
+        schemaId: "test-api",
+      });
+      expect(mockContractValidator).toHaveBeenCalledTimes(1);
+      expect(mockContractValidator.mock.calls[0][0]).toBe("localhost:9550");
+      testKit.close();
+    });
+
     it("should accept API key for authentication", () => {
       const testKit = new ProducerTestKit({
         schemaId: "test-api",

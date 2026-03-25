@@ -1,0 +1,71 @@
+// CVT SDK v0.1.0 — github.com/sahina/cvt/sdks/go/cvt
+// Consumer contract test suite — adapt endpoints and response shapes to your API
+package contracttest
+
+import (
+	"context"
+	"os"
+	"testing"
+
+	"github.com/sahina/cvt/sdks/go/cvt"
+)
+
+var v *cvt.Validator
+
+func TestMain(m *testing.M) {
+	addr := os.Getenv("CVT_SERVER")
+	if addr == "" {
+		addr = "localhost:9550"
+	}
+	var err error
+	v, err = cvt.NewValidator(addr)
+	if err != nil {
+		panic("failed to create validator: " + err.Error())
+	}
+	ctx := context.Background()
+	if err := v.RegisterSchema(ctx, "my-api", "./path/to/openapi.json"); err != nil {
+		panic("failed to register schema: " + err.Error())
+	}
+	code := m.Run()
+	v.Close()
+	os.Exit(code)
+}
+
+func TestListUsers(t *testing.T) {
+	result, err := v.Validate(context.Background(),
+		cvt.ValidationRequest{Method: "GET", Path: "/users", Headers: map[string]string{"Accept": "application/json"}},
+		cvt.ValidationResponse{StatusCode: 200, Headers: map[string]string{"Content-Type": "application/json"}, Body: []interface{}{map[string]interface{}{"id": "1", "name": "Alice"}}},
+	)
+	if err != nil {
+		t.Fatalf("validation error: %v", err)
+	}
+	if !result.Valid {
+		t.Errorf("expected valid, got errors: %v", result.Errors)
+	}
+}
+
+func TestGetUser(t *testing.T) {
+	result, err := v.Validate(context.Background(),
+		cvt.ValidationRequest{Method: "GET", Path: "/users/1", Headers: map[string]string{"Accept": "application/json"}},
+		cvt.ValidationResponse{StatusCode: 200, Headers: map[string]string{"Content-Type": "application/json"}, Body: map[string]interface{}{"id": "1", "name": "Alice", "email": "alice@example.com"}},
+	)
+	if err != nil {
+		t.Fatalf("validation error: %v", err)
+	}
+	if !result.Valid {
+		t.Errorf("expected valid, got errors: %v", result.Errors)
+	}
+}
+
+func TestCreateUser(t *testing.T) {
+	result, err := v.Validate(context.Background(),
+		cvt.ValidationRequest{Method: "POST", Path: "/users", Headers: map[string]string{"Content-Type": "application/json"}, Body: map[string]interface{}{"name": "Bob", "email": "bob@example.com"}},
+		cvt.ValidationResponse{StatusCode: 201, Headers: map[string]string{"Content-Type": "application/json"}, Body: map[string]interface{}{"id": "2", "name": "Bob", "email": "bob@example.com"}},
+	)
+	if err != nil {
+		t.Fatalf("validation error: %v", err)
+	}
+	if !result.Valid {
+		t.Errorf("expected valid, got errors: %v", result.Errors)
+	}
+}

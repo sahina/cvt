@@ -1,0 +1,53 @@
+// CVT SDK v0.1.0 — io.github.sahina:cvt-sdk
+// Consumer contract test suite — adapt endpoints and response shapes to your API
+package com.example.contract;
+
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.ValidationRequest;
+import io.github.sahina.sdk.ValidationResponse;
+import io.github.sahina.sdk.ValidationResult;
+import org.junit.jupiter.api.*;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ConsumerContractTest {
+    static ContractValidator validator;
+
+    @BeforeAll
+    static void setUp() throws Exception {
+        String server = System.getenv("CVT_SERVER") != null ? System.getenv("CVT_SERVER") : "localhost:9550";
+        validator = ContractValidator.builder().address(server).build();
+        validator.registerSchema("my-api", "./path/to/openapi.json");
+    }
+
+    @AfterAll
+    static void tearDown() { if (validator != null) validator.close(); }
+
+    @Test
+    void shouldValidateListUsers() {
+        // body() accepts String — pass JSON strings
+        ValidationResult result = validator.validate(
+            new ValidationRequest.Builder().method("GET").path("/users").header("Accept", "application/json").build(),
+            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body("[{\"id\":\"1\",\"name\":\"Alice\"}]").build()
+        );
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void shouldValidateGetUser() {
+        ValidationResult result = validator.validate(
+            new ValidationRequest.Builder().method("GET").path("/users/1").header("Accept", "application/json").build(),
+            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body("{\"id\":\"1\",\"name\":\"Alice\",\"email\":\"alice@example.com\"}").build()
+        );
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void shouldValidateCreateUser() {
+        ValidationResult result = validator.validate(
+            new ValidationRequest.Builder().method("POST").path("/users").header("Content-Type", "application/json").body("{\"name\":\"Bob\",\"email\":\"bob@example.com\"}").build(),
+            new ValidationResponse.Builder().statusCode(201).header("Content-Type", "application/json").body("{\"id\":\"2\",\"name\":\"Bob\",\"email\":\"bob@example.com\"}").build()
+        );
+        assertTrue(result.isValid());
+    }
+}

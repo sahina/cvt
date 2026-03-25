@@ -1,0 +1,37 @@
+// CVT SDK v0.1.0 — io.github.sahina:cvt-sdk
+// Minimal CVT contract test — adapt schema path and endpoint to your API
+package com.example.contract;
+
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.ValidationRequest;
+import io.github.sahina.sdk.ValidationResponse;
+import io.github.sahina.sdk.ValidationResult;
+import org.junit.jupiter.api.*;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ContractTest {
+    static ContractValidator validator;
+
+    @BeforeAll
+    static void setUp() throws Exception {
+        String server = System.getenv("CVT_SERVER") != null ? System.getenv("CVT_SERVER") : "localhost:9550";
+        validator = ContractValidator.builder().address(server).build();
+        validator.registerSchema("my-api", "./path/to/openapi.json");
+    }
+
+    @AfterAll
+    static void tearDown() {
+        if (validator != null) validator.close();
+    }
+
+    @Test
+    void shouldValidateGetUser() {
+        // body() accepts String — pass JSON string, not Map
+        ValidationResult result = validator.validate(
+            new ValidationRequest.Builder().method("GET").path("/users/123").header("Accept", "application/json").build(),
+            new ValidationResponse.Builder().statusCode(200).header("Content-Type", "application/json").body("{\"id\":\"123\",\"name\":\"Jane Doe\"}").build()
+        );
+        assertTrue(result.isValid(), "Expected valid interaction but got errors: " + result.getErrors());
+    }
+}

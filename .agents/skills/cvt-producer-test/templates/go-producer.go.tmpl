@@ -1,0 +1,62 @@
+// CVT SDK v0.1.0 — github.com/sahina/cvt/sdks/go/cvt
+// Producer test using ProducerTestKit — validates your API responses against the schema
+package api_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/sahina/cvt/sdks/go/cvt/producer"
+)
+
+func TestProducerGetUser(t *testing.T) {
+	addr := os.Getenv("CVT_SERVER")
+	if addr == "" {
+		addr = "localhost:9550"
+	}
+	kit, err := producer.NewProducerTestKit(producer.TestConfig{
+		SchemaID:      "my-api",
+		ServerAddress: addr,
+	})
+	if err != nil {
+		t.Fatalf("failed to create test kit: %v", err)
+	}
+	defer kit.Close()
+
+	// Call your actual handler via httptest
+	handler := http.HandlerFunc(yourGetUserHandler) // Adapt: your handler
+	req := httptest.NewRequest("GET", "/users/123", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	// ValidateResponseParams uses nested Response (not flat fields)
+	result, err := kit.ValidateResponse(context.Background(), producer.ValidateResponseParams{
+		Method: "GET",
+		Path:   "/users/123",
+		Response: producer.TestResponseData{
+			StatusCode: w.Code,
+			Body:       w.Body.Bytes(),
+			Headers:    flattenHeaders(w.Header()),
+		},
+	})
+	if err != nil {
+		t.Fatalf("validation error: %v", err)
+	}
+	if !result.Valid {
+		t.Errorf("expected valid response, got errors: %v", result.Errors)
+	}
+}
+
+// flattenHeaders converts http.Header (map[string][]string) to map[string]string
+func flattenHeaders(h http.Header) map[string]string {
+	flat := make(map[string]string, len(h))
+	for k, v := range h {
+		if len(v) > 0 {
+			flat[k] = v[0]
+		}
+	}
+	return flat
+}

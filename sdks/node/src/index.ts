@@ -263,7 +263,7 @@ export class ContractValidator {
    * @example
    * // With TLS and API key
    * const validator = new ContractValidator({
-   *   address: "localhost:50051",
+   *   address: "localhost:9550",
    *   tls: { enabled: true, rootCertPath: "./certs/ca.crt" },
    *   apiKey: "cvt-dev-key-12345"
    * });

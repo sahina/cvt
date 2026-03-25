@@ -576,3 +576,6 @@ jobs:
       - name: Run Java verify
         working-directory: ./sdks/java
         run: mvn verify -DskipTests
+
+      - name: Validate agent skill templates
+        run: make lint-skills

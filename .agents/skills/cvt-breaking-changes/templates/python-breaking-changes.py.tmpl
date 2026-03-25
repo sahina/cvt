@@ -1,0 +1,25 @@
+# CVT SDK v0.1.0 — cvt-sdk
+# Detect breaking changes between schema versions
+import os
+import sys
+from cvt_sdk import ContractValidator
+
+def check_breaking_changes():
+    validator = ContractValidator(os.environ.get("CVT_SERVER", "localhost:9550"))
+    try:
+        # Register both schema versions (adapt paths)
+        validator.register_schema("my-api", "./schemas/openapi-v1.json")
+        validator.register_schema("my-api", "./schemas/openapi-v2.json")
+
+        result = validator.compare_schemas("my-api", "1.0.0", "2.0.0")
+        if result["breaking_changes"]:
+            print("Breaking changes detected:", file=sys.stderr)
+            for c in result["breaking_changes"]:
+                print(f"  - {c['type']}: {c['description']}", file=sys.stderr)
+            sys.exit(1)  # Fail CI
+        print("No breaking changes detected.")
+    finally:
+        validator.close()
+
+if __name__ == "__main__":
+    check_breaking_changes()

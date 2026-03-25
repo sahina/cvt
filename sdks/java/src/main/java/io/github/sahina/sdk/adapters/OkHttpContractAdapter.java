@@ -28,7 +28,7 @@ import java.util.Map;
  * <p>Example usage:
  * <pre>{@code
  * ContractValidator validator = ContractValidator.builder()
- *     .address("localhost:50051")
+ *     .address("localhost:9550")
  *     .build();
  * validator.registerSchema("my-api", "./openapi.json");
  *
