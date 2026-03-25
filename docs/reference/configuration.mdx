@@ -37,7 +37,7 @@ Basic server configuration.
 |----------|---------|-------------|
 | `CVT_PORT` | `9550` | gRPC server port |
 | `CVT_METRICS_PORT` | `9551` | Prometheus metrics endpoint port |
-| `LOG_LEVEL` | `info` | Logging level: `debug`, `info`, `warn`, `error` |
+| `LOG_LEVEL` | `info` | Set to `debug` for development mode with verbose logging |
 
 ### Example
 
@@ -150,7 +150,7 @@ Clients must include the API key in the `x-api-key` metadata header:
 
 ```typescript
 // Node.js SDK
-import { ContractValidator } from '@your-org/cvt-sdk';
+import { ContractValidator } from '@sahina/cvt-sdk';
 
 const validator = new ContractValidator({
   address: 'localhost:9550',

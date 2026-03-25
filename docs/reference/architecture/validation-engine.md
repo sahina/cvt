@@ -23,7 +23,7 @@ The validation engine is the core of CVT, responsible for:
 
 ### kin-openapi
 
-CVT uses [kin-openapi](https://github.com/getkin/kin-openapi) (v0.133.0) as its OpenAPI parsing and validation library.
+CVT uses [kin-openapi](https://github.com/getkin/kin-openapi) (v0.134.0) as its OpenAPI parsing and validation library.
 
 **Capabilities:**
 

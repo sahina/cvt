@@ -63,13 +63,13 @@ cvt compare \
 ### Valid interaction
 
 ```shell
-Validation passed!
+✓ Validation passed
 ```
 
 ### Invalid interaction
 
 ```shell
-Validation failed:
-- response.body.id: expected integer, got string
-- response.body.email: missing required field
+✗ Validation failed
+  - response.body.id: expected integer, got string
+  - response.body.email: missing required field
 ```

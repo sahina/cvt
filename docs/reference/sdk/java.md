@@ -58,8 +58,9 @@ public class Example {
 
         // Validate an interaction
         ValidationResult result = validator.validate(
-            new ValidationRequest("GET", "/pet/123", null, null),
-            new ValidationResponse(200, null, "{\"id\": 123, \"name\": \"doggie\", \"status\": \"available\"}")
+            ValidationRequest.builder().method("GET").path("/pet/123").build(),
+            ValidationResponse.builder().statusCode(200)
+                .body("{\"id\": 123, \"name\": \"doggie\", \"status\": \"available\"}").build()
         );
 
         System.out.println("Valid: " + result.isValid());
@@ -156,8 +157,9 @@ ValidationResult validate(ValidationRequest request, ValidationResponse response
 
 ```java
 ValidationResult result = validator.validate(
-    new ValidationRequest("GET", "/pet/123", null, null),
-    new ValidationResponse(200, null, "{\"id\": 123, \"name\": \"doggie\"}")
+    ValidationRequest.builder().method("GET").path("/pet/123").build(),
+    ValidationResponse.builder().statusCode(200)
+        .body("{\"id\": 123, \"name\": \"doggie\"}").build()
 );
 
 if (!result.isValid()) {
@@ -242,14 +244,15 @@ ConsumerInfo registerConsumer(RegisterConsumerOptions options)
 
 ```java
 ConsumerInfo consumer = validator.registerConsumer(
-    new RegisterConsumerOptions(
-        "order-service",
-        "2.1.0",
-        "petstore",
-        "1.0.0",
-        "prod",
-        List.of(new EndpointUsage("GET", "/pet/{petId}", List.of("id", "name", "status")))
-    )
+    RegisterConsumerOptions.builder()
+        .consumerId("order-service")
+        .consumerVersion("2.1.0")
+        .schemaId("petstore")
+        .schemaVersion("1.0.0")
+        .environment("prod")
+        .usedEndpoints(List.of(
+            new EndpointUsage("GET", "/pet/{petId}", List.of("id", "name", "status"))))
+        .build()
 );
 ```
 
@@ -315,13 +318,10 @@ import io.github.sahina.sdk.adapters.AdapterConfig;
 ContractValidator validator = new ContractValidator("localhost:9550");
 validator.registerSchema("petstore", "./openapi.json");
 
-OkHttpContractAdapter adapter = new OkHttpContractAdapter(AdapterConfig.builder()
-    .validator(validator)
-    .autoValidate(true)
-    .onValidationFailure(result -> {
-        throw new RuntimeException("Contract violation: " + result.getErrors());
-    })
-    .build());
+OkHttpContractAdapter adapter = new OkHttpContractAdapter(validator)
+    .withConfig(AdapterConfig.builder()
+        .autoValidate(true)
+        .build());
 
 OkHttpClient client = new OkHttpClient.Builder()
     .addInterceptor(adapter)

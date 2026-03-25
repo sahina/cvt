@@ -185,10 +185,11 @@ type SchemaMetadata struct {
     SchemaId       string
     SchemaVersion  string
     SchemaHash     string     // SHA256 of content
+    RegisteredAt   int64      // Unix timestamp
+    UpdatedAt      int64      // Unix timestamp
+    Ownership      *SchemaOwnership
     OpenApiVersion string     // "3.0.0", "3.1.0"
     EndpointCount  int32
-    RegisteredAt   int64      // Unix timestamp
-    Ownership      *SchemaOwnership
 }
 ```
 
@@ -295,17 +296,27 @@ type Store interface {
     GetSchema(ctx context.Context, schemaID string) (*SchemaRecord, error)
     GetSchemaVersion(ctx context.Context, schemaID, version string) (*SchemaRecord, error)
     DeleteSchema(ctx context.Context, schemaID string) error
+    DeleteSchemaVersion(ctx context.Context, schemaID, version string) error
+    ListSchemaIDs(ctx context.Context) ([]string, error)
+    ListVersions(ctx context.Context, schemaID string) ([]string, error)
     ListSchemas(ctx context.Context, filter ListSchemasFilter) ([]*SchemaRecord, string, int32, error)
+    GetPreviousVersion(ctx context.Context, schemaID, currentVersion string) (string, error)
 
-    // Consumer operations
+    // Validation run operations
+    RecordValidation(ctx context.Context, record *ValidationRecord) error
+    ListValidations(ctx context.Context, filter ListValidationsFilter) ([]*ValidationRecord, string, error)
+    GetValidationAnalytics(ctx context.Context, filter ListValidationsFilter) (*ValidationAnalytics, error)
+
+    // Comparison operations
+    RecordComparison(ctx context.Context, record *ComparisonRecord) error
+    GetComparison(ctx context.Context, schemaID, oldVersion, newVersion string) (*ComparisonRecord, error)
+
+    // Consumer registry operations
     RegisterConsumer(ctx context.Context, record *ConsumerRecord) error
     GetConsumer(ctx context.Context, consumerID, schemaID, env string) (*ConsumerRecord, error)
     ListConsumers(ctx context.Context, filter ListConsumersFilter) ([]*ConsumerRecord, error)
     DeregisterConsumer(ctx context.Context, consumerID, schemaID, env string) error
-
-    // Validation records (optional)
-    RecordValidation(ctx context.Context, record *ValidationRecord) error
-    ListValidations(ctx context.Context, filter ListValidationsFilter) ([]*ValidationRecord, string, error)
+    UpdateConsumerValidation(ctx context.Context, consumerID, schemaID, env string, validatedAt time.Time) error
 
     // Lifecycle
     Migrate(ctx context.Context) error

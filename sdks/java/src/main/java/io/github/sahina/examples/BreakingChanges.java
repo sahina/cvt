@@ -18,7 +18,7 @@ import java.nio.file.Paths;
  * - Schema evolution tracking
  *
  * Prerequisites:
- * - CVT server running on localhost:50052
+ * - CVT server running on localhost:9550
  * - Run: make up (from project root)
  *
  * Usage:
@@ -36,7 +36,7 @@ public class BreakingChanges {
         String schemaV1Path = sharedDir.resolve("openapi-v1.json").toString();
         String schemaV2Path = sharedDir.resolve("openapi-v2-breaking.json").toString();
 
-        try (ContractValidator validator = new ContractValidator("localhost:50052")) {
+        try (ContractValidator validator = new ContractValidator()) {
             // Step 1: Register schema v1.0.0
             System.out.println("Step 1: Registering schema v1.0.0...");
             validator.registerSchemaWithVersion(SCHEMA_ID, schemaV1Path, "1.0.0");

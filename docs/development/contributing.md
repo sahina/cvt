@@ -21,7 +21,7 @@ Install the following tools before developing CVT:
 | ------- | ------------ | ----------------------------------------------------------------------------- |
 | Go      | 1.25+        | [golang.org/dl](https://golang.org/dl/)                                       |
 | Node.js | 20+          | [nodejs.org](https://nodejs.org/)                                             |
-| Python  | 3.12+        | [python.org](https://python.org/)                                             |
+| Python  | 3.11+        | [python.org](https://python.org/)                                             |
 | uv      | latest       | `curl -LsSf https://astral.sh/uv/install.sh \| sh`                            |
 | Java    | 21 (Temurin) | [adoptium.net](https://adoptium.net/)                                         |
 | Docker  | latest       | [docker.com](https://docker.com/)                                             |
@@ -38,7 +38,7 @@ make install-health-probe
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/cvt.git
+git clone https://github.com/sahina/cvt.git
 cd cvt
 
 # Build all components (server + Node.js + Python SDKs)
@@ -60,7 +60,6 @@ For detailed information about component design, validation engine, storage laye
 
 ```shell
 server/
-├── main.go                 # Entry point
 ├── cvtservice/             # Core service implementation
 │   ├── validator_service.go # Main service logic (RPC handlers)
 │   ├── cache.go            # Ristretto-based schema caching
@@ -75,7 +74,7 @@ server/
 │   ├── sqlite/             # SQLite implementation + migrations
 │   └── postgres/           # PostgreSQL implementation + migrations
 ├── pb/                     # Generated protobuf code
-└── *_test.go               # Unit tests
+└── testdata/               # Test fixtures
 ```
 
 ### Building the Server
@@ -98,7 +97,7 @@ make run-server
 CVT_PORT=50053 make run-server
 
 # Run directly
-cd server && go run .
+go run ./cmd/cvt serve
 ```
 
 ### Running Tests
@@ -111,10 +110,10 @@ make test-server
 make test-coverage
 
 # Run a specific test
-cd server && go test -v -run TestValidateInteraction ./...
+go test -v -run TestValidateInteraction ./server/...
 
 # Run with race detection
-cd server && go test -v -race ./...
+go test -v -race ./server/...
 ```
 
 ### Docker Development
@@ -262,7 +261,7 @@ make generate-go-sdk
 # Generate Python SDK code (sdks/python/cvt_sdk/proto/)
 make generate-python
 
-# Generate Java SDK code (sdks/java/build/generated/)
+# Generate Java SDK code (sdks/java/target/generated-sources/)
 make generate-java-sdk
 ```
 
@@ -349,8 +348,11 @@ mvn install
 ### Running CI Checks Locally
 
 ```bash
-# Run full CI pipeline (lint + format + tests)
+# Run lint + format checks (no tests)
 make ci
+
+# Run lint + format + coverage checks (full CI)
+make ci-full
 ```
 
 ### Updating Dependencies

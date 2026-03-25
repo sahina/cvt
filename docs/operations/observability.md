@@ -31,8 +31,8 @@ flowchart TD
     PROM["Prometheus<br/>Port 9091: UI"]
     GRAF["Grafana<br/>Port 3000: UI"]
 
-    CVT -->|"/metrics endpoint"| PROM
-    PROM -->|"Scrapes every 10s"| GRAF
+    PROM -->|"Scrapes /metrics every 10s"| CVT
+    GRAF -->|"Queries metrics"| PROM
 
     subgraph Observability Stack
         PROM
@@ -95,9 +95,11 @@ make observability-logs
 
 - `input_validation`: Invalid request parameters
 - `schema_not_found`: Schema not found in cache
+- `http_request_creation`: Failed to create HTTP request for validation
+- `router_creation`: Failed to create OpenAPI router
+- `route_not_found`: Route not found in OpenAPI spec
 - `request_invalid`: HTTP request validation failed
 - `response_invalid`: HTTP response validation failed
-- `route_not_found`: Route not found in OpenAPI spec
 
 ### Cache Metrics
 

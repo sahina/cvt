@@ -132,7 +132,7 @@ cvt validate --schema https://petstore3.swagger.io/api/v3/openapi.json \
     "headers": { "Accept": "application/json" }
   },
   "response": {
-    "status_code": 200,
+    "statusCode": 200,
     "headers": { "Content-Type": "application/json" },
     "body": { "id": 123, "name": "doggie" }
   }
@@ -450,7 +450,7 @@ cvt register-schema <schema-id> <schema-file> [options]
 | `--fail-on-breaking`    |       | Exit with error if breaking changes | false          |
 | `--owner`               |       | Schema owner name                   |                |
 | `--team`                |       | Team name                           |                |
-| `--json`                |       | Output results as JSON              | false          |
+| `--json`                | `-j`  | Output results as JSON              | false          |
 | `--quiet`               | `-q`  | Suppress output except errors       | false          |
 | `--timeout`             | `-t`  | Connection timeout in seconds       | 30             |
 

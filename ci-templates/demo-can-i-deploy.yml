@@ -123,13 +123,10 @@ jobs:
       # The main event: check if your schema changes break any consumers.
       #
       # HOW IT WORKS:
-      # 1. CVT loads your new schema from CVT_SCHEMA_URL
-      # 2. For each registered consumer:
-      #    a. Retrieves the schema version they tested against
-      #    b. Loads that old schema from the server's cache
-      #    c. Compares old vs new for breaking changes
-      #    d. Filters to only changes affecting that consumer's used endpoints
-      # 3. Aggregates results and reports per-consumer impact
+      # 1. CVT queries for all consumers registered against this schema_id
+      # 2. For each consumer, it compares their tested version against your new version
+      # 3. Detects breaking changes that would affect each consumer's used endpoints
+      # 4. Reports per-consumer impact and overall deployment safety
       #
       # OUTPUT INCLUDES:
       # - Overall: SAFE or UNSAFE
@@ -139,17 +136,6 @@ jobs:
       # FAILURE BEHAVIOR:
       # - Fails if ANY consumer would be broken
       # - To proceed despite breaks, manually override or use continue-on-error
-      #
-      # -------------------------------------------------------------------------
-      # STEP 3: Run Can-I-Deploy Check
-      # -------------------------------------------------------------------------
-      # The main event: check if your schema changes break any consumers.
-      #
-      # HOW IT WORKS:
-      # 1. CVT queries for all consumers registered against this schema_id
-      # 2. For each consumer, it compares their tested version against your new version
-      # 3. Detects breaking changes that would affect each consumer's used endpoints
-      # 4. Reports per-consumer impact and overall deployment safety
       #
       # SECURITY NOTE:
       # The --network host flag is used to allow the container to reach the CVT
@@ -170,7 +156,7 @@ jobs:
           docker run --rm \
             --network host \
             ghcr.io/sahina/cvt:latest \
-            cvt can-i-deploy \
+            can-i-deploy \
               --schema "$CVT_SCHEMA_ID" \
               --version "$CVT_SCHEMA_VERSION" \
               --env "$CVT_ENVIRONMENT" \

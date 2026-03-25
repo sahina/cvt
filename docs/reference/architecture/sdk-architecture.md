@@ -454,8 +454,8 @@ const response = await api.get("/users/123");
 
 ### Java
 
-- **Build system**: Gradle with protobuf plugin
-- **Proto generation**: Gradle task `generateProto`
+- **Build system**: Maven with protobuf plugin
+- **Proto generation**: Maven `protobuf-maven-plugin`
 - **Async support**: CompletableFuture API available
 - **Spring integration**: Auto-configuration support
 
@@ -465,10 +465,10 @@ Key implementation files:
 
 | SDK     | Main Files                                                              |
 | ------- | ----------------------------------------------------------------------- |
-| Node.js | `sdks/node/src/client.ts`, `sdks/node/src/adapters/`                    |
-| Python  | `sdks/python/cvt_sdk/client.py`, `sdks/python/cvt_sdk/adapters/`        |
-| Go      | `sdks/go/cvt/client.go`, `sdks/go/cvt/adapters/`                        |
-| Java    | `sdks/java/src/main/java/cvt/`, `sdks/java/src/main/java/cvt/adapters/` |
+| Node.js | `sdks/node/src/index.ts`, `sdks/node/src/adapters/`                    |
+| Python  | `sdks/python/cvt_sdk/__init__.py`, `sdks/python/cvt_sdk/adapters/`        |
+| Go      | `sdks/go/cvt/validator.go`, `sdks/go/cvt/adapters/`                        |
+| Java    | `sdks/java/src/main/java/io/github/sahina/sdk/`, `sdks/java/src/main/java/io/github/sahina/sdk/adapters/` |
 
 ## In Roadmap
 

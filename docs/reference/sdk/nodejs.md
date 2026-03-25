@@ -193,7 +193,7 @@ listConsumers(schemaId: string, environment?: string): Promise<ConsumerInfo[]>
 Removes a consumer registration.
 
 ```typescript
-deregisterConsumer(consumerId: string, schemaId: string, environment?: string): Promise<void>
+deregisterConsumer(consumerId: string, schemaId: string, environment: string): Promise<void>
 ```
 
 ##### canIDeploy
@@ -201,7 +201,7 @@ deregisterConsumer(consumerId: string, schemaId: string, environment?: string): 
 Checks if a schema version can be safely deployed.
 
 ```typescript
-canIDeploy(schemaId: string, newVersion: string, environment?: string): Promise<CanIDeployResult>
+canIDeploy(schemaId: string, newVersion: string, environment: string): Promise<CanIDeployResult>
 ```
 
 ##### close

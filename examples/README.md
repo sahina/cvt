@@ -40,6 +40,15 @@ Breaking changes in v2.0.0:
 - `DELETE /users/{id}` endpoint removed
 - `email` field removed from User schema
 
+## Test Fixtures
+
+Located in `examples/fixtures/`:
+
+| File                       | Description                                     |
+| -------------------------- | ----------------------------------------------- |
+| `valid-interaction.json`   | Valid GET /users/123 request/response pair       |
+| `invalid-interaction.json` | Invalid interaction (missing required fields)    |
+
 ## Related Documentation
 
 - [Consumer Testing Guide](../docs/guides/consumer-testing.mdx)

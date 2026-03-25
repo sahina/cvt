@@ -102,7 +102,8 @@ The SDK includes an Axios adapter for automatic HTTP traffic validation:
 
 ```typescript
 import axios from "axios";
-import { ContractValidator, createAxiosAdapter } from "@sahina/cvt-sdk";
+import { ContractValidator } from "@sahina/cvt-sdk";
+import { createAxiosAdapter } from "@sahina/cvt-sdk/adapters";
 
 const validator = new ContractValidator();
 await validator.registerSchema("petstore", "./openapi.json");
@@ -113,10 +114,9 @@ const api = axios.create({ baseURL: "https://api.example.com" });
 const adapter = createAxiosAdapter({
   axios: api,
   validator,
-  schemaId: "petstore",
   autoValidate: true,
   excludePaths: ["/health", "/metrics"],
-  onValidationFailure: (result, interaction) => {
+  onValidationFailure: (result, request, response) => {
     console.error("Validation failed:", result.errors);
   },
 });
@@ -286,10 +286,7 @@ await validator.registerConsumer({
 });
 
 // List all consumers of a schema
-const consumers = await validator.listConsumers({
-  schemaId: "user-api",
-  environment: "prod",
-});
+const consumers = await validator.listConsumers("user-api", "prod");
 
 // Deregister a consumer
 await validator.deregisterConsumer("order-service", "user-api", "prod");
@@ -300,11 +297,7 @@ await validator.deregisterConsumer("order-service", "user-api", "prod");
 Check if a new schema version can be safely deployed:
 
 ```typescript
-const result = await validator.canIDeploy({
-  schemaId: "user-api",
-  newVersion: "2.0.0",
-  environment: "prod",
-});
+const result = await validator.canIDeploy("user-api", "2.0.0", "prod");
 
 if (!result.safeToDeploy) {
   console.error("Cannot deploy:", result.summary);
@@ -329,8 +322,8 @@ const validator = new ContractValidator({
   tls: {
     enabled: true,
     rootCertPath: "./certs/ca.crt", // CA certificate
-    clientCertPath: "./certs/client.crt", // For mTLS
-    clientKeyPath: "./certs/client.key", // For mTLS
+    certPath: "./certs/client.crt", // For mTLS
+    keyPath: "./certs/client.key", // For mTLS
   },
 });
 ```
@@ -395,7 +388,7 @@ describe("ContractValidator", () => {
   let validator: ContractValidator;
 
   beforeEach(() => {
-    validator = new ContractValidator({ host: "localhost:9550" });
+    validator = new ContractValidator("localhost:9550");
   });
 
   afterEach(async () => {

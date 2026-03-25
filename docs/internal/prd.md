@@ -122,21 +122,26 @@ The project adopts a **Monorepo** structure to ensure strict synchronization bet
 ├── api/                        # SINGLE SOURCE OF TRUTH
 │   ├── protos/                 # gRPC definitions (cvt.proto)
 │   └── openapi/                # OpenAPI specs
+├── cmd/cvt/                    # CLI entry point (main.go)
 ├── server/                     # Go Server Implementation
-│   ├── main.go                 # Server entry point
-│   ├── validator_service.go    # Core validation service
-│   ├── validation_utils.go     # Input validation
-│   ├── cache.go                # Schema caching (Ristretto)
-│   ├── health.go               # Health check service
-│   ├── logger.go               # Structured logging (Zap)
+│   ├── cvtservice/             # Core service logic
+│   │   ├── validator_service.go  # Core validation service
+│   │   ├── compatibility_engine.go # Breaking change detection
+│   │   ├── cache.go            # Schema caching (Ristretto)
+│   │   ├── health.go           # Health check service
+│   │   ├── logger.go           # Structured logging (Zap)
+│   │   └── ...
+│   ├── storage/                # Persistence backends (sqlite, postgres, memory)
 │   ├── pb/                     # Generated protobuf code
-│   ├── go.mod                  # Go dependencies
 │   └── Dockerfile              # Multi-stage build
+├── pkg/cvt/                    # Embeddable Go library (CLI lite mode)
 ├── sdks/                       # Client Libraries
 │   ├── java/
 │   ├── node/
 │   ├── python/
 │   └── go/
+├── config/                     # Configuration files
+├── observability/              # Prometheus/Grafana configuration
 └── tools/                      # Shared build/codegen scripts
 ```
 
@@ -145,7 +150,7 @@ The project adopts a **Monorepo** structure to ensure strict synchronization bet
 | Mode                     | Description                                                           | Persistence             |
 | ------------------------ | --------------------------------------------------------------------- | ----------------------- |
 | **Local Developer Mode** | Run CVT locally via Docker Compose for iterative contract validation. | File-based or SQLite    |
-| **Centralized Mode**     | Shared internal instance for team-wide validation.                    | Postgres (Phase P1)     |
+| **Centralized Mode**     | Shared internal instance for team-wide validation.                    | PostgreSQL              |
 | **Ephemeral CI Mode**    | CVT runs temporarily in CI and terminates after tests.                | File-based or in-memory |
 
 Run locally with:
@@ -159,7 +164,7 @@ docker compose up -d
 ### 7.1 Schema Registration
 
 - Register OpenAPI v2/v3 schemas.
-- Convert v2 → v3 at load time via swagger2openapi.
+- Convert v2 → v3 at load time via kin-openapi's `openapi2conv`.
 - Assign schema ID, hash, and version.
 
 ### 7.2 Validation Runs
@@ -260,7 +265,7 @@ assertTrue(result.isValid(), "Contract violation: " + result.getErrors());
 ```go
 import (
     "testing"
-    "github.com/cvt/cvt-sdk/go/cvt"
+    "github.com/sahina/cvt/sdks/go/cvt"
     "github.com/stretchr/testify/assert"
 )
 
@@ -276,9 +281,10 @@ func TestContract(t *testing.T) {
 }
 ```
 
-### 7.4 Compatibility Engine (P1)
+### 7.4 Compatibility Engine
 
-- Compare schema versions and flag breaking/non-breaking changes.
+- Compare schema versions and flag breaking/non-breaking changes via `CompareSchemas` RPC.
+- Detects endpoint removal, required field additions, type changes, parameter additions, response schema changes, and enum value removal.
 
 ## 8. Typical Use Cases and Flow
 
@@ -310,40 +316,26 @@ sequenceDiagram
 
 ```proto
 service ContractValidator {
+  // Schema & Validation
   rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaResponse);
   rpc ValidateInteraction(InteractionRequest) returns (ValidationResult);
-}
-message RegisterSchemaRequest {
-  string schema_id = 1;        // Unique identifier
-  string schema_content = 2;   // OpenAPI spec (YAML or JSON)
-}
-message RegisterSchemaResponse {
-  bool success = 1;
-  string message = 2;
-}
-message InteractionRequest {
-  string schema_id = 1;
-  RequestData request = 2;
-  ResponseData response = 3;
-}
-message RequestData {
-  string method = 1;                   // HTTP method
-  string path = 2;                     // HTTP path
-  map<string, string> headers = 3;     // HTTP headers
-  string body = 4;                     // Request body (JSON)
-}
-message ResponseData {
-  int32 status_code = 1;               // HTTP status code
-  map<string, string> headers = 2;     // Response headers
-  string body = 3;                     // Response body (JSON)
-}
-message ValidationResult {
-  bool valid = 1;
-  repeated string errors = 2;
+  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
+  rpc ListSchemas(ListSchemasRequest) returns (ListSchemasResponse);
+  rpc CompareSchemas(CompareSchemasRequest) returns (CompareSchemasResponse);
+  rpc GenerateFixture(GenerateFixtureRequest) returns (GenerateFixtureResponse);
+  rpc ListEndpoints(ListEndpointsRequest) returns (ListEndpointsResponse);
+  // Producer Testing
+  rpc ValidateProducerResponse(ValidateProducerRequest) returns (ValidationResult);
+  // Consumer Registry
+  rpc RegisterConsumer(RegisterConsumerRequest) returns (RegisterConsumerResponse);
+  rpc ListConsumers(ListConsumersRequest) returns (ListConsumersResponse);
+  rpc DeregisterConsumer(DeregisterConsumerRequest) returns (DeregisterConsumerResponse);
+  // Deployment Safety
+  rpc CanIDeploy(CanIDeployRequest) returns (CanIDeployResponse);
 }
 ```
 
-> **Current Implementation**: gRPC-only. REST endpoints may be added in Phase P1 if needed.
+> **Note:** See [API Reference](../reference/api.mdx) for the full proto definition with all message types. The pseudocode above is abbreviated.
 
 ## 10. Validation Engine Design
 
@@ -351,7 +343,7 @@ Core engine uses **Go** ecosystem libraries (specifically **kin-openapi**) for r
 
 **Key Libraries:**
 
-- **kin-openapi** (v0.133.0): OpenAPI 3.0/3.1 and Swagger 2.0 parsing and validation
+- **kin-openapi** (v0.134.0): OpenAPI 3.0/3.1 and Swagger 2.0 parsing and validation
 - **Ristretto** (v0.2.0): High-performance schema caching (LRU, 1000 schemas max, 24h TTL)
 - **Zap** (v1.27.1): Structured logging
 
@@ -389,7 +381,7 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
     }
 
     // Create router and find matching operation
-    router, _ := legacy.NewRouter(doc)
+    router, _ := gorillamux.NewRouter(doc)
     route, pathParams, err := router.FindRoute(httpReq)
     if err != nil {
         return &pb.ValidationResult{Valid: false, Errors: []string{err.Error()}}, nil
@@ -416,12 +408,12 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 
 ## 11. SDK Deliverables
 
-| SDK     | Language   | Purpose                                 | Status      |
-| ------- | ---------- | --------------------------------------- | ----------- |
-| Node.js | TypeScript | Primary reference implementation (gRPC) | ✅ Complete |
-| Python  | Python     | Pytest/unittest compatible (gRPC)       | 🚧 Stub     |
-| Go      | Go         | Go test integration (gRPC)              | 🚧 Stub     |
-| Java    | Java       | JUnit integration (gRPC)                | 🚧 Stub     |
+| SDK     | Language   | Purpose                                 | Status      | Distribution                                                        |
+| ------- | ---------- | --------------------------------------- | ----------- | ------------------------------------------------------------------- |
+| Node.js | TypeScript | Primary reference implementation (gRPC) | ✅ Complete | [@sahina/cvt-sdk](https://www.npmjs.com/package/@sahina/cvt-sdk)    |
+| Python  | Python     | Pytest/unittest compatible (gRPC)       | ✅ Complete | [cvt-sdk](https://pypi.org/project/cvt-sdk/)                       |
+| Go      | Go         | Go test integration (gRPC)              | ✅ Complete | [pkg.go.dev](https://pkg.go.dev/github.com/sahina/cvt/sdks/go)     |
+| Java    | Java       | JUnit integration (gRPC)                | ✅ Complete | [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk) |
 
 > **Note**: Current implementation is gRPC-only. REST fallback may be added in future phases if needed.
 >
@@ -433,7 +425,7 @@ func (s *ValidatorService) ValidateInteraction(ctx context.Context, req *pb.Inte
 | -------------- | ------------------------------------------------------------------ |
 | Performance    | 5000+ validations/sec, <1s startup time, <10ms schema registration |
 | Reliability    | 99.9% uptime (central mode)                                        |
-| Security       | JWT auth, HTTPS, sandboxed validator, non-root container           |
+| Security       | API key auth, TLS/mTLS, sandboxed validator, non-root container    |
 | Observability  | Structured logs (Zap), gRPC health checks, metrics                 |
 | Compatibility  | OpenAPI v2 (Swagger) and v3.0/v3.1                                 |
 | Resource Usage | ~50-100MB memory, ~30-40MB container image                         |
@@ -472,10 +464,17 @@ steps:
 - **Benefits**: 5x smaller images, 3-5x faster startup, 5x less memory usage
 - All existing SDKs work without modification
 
-### Phase P1 – User Interface
+### Phase P1 – Persistence & Observability (Completed)
 
-- Admin UI / Dashboard for schema management and visualization
-- Flexible persistence options: **file-based**, **SQLite**, or **Postgres**
+- ✅ Flexible persistence options: **SQLite** and **PostgreSQL** storage backends
+- ✅ Observability stack: Prometheus metrics, Grafana dashboards
+- ✅ TLS/mTLS and API key authentication
+- ✅ Producer testing (`ValidateProducerResponse`)
+- ✅ Consumer registry (`RegisterConsumer`, `ListConsumers`, `DeregisterConsumer`)
+- ✅ Deployment safety (`CanIDeploy`)
+- ✅ Breaking change detection (`CompareSchemas`)
+- ✅ Test fixture generation (`GenerateFixture`)
+- 🔲 Admin UI / Dashboard for schema management and visualization
 
 ### Phase P2 – Multi-component Scalability
 
@@ -514,7 +513,7 @@ steps:
   - Provide configurable retention policies for runs and specs, deletion/purge APIs, and encryption-at-rest for persisted stores.
 - Owner: Platform / Compliance
 
-### 15.3 High-priority next steps (actionable)
+### 15.4 High-priority next steps (actionable)
 
 - Convert each short risk line into the expanded format above and assign owners in your project tracker.
 - Implement conversion-preview and surface `conversionWarnings` in registration APIs.
@@ -580,4 +579,4 @@ classDiagram
 
 ## 17. Appendix
 
-- [UX Study for Ephemeral Environments](https://app.mural.co/t/americanexpress8416/m/americanexpress8416/1760020485378/eb5b860f7ac20e87847365abef3cf2fe5889518c)
+- UX Study for Ephemeral Environments (internal Mural board — access restricted)

@@ -57,26 +57,13 @@ cvt compare --old ./v1/openapi.json --new ./v2/openapi.json --json
 ### Output Example
 
 ```text
-Schema Comparison
-=================
-Old: ./v1/openapi.json
-New: ./v2/openapi.json
+✗ Found 2 breaking change(s):
 
-Breaking changes detected: 2
+  [ENDPOINT_REMOVED] DELETE /pet/{petId} was removed
+    Old: DELETE /pet/{petId}
 
-  1. [ENDPOINT_REMOVED] DELETE /pet/{petId}
-     The endpoint has been removed from the API
-
-  2. [REQUIRED_FIELD_ADDED] POST /pet
-     Required field 'category' added to request body
-
-Compatible changes: 3
-
-  1. [ENDPOINT_ADDED] GET /pet/{petId}/image
-  2. [OPTIONAL_FIELD_ADDED] GET /pet response: 'description'
-  3. [DESCRIPTION_CHANGED] PUT /pet/{petId}
-
-Result: INCOMPATIBLE (2 breaking changes)
+  [REQUIRED_FIELD_ADDED] Required field 'category' added to POST /pet request
+    New: category (required)
 ```
 
 ### Using the SDK
@@ -357,12 +344,10 @@ Deployment Safety Check
 Schema:      petstore
 Version:     2.0.0
 Environment: prod
-Server:      localhost:9550
 
-Result: SAFE TO DEPLOY
+✅ SAFE TO DEPLOY
 
 No breaking changes detected that would affect registered consumers.
-Consumers checked: 3
 ```
 
 ### Output: Unsafe to Deploy
@@ -374,36 +359,32 @@ Schema:      petstore
 Version:     2.0.0
 Environment: prod
 
-Result: UNSAFE TO DEPLOY
+❌ UNSAFE TO DEPLOY
 
 Breaking changes in v2.0.0:
-  - FIELD_REMOVED: GET /pet/{petId} response removed 'status'
+  - RESPONSE_SCHEMA_CHANGED: GET /pet/{petId} response removed 'status'
   - ENDPOINT_REMOVED: DELETE /pet/{petId}
 
-Affected consumers in production:
+Affected consumers in prod:
+  ├── order-service v2.1.0
+  │   Schema version: 1.0.0
+  │   Impact: BREAKING
+  │   Affected by:
+  │     - GET /pet/{petId}
+  │
+  ├── notification-service v1.5.0
+  │   Schema version: 1.0.0
+  │   Impact: BREAKING
+  │   Affected by:
+  │     - DELETE /pet/{petId}
+  │
+  └── billing-service v1.0.0
+      Schema version: 1.0.0
+      Impact: None
 
-  order-service v2.1.0
-    Schema version: 1.0.0
-    Impact: BREAKING
-    Uses: GET /pet/{petId} (fields: id, name, status)
-    Affected by:
-      - FIELD_REMOVED: status field
 
-  notification-service v1.5.0
-    Schema version: 1.0.0
-    Impact: BREAKING
-    Uses: DELETE /pet/{petId}
-    Affected by:
-      - ENDPOINT_REMOVED: DELETE /pet/{petId}
-
-  billing-service v1.0.0
-    Schema version: 1.0.0
-    Impact: None
-    Uses: GET /pet/{petId} (fields: id, name)
-
-Summary:
-  Safe consumers:     1/3
-  Affected consumers: 2/3
+Safe consumers:     1/3
+Affected consumers: 2/3
 
 Recommendation: Coordinate with order-service and notification-service teams before deploying.
 ```
@@ -655,9 +636,9 @@ deploy:
           --server ${{ secrets.CVT_SERVER }} \
           --json)
 
-        if [ $(echo $result | jq '.safeToDeploy') != "true" ]; then
+        if [ $(echo $result | jq '.safe_to_deploy') != "true" ]; then
           echo "DEPLOYMENT BLOCKED: Breaking changes would affect consumers"
-          echo $result | jq '.affectedConsumers[] | select(.willBreak) | .consumerId'
+          echo $result | jq '.affected_consumers[] | select(.will_break) | .consumer_id'
           exit 1
         fi
 

@@ -34,9 +34,7 @@ import (
 )
 
 func main() {
-    validator, err := cvt.NewValidator(cvt.Config{
-        Host: "localhost:9550",
-    })
+    validator, err := cvt.NewValidator("localhost:9550")
     if err != nil {
         log.Fatal(err)
     }
@@ -70,16 +68,16 @@ import (
 )
 
 func main() {
-    validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:9550"})
+    validator, _ := cvt.NewValidator("localhost:9550")
     defer validator.Close()
 
-    request := cvt.Request{
+    request := cvt.ValidationRequest{
         Method: "POST",
         Path:   "/users",
         Body:   map[string]any{"username": "alice", "email": "alice@example.com"},
     }
 
-    response := cvt.Response{
+    response := cvt.ValidationResponse{
         StatusCode: 201,
     }
 
@@ -109,17 +107,16 @@ import (
     "github.com/sahina/cvt/sdks/go/cvt/adapters"
 )
 
-validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:9550"})
+validator, _ := cvt.NewValidator("localhost:9550")
 validator.RegisterSchema(ctx, "petstore", "./openapi.json")
 
 // Wrap http.Client transport
 rt := adapters.NewValidatingRoundTripper(adapters.RoundTripperConfig{
-    Validator:       validator,
-    SchemaID:        "petstore",
-    AutoValidate:    true,
-    ExcludePaths:    []string{"/health", "/metrics"},
-    OnValidationFailure: func(result *cvt.ValidationResult, interaction *cvt.Interaction) {
-        log.Printf("Validation failed: %v", result.Errors)
+    Validator:    validator,
+    AutoValidate: true,
+    ExcludePaths: []string{"/health", "/metrics"},
+    OnValidationFailure: func(result *cvt.ValidationResult, req *http.Request, resp *http.Response) error {
+        return fmt.Errorf("validation failed: %v", result.Errors)
     },
 })
 
@@ -218,7 +215,7 @@ import (
 )
 
 func main() {
-    validator, _ := cvt.NewValidator(cvt.Config{Host: "localhost:9550"})
+    validator, _ := cvt.NewValidator("localhost:9550")
     defer validator.Close()
 
     ctx := context.Background()
@@ -337,13 +334,13 @@ See [Producer Testing Guide](../../docs/guides/producer-testing.mdx) for complet
 ### TLS
 
 ```go
-validator, _ := cvt.NewValidator(cvt.Config{
-    Host: "localhost:9550",
-    TLS: &cvt.TLSConfig{
-        Enabled:        true,
-        RootCertPath:   "./certs/ca.crt",
-        ClientCertPath: "./certs/client.crt",  // For mTLS
-        ClientKeyPath:  "./certs/client.key",  // For mTLS
+validator, _ := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
+    Address: "localhost:9550",
+    TLS: &cvt.TLSOptions{
+        Enabled:      true,
+        RootCertPath: "./certs/ca.crt",
+        CertPath:     "./certs/client.crt",  // For mTLS
+        KeyPath:      "./certs/client.key",  // For mTLS
     },
 })
 ```
@@ -351,9 +348,9 @@ validator, _ := cvt.NewValidator(cvt.Config{
 ### API Key Authentication
 
 ```go
-validator, _ := cvt.NewValidator(cvt.Config{
-    Host:   "localhost:9550",
-    APIKey: "your-api-key-here",
+validator, _ := cvt.NewValidatorWithOptions(cvt.ValidatorOptions{
+    Address: "localhost:9550",
+    APIKey:  "your-api-key-here",
 })
 ```
 
@@ -416,9 +413,7 @@ import (
 )
 
 func TestValidateCorrectInteraction(t *testing.T) {
-    validator, err := cvt.NewValidator(cvt.Config{
-        Host: "localhost:9550",
-    })
+    validator, err := cvt.NewValidator("localhost:9550")
     require.NoError(t, err)
     defer validator.Close()
 
@@ -428,8 +423,8 @@ func TestValidateCorrectInteraction(t *testing.T) {
 
     result, err := validator.Validate(
         context.Background(),
-        cvt.Request{Method: "GET", Path: "/users"},
-        cvt.Response{StatusCode: 200, Body: []any{}},
+        cvt.ValidationRequest{Method: "GET", Path: "/users"},
+        cvt.ValidationResponse{StatusCode: 200, Body: []any{}},
     )
 
     require.NoError(t, err)
@@ -437,9 +432,7 @@ func TestValidateCorrectInteraction(t *testing.T) {
 }
 
 func TestValidateIncorrectInteraction(t *testing.T) {
-    validator, err := cvt.NewValidator(cvt.Config{
-        Host: "localhost:9550",
-    })
+    validator, err := cvt.NewValidator("localhost:9550")
     require.NoError(t, err)
     defer validator.Close()
 
@@ -449,8 +442,8 @@ func TestValidateIncorrectInteraction(t *testing.T) {
 
     result, err := validator.Validate(
         context.Background(),
-        cvt.Request{Method: "GET", Path: "/users"},
-        cvt.Response{StatusCode: 500}, // Should be 200
+        cvt.ValidationRequest{Method: "GET", Path: "/users"},
+        cvt.ValidationResponse{StatusCode: 500}, // Should be 200
     )
 
     require.NoError(t, err)

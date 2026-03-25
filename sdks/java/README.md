@@ -81,17 +81,17 @@ The SDK includes an OkHttp adapter for automatic HTTP traffic validation:
 ```java
 import io.github.sahina.sdk.adapters.OkHttpContractAdapter;
 import io.github.sahina.sdk.adapters.AdapterConfig;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 ContractValidator validator = new ContractValidator("localhost:9550");
 validator.registerSchema("petstore", "./openapi.json");
 
-OkHttpContractAdapter adapter = new OkHttpContractAdapter(AdapterConfig.builder()
-    .validator(validator)
-    .autoValidate(true)
-    .onValidationFailure(result -> {
-        throw new RuntimeException("Contract violation: " + result.getErrors());
-    })
-    .build());
+OkHttpContractAdapter adapter = new OkHttpContractAdapter(validator)
+    .withConfig(AdapterConfig.builder()
+        .autoValidate(true)
+        .build());
 
 OkHttpClient client = new OkHttpClient.Builder()
     .addInterceptor(adapter)
@@ -271,8 +271,7 @@ ConsumerInfo consumer = validator.registerConsumer(
         .schemaVersion("1.0.0")
         .environment("prod")
         .usedEndpoints(List.of(
-            new EndpointUsage("GET", "/users/{id}", List.of("id", "email"))
-        ))
+            new EndpointUsage("GET", "/users/{id}", List.of("id", "email"))))
         .build()
 );
 
