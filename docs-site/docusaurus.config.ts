@@ -52,6 +52,14 @@ const config: Config = {
         href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap',
       },
     },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        href: '/cvt/img/favicon.ico',
+        sizes: '48x48',
+      },
+    },
   ],
 
   // Markdown/MDX configuration

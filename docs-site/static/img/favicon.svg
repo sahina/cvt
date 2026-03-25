@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <defs>
-    <linearGradient id="fg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="favicon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#10b981"/>
       <stop offset="100%" stop-color="#047857"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="4" fill="url(#fg)"/>
+  <rect width="32" height="32" rx="4" fill="url(#favicon-grad)"/>
   <!-- Simplified consumer arrow - top -->
   <path d="M4 7 L14 7" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
   <path d="M11 3.5 L15.5 7 L11 10.5" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
