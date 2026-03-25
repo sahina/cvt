@@ -128,3 +128,4 @@ bd
 
 .playwright-test/
 .playwright-mcp/
+.superpowers/

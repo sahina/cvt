@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Contract Validator Toolkit',
   tagline: 'Consumer and producer contract validation for OpenAPI specifications',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   // Production URL
   url: 'https://sahina.github.io',

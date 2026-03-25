@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="40%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="at" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.6)"/>
+      <stop offset="100%" stop-color="white"/>
+    </linearGradient>
+    <linearGradient id="ab" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.3)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.7)"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Badge -->
+  <rect x="10" y="10" width="492" height="492" rx="64" fill="url(#bg)"/>
+  <rect x="10" y="10" width="492" height="492" rx="64" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4"/>
+  <!-- Consumer arrow - top -->
+  <path d="M72 112 L215 112" stroke="url(#at)" stroke-width="34" fill="none" stroke-linecap="round"/>
+  <path d="M179 58 L231 112 L179 166" stroke="white" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Producer arrow - bottom -->
+  <path d="M440 400 L297 400" stroke="url(#ab)" stroke-width="34" fill="none" stroke-linecap="round"/>
+  <path d="M333 346 L281 400 L333 454" stroke="rgba(255,255,255,0.55)" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Center check -->
+  <circle cx="256" cy="256" r="66" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.5)" stroke-width="8"/>
+  <path d="M216 256 L246 288 L296 228" stroke="white" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+</svg>
