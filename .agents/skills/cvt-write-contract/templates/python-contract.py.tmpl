@@ -16,25 +16,25 @@ def test_list_users(validator):
         request={"method": "GET", "path": "/users", "headers": {"Accept": "application/json"}},
         response={"status_code": 200, "headers": {"Content-Type": "application/json"}, "body": [{"id": "1", "name": "Alice"}]},
     )
-    assert result.valid
+    assert result["valid"]
 
 def test_get_user(validator):
     result = validator.validate(
         request={"method": "GET", "path": "/users/1", "headers": {"Accept": "application/json"}},
         response={"status_code": 200, "headers": {"Content-Type": "application/json"}, "body": {"id": "1", "name": "Alice", "email": "alice@example.com"}},
     )
-    assert result.valid
+    assert result["valid"]
 
 def test_create_user(validator):
     result = validator.validate(
         request={"method": "POST", "path": "/users", "headers": {"Content-Type": "application/json"}, "body": {"name": "Bob", "email": "bob@example.com"}},
         response={"status_code": 201, "headers": {"Content-Type": "application/json"}, "body": {"id": "2", "name": "Bob", "email": "bob@example.com"}},
     )
-    assert result.valid
+    assert result["valid"]
 
 def test_user_not_found(validator):
     result = validator.validate(
         request={"method": "GET", "path": "/users/999", "headers": {"Accept": "application/json"}},
         response={"status_code": 404, "headers": {"Content-Type": "application/json"}, "body": {"error": "Not found"}},
     )
-    assert result.valid
+    assert result["valid"]

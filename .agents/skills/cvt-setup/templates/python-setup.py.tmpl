@@ -16,4 +16,4 @@ def test_get_user(validator):
         request={"method": "GET", "path": "/users/123", "headers": {"Accept": "application/json"}},
         response={"status_code": 200, "headers": {"Content-Type": "application/json"}, "body": {"id": "123", "name": "Jane Doe"}},
     )
-    assert result.valid
+    assert result["valid"]

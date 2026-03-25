@@ -12,10 +12,10 @@ def check_breaking_changes():
         validator.register_schema("my-api", "./schemas/openapi-v2.json")
 
         result = validator.compare_schemas("my-api", "1.0.0", "2.0.0")
-        if result.breaking_changes:
+        if result["breaking_changes"]:
             print("Breaking changes detected:", file=sys.stderr)
-            for c in result.breaking_changes:
-                print(f"  - {c.type}: {c.description}", file=sys.stderr)
+            for c in result["breaking_changes"]:
+                print(f"  - {c['type']}: {c['description']}", file=sys.stderr)
             sys.exit(1)  # Fail CI
         print("No breaking changes detected.")
     finally:
