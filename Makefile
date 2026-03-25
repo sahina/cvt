@@ -463,18 +463,18 @@ lint-go:
 
 lint-node:
 	@echo "🔍 Linting Node.js SDK..."
-	cd sdks/node && npm run lint 2>&1 || (echo "⚠️  Node.js lint had warnings or is not configured" && exit 0)
-	@echo "✅ Node.js linting complete!"
+	cd sdks/node && npm run lint
+	@echo "✅ Node.js linting passed!"
 
 lint-python:
 	@echo "🔍 Linting Python SDK..."
-	cd sdks/python && uv run ruff check . 2>/dev/null || (echo "⚠️  ruff not configured, trying flake8..." && uv run flake8 . 2>/dev/null) || echo "⚠️  No Python linter configured"
-	@echo "✅ Python linting complete!"
+	cd sdks/python && uv run ruff check .
+	@echo "✅ Python linting passed!"
 
 lint-java:
 	@echo "🔍 Linting Java SDK..."
-	cd sdks/java && mvn verify -DskipTests 2>/dev/null || echo "⚠️  Java linting skipped (maven verify not configured)"
-	@echo "✅ Java linting complete!"
+	cd sdks/java && mvn verify -DskipTests -q
+	@echo "✅ Java linting passed!"
 
 # Validate agent skill templates
 lint-skills:
