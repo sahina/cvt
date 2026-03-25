@@ -1,7 +1,7 @@
 ---
 name: cvt-setup
 description: Set up CVT contract testing in a new project
-sdk_version: "0.1.0"
+sdk_version: "0.4.0"
 ---
 
 # CVT Setup
