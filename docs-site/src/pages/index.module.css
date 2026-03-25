@@ -1,27 +1,265 @@
+/* Hero */
 .heroBanner {
-  padding: 4rem 0;
+  padding: 5rem 0 4rem;
   text-align: center;
   position: relative;
   overflow: hidden;
+  background: linear-gradient(160deg, #059669 0%, #047857 50%, #065f46 100%);
 }
 
-.buttons {
+.heroBanner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(52, 211, 153, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+}
+
+.heroBadge {
+  margin-bottom: 1.5rem;
+}
+
+.heroBadge img {
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 48px rgba(52, 211, 153, 0.15);
+}
+
+.heroTitle {
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.5px;
+}
+
+.heroSubtitle {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 600px;
+  margin: 0 auto 2rem;
+  line-height: 1.6;
+}
+
+.heroButtons {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  margin-top: 2rem;
 }
 
-.features {
+.primaryButton {
+  background: white !important;
+  color: #047857 !important;
+  border: 2px solid white !important;
+  font-weight: 600 !important;
+  font-family: var(--ifm-heading-font-family) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  color: #047857 !important;
+}
+
+.secondaryButton {
+  background: transparent !important;
+  color: white !important;
+  border: 2px solid rgba(255, 255, 255, 0.4) !important;
+  font-weight: 600 !important;
+  font-family: var(--ifm-heading-font-family) !important;
+  transition: border-color 0.15s ease, background 0.15s ease !important;
+}
+
+.secondaryButton:hover {
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+}
+
+/* SDK badges strip */
+.sdkSection {
+  padding: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.sdkList {
   display: flex;
-  align-items: flex-start;
-  padding: 4rem 0;
-  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
+.sdkBadge {
+  padding: 0.35rem 1rem;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: var(--ifm-font-family-monospace);
+  color: var(--ifm-color-primary);
+  background: var(--ifm-color-primary-contrast-background);
+  border: 1px solid var(--ifm-color-primary-lightest);
+}
+
+[data-theme='dark'] .sdkBadge {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+/* Features */
+.features {
+  padding: 4rem 0 2rem;
+}
+
+.features :global(.row) {
+  row-gap: 1.5rem;
+}
+
+.featureCard {
+  padding: 1.75rem;
+  border-radius: 10px;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-toc-border-color);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  height: 100%;
+}
+
+.featureCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: var(--ifm-color-primary-lightest);
+}
+
+[data-theme='dark'] .featureCard:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.featureIcon {
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--ifm-color-primary-contrast-background);
+  color: var(--ifm-color-primary);
+  margin-bottom: 1rem;
+}
+
+[data-theme='dark'] .featureIcon {
+  background: rgba(52, 211, 153, 0.1);
+}
+
+.featureCard h3 {
+  margin-top: 0;
+  font-size: 1.05rem;
+  color: var(--ifm-color-primary);
+}
+
+.featureCard p {
+  margin-bottom: 0;
+  font-size: 0.925rem;
+  color: var(--ifm-color-secondary-darkest);
+  line-height: 1.6;
+}
+
+/* Quick Start */
+.quickStart {
+  padding: 4rem 0;
+  background: var(--ifm-background-surface-color);
+  border-top: 1px solid var(--ifm-toc-border-color);
+}
+
+.quickStartHeader {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.quickStartHeader h2 {
+  margin-bottom: 0.5rem;
+}
+
+.quickStartHeader p {
+  color: var(--ifm-color-secondary-darkest);
+  font-size: 1.1rem;
+}
+
+/* SDK language tabs */
+.sdkTabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.sdkTab {
+  padding: 0.5rem 1.25rem;
+  border-radius: 100px;
+  border: 1px solid var(--ifm-toc-border-color);
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sdkTab:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.sdkTabActive {
+  background: var(--ifm-color-primary);
+  color: white;
+  border-color: var(--ifm-color-primary);
+}
+
+.sdkTabActive:hover {
+  color: white;
+}
+
+.codeSection {
+  margin-bottom: 1.5rem;
+}
+
+.codeSectionLabel {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.5rem;
+}
+
+/* Responsive */
 @media screen and (max-width: 996px) {
   .heroBanner {
-    padding: 2rem;
+    padding: 3rem 1.5rem;
+  }
+
+  .heroTitle {
+    font-size: 2.2rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1.1rem;
+  }
+
+  .heroButtons {
+    flex-direction: column;
+    gap: 0.75rem;
   }
 }

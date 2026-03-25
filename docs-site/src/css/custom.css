@@ -54,39 +54,6 @@ h2, h3, h4, h5, h6 {
   font-weight: 600;
 }
 
-/* Hero section styling */
-.hero {
-  padding: 4rem 0;
-}
-
-.hero__title {
-  font-size: 3rem;
-  font-weight: 700;
-}
-
-.hero__subtitle {
-  font-size: 1.5rem;
-  opacity: 0.9;
-}
-
-/* Feature cards */
-.feature-card {
-  padding: 1.5rem;
-  border-radius: 8px;
-  background: var(--ifm-card-background-color);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.feature-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.feature-card h3 {
-  margin-top: 0;
-  color: var(--ifm-color-primary);
-}
 
 /* Code blocks */
 .prism-code {
