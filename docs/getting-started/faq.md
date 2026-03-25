@@ -27,4 +27,4 @@ Yes. CVT auto-converts Swagger 2.0 to OpenAPI 3.x at registration time. You don'
 
 ## Can I use CVT without a running server?
 
-Yes. The CLI commands `cvt validate` and `cvt compare` work entirely offline against local schema files or URLs. The embedded Go library ([`pkg/cvt`](https://pkg.go.dev/github.com/sahina/cvt/pkg/cvt)) can also be used directly in your Go code without starting a server. The server is only needed for consumer registration, `can-i-deploy` checks, and the [SDK-based workflow](../reference/sdk/index.mdx).
+For some workflows, yes. The CLI commands `cvt validate` and `cvt compare` work entirely offline against local schema files or URLs, and the embedded Go library ([`pkg/cvt`](https://pkg.go.dev/github.com/sahina/cvt/pkg/cvt)) can be used directly in Go code. However, the SDK-based workflow — including `registerSchema`, `validate`, consumer registration, and `can-i-deploy` — requires a running server since SDKs communicate over gRPC.
