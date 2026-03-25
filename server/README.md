@@ -320,8 +320,9 @@ docker inspect cvt-server --format='{{.State.Health.Status}}'
 
 ### Production Recommendations
 
-1. **Enable TLS**: Set `CVT_TLS_ENABLED=true` with certificate paths
-2. **Enable Authentication**: Set `CVT_API_KEY_ENABLED=true` with API keys
+1. **Enable TLS**: Set `CVT_TLS_ENABLED=true` with `CVT_TLS_CERT_FILE` and `CVT_TLS_KEY_FILE`
+2. **Enable mTLS** (if required): Also set `CVT_TLS_CA_FILE` and `CVT_TLS_CLIENT_AUTH=require`
+3. **Enable Authentication**: Set `CVT_API_KEY_ENABLED=true` with `CVT_API_KEYS` or `CVT_API_KEYS_FILE`
 3. **Rate Limiting**: Add per-client rate limits
 4. **Network Security**: Use firewall rules and VPC
 5. **Monitoring**: Enable metrics and alerting
