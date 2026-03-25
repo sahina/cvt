@@ -37,19 +37,19 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <grpc.version>1.78.0</grpc.version>
+        <grpc.version>1.80.0</grpc.version>
         <protobuf.version>3.25.5</protobuf.version>
         <gson.version>2.13.2</gson.version>
-        <okhttp.version>4.12.0</okhttp.version>
+        <okhttp.version>5.3.2</okhttp.version>
         <annotations-api.version>6.0.53</annotations-api.version>
         <jakarta-servlet.version>6.0.0</jakarta-servlet.version>
         <spring-webmvc.version>6.2.11</spring-webmvc.version>
         <junit.version>5.12.1</junit.version>
-        <mockito.version>5.21.0</mockito.version>
+        <mockito.version>5.23.0</mockito.version>
 
         <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
-        <jacoco.version>0.8.13</jacoco.version>
-        <maven-surefire.version>3.5.4</maven-surefire.version>
+        <jacoco.version>0.8.14</jacoco.version>
+        <maven-surefire.version>3.5.5</maven-surefire.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
     </properties>
 
@@ -79,7 +79,7 @@
         </dependency>
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
+            <artifactId>okhttp-jvm</artifactId>
             <version>${okhttp.version}</version>
         </dependency>
 
