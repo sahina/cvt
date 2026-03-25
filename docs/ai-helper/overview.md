@@ -79,7 +79,7 @@ Any AI coding agent that supports project context files can use the llms.txt app
 
 ## Agent Skills (Recommended)
 
-If your AI tool supports the [SKILL.md format](https://github.com/anthropics/skills) (Claude Code, Codex CLI, Gemini CLI, Cursor, and others), CVT provides **6 agent skills** in `.agents/skills/` that guide workflows step-by-step with auto-language-detection and SDK-specific code:
+If your AI tool supports the [SKILL.md format](https://github.com/anthropics/skills) (Claude Code, Codex CLI, Gemini CLI, Cursor, and others), CVT provides **6 agent skills** in [`.agents/skills/`](https://github.com/sahina/cvt/tree/main/.agents/skills) that guide workflows step-by-step with auto-language-detection and SDK-specific code:
 
 | Skill | What It Does |
 |-------|-------------|
@@ -90,7 +90,24 @@ If your AI tool supports the [SKILL.md format](https://github.com/anthropics/ski
 | `/cvt-breaking-changes` | Detect breaking schema changes |
 | `/cvt-troubleshoot` | Diagnose common CVT issues |
 
-To use skills, clone the CVT repo and open your project. The agent discovers skills automatically from `.agents/skills/`.
+### Install
+
+Run this from your project root to copy the skills into your project:
+
+```bash
+curl -sL https://github.com/sahina/cvt/archive/main.tar.gz \
+  | tar xz --strip-components=1 'cvt-main/.agents'
+```
+
+Commit `.agents/skills/` to version control so your whole team gets the skills. To update, re-run the same command.
+
+### Usage
+
+1. Open your project in an agent-supported editor (Claude Code, Codex CLI, Gemini CLI, Cursor, etc.)
+2. The agent discovers skills automatically from `.agents/skills/`
+3. Ask the agent to run `/cvt-setup` to get started
+
+All skills support **Node.js, Python, Go, and Java** SDKs with automatic language detection.
 
 ---
 
