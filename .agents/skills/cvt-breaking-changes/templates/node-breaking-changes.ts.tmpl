@@ -1,0 +1,23 @@
+// CVT SDK v0.1.0 — @sahina/cvt-sdk
+// Detect breaking changes between schema versions
+import { ContractValidator } from '@sahina/cvt-sdk';
+
+async function checkBreakingChanges() {
+  const validator = new ContractValidator(process.env.CVT_SERVER || 'localhost:9550');
+  try {
+    // Register both schema versions (adapt paths)
+    await validator.registerSchema('my-api', './schemas/openapi-v1.json');
+    await validator.registerSchema('my-api', './schemas/openapi-v2.json');
+
+    const result = await validator.compareSchemas('my-api', '1.0.0', '2.0.0');
+    if (result.breakingChanges && result.breakingChanges.length > 0) {
+      console.error('Breaking changes detected:');
+      result.breakingChanges.forEach(c => console.error(`  - ${c.type}: ${c.description}`));
+      process.exit(1); // Fail CI
+    }
+    console.log('No breaking changes detected.');
+  } finally {
+    validator.close();
+  }
+}
+checkBreakingChanges();

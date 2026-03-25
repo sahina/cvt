@@ -35,7 +35,7 @@ Examples:
   cvt can-i-deploy --schema my-api --version 2.0.0 --env prod
 
   # Start the gRPC validation server
-  cvt serve --port 50051`,
+  cvt serve --port 9550`,
 		Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, buildDate),
 	}
 

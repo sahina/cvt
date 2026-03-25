@@ -1,0 +1,25 @@
+// CVT SDK v0.1.0 — io.github.sahina:cvt-sdk
+// Detect breaking changes between schema versions
+package com.example.schema;
+
+import io.github.sahina.sdk.ContractValidator;
+import io.github.sahina.sdk.CompareResult;
+
+public class BreakingChangeCheck {
+    public static void main(String[] args) throws Exception {
+        String server = System.getenv("CVT_SERVER") != null ? System.getenv("CVT_SERVER") : "localhost:9550";
+        try (ContractValidator validator = ContractValidator.builder().address(server).build()) {
+            // Register both schema versions (adapt paths)
+            validator.registerSchema("my-api", "./schemas/openapi-v1.json");
+            validator.registerSchema("my-api", "./schemas/openapi-v2.json");
+
+            CompareResult result = validator.compareSchemas("my-api", "1.0.0", "2.0.0");
+            if (result.getBreakingChanges() != null && !result.getBreakingChanges().isEmpty()) {
+                System.err.println("Breaking changes detected:");
+                result.getBreakingChanges().forEach(c -> System.err.println("  - " + c.getType() + ": " + c.getDescription()));
+                System.exit(1);
+            }
+            System.out.println("No breaking changes detected.");
+        }
+    }
+}

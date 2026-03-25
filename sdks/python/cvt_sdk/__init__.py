@@ -300,7 +300,7 @@ class ContractValidator:
 
     Example with TLS and API key:
         >>> options = ContractValidatorOptions(
-        ...     address="localhost:50051",
+        ...     address="localhost:9550",
         ...     tls=TLSOptions(enabled=True, root_cert_path="./certs/ca.crt"),
         ...     api_key="cvt-dev-key-12345"
         ... )

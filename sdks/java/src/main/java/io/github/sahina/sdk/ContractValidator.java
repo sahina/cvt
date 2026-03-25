@@ -68,7 +68,7 @@ import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
  * 
  * <pre>{@code
  * ContractValidator validator = ContractValidator.builder()
- *         .address("localhost:50051")
+ *         .address("localhost:9550")
  *         .tlsEnabled(true)
  *         .rootCertPath("./certs/ca.crt")
  *         .apiKey("cvt-dev-key-12345")
@@ -194,7 +194,7 @@ public class ContractValidator implements AutoCloseable {
         /**
          * Sets the server address.
          *
-         * @param address The gRPC server address (e.g., "localhost:50051")
+         * @param address The gRPC server address (e.g., "localhost:9550")
          * @return This builder
          */
         public Builder address(String address) {

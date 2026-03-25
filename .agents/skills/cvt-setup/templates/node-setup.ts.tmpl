@@ -1,0 +1,24 @@
+// CVT SDK v0.1.0 — @sahina/cvt-sdk
+// Minimal CVT contract test — adapt schema path and endpoint to your API
+import { ContractValidator } from '@sahina/cvt-sdk';
+
+describe('CVT Contract Test', () => {
+  let validator: ContractValidator;
+
+  beforeAll(async () => {
+    validator = new ContractValidator(process.env.CVT_SERVER || 'localhost:9550');
+    await validator.registerSchema('my-api', './path/to/openapi.json');
+  });
+
+  afterAll(() => {
+    validator.close();
+  });
+
+  it('should validate GET /users/{id}', async () => {
+    const result = await validator.validate(
+      { method: 'GET', path: '/users/123', headers: { Accept: 'application/json' } },
+      { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: { id: '123', name: 'Jane Doe' } }
+    );
+    expect(result.valid).toBe(true);
+  });
+});

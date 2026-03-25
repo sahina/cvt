@@ -1,0 +1,43 @@
+// CVT SDK v0.1.0 — github.com/sahina/cvt/sdks/go/cvt
+// Detect breaking changes between schema versions
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/sahina/cvt/sdks/go/cvt"
+)
+
+func main() {
+	addr := os.Getenv("CVT_SERVER")
+	if addr == "" {
+		addr = "localhost:9550"
+	}
+	v, err := cvt.NewValidator(addr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create validator: %v\n", err)
+		os.Exit(1)
+	}
+	defer v.Close()
+
+	ctx := context.Background()
+	// Register both schema versions (adapt paths)
+	v.RegisterSchema(ctx, "my-api", "./schemas/openapi-v1.json")
+	v.RegisterSchema(ctx, "my-api", "./schemas/openapi-v2.json")
+
+	result, err := v.CompareSchemas(ctx, "my-api", "1.0.0", "2.0.0")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "compare error: %v\n", err)
+		os.Exit(1)
+	}
+	if len(result.BreakingChanges) > 0 {
+		fmt.Fprintln(os.Stderr, "Breaking changes detected:")
+		for _, c := range result.BreakingChanges {
+			fmt.Fprintf(os.Stderr, "  - %s: %s\n", c.Type, c.Description)
+		}
+		os.Exit(1)
+	}
+	fmt.Println("No breaking changes detected.")
+}

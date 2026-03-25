@@ -1,0 +1,40 @@
+# CVT SDK v0.1.0 — cvt-sdk
+# Producer test using ProducerTestKit — validates your API responses against the schema
+import os
+import pytest
+from cvt_sdk.producer.testing import ProducerTestKit, ProducerTestConfig
+
+@pytest.fixture(scope="module")
+def kit():
+    config = ProducerTestConfig(
+        schema_id="my-api",
+        server_address=os.environ.get("CVT_SERVER", "localhost:9550"),
+    )
+    k = ProducerTestKit(config)
+    yield k
+    k.close()
+
+def test_get_user_response(kit):
+    """Validate your actual API response against the schema."""
+    # Replace with your actual API call
+    import requests
+    resp = requests.get("http://localhost:5000/users/123")
+
+    result = kit.validate_response(
+        method="GET",
+        path="/users/123",
+        status_code=resp.status_code,
+        body=resp.json(),
+        headers=dict(resp.headers),
+    )
+    assert result.valid
+
+def test_endpoint_helper(kit):
+    """Use forEndpoint for concise multi-scenario testing."""
+    endpoint = kit.for_endpoint("GET", "/users/{id}")
+    result = endpoint.validate_response(
+        status_code=200,
+        body={"id": "123", "name": "Jane Doe", "email": "jane@example.com"},
+        headers={"Content-Type": "application/json"},
+    )
+    assert result.valid

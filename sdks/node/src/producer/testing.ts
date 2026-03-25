@@ -47,7 +47,7 @@ export interface ProducerTestConfig {
   schemaId: string;
   /** Optional schema version to validate against. */
   schemaVersion?: string;
-  /** Server address (default: "localhost:50051"). */
+  /** Server address (default: "localhost:9550"). */
   serverAddress?: string;
   /** API key for authentication (optional). */
   apiKey?: string;
@@ -127,7 +127,7 @@ export interface ValidateResponseParams {
  *     // With TLS and API key
  *     testKit = new ProducerTestKit({
  *       schemaId: 'user-api',
- *       serverAddress: 'localhost:50051',
+ *       serverAddress: 'localhost:9550',
  *       tls: { enabled: true, rootCertPath: './certs/ca.crt' },
  *       apiKey: 'cvt-dev-key-12345',
  *     });
@@ -175,7 +175,7 @@ export class ProducerTestKit {
     this.schemaVersion = config.schemaVersion;
     this.apiKey = config.apiKey;
 
-    const address = config.serverAddress || "localhost:50051";
+    const address = config.serverAddress || "localhost:9550";
     let credentials: grpc.ChannelCredentials;
     if (config.tls?.enabled) {
       credentials = this.createTLSCredentials(config.tls);
@@ -421,7 +421,7 @@ export class ProducerTestKit {
  *
  * const testKit = createProducerTestKit({
  *   schemaId: 'my-api',
- *   serverAddress: 'localhost:50051',
+ *   serverAddress: 'localhost:9550',
  * });
  * ```
  */

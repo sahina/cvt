@@ -77,7 +77,26 @@ Any AI coding agent that supports project context files can use the llms.txt app
 
 ---
 
-## Quick Start
+## Agent Skills (Recommended)
+
+If your AI tool supports the [SKILL.md format](https://github.com/anthropics/skills) (Claude Code, Codex CLI, Gemini CLI, Cursor, and others), CVT provides **6 agent skills** in `.agents/skills/` that guide workflows step-by-step with auto-language-detection and SDK-specific code:
+
+| Skill | What It Does |
+|-------|-------------|
+| `/cvt-setup` | Install SDK, configure server, create first contract test |
+| `/cvt-write-contract` | Write consumer contract tests |
+| `/cvt-producer-test` | Validate API responses against your schema |
+| `/cvt-ci` | Integrate CVT into CI/CD pipelines |
+| `/cvt-breaking-changes` | Detect breaking schema changes |
+| `/cvt-troubleshoot` | Diagnose common CVT issues |
+
+To use skills, clone the CVT repo and open your project. The agent discovers skills automatically from `.agents/skills/`.
+
+---
+
+## llms.txt Approach (Universal)
+
+For agents that don't support SKILL.md, or for quick reference, CVT provides LLM-friendly documentation:
 
 1. **Add context to your project**: Create a context file for your AI tool (see [Context Templates](./context-templates.md))
 
@@ -119,6 +138,7 @@ AI: I'll help you set up CVT. Based on the CVT documentation, here's what we nee
 
 ## Next Steps
 
-- **[Context Templates](./context-templates.md)** - Set up your AI tool with CVT context
+- **[Agent Skills](./../../../.agents/skills/README.md)** - Use agent skills for guided CVT workflows (recommended)
+- **[Context Templates](./context-templates.md)** - Set up your AI tool with CVT context (for llms.txt approach)
 - **[Consumer Testing Guide](https://sahina.github.io/cvt/docs/guides/consumer-testing)** - Learn the full consumer testing workflow
 - **[API Reference](https://sahina.github.io/cvt/docs/reference/api)** - Complete API documentation

@@ -1,0 +1,46 @@
+// CVT SDK v0.1.0 — @sahina/cvt-sdk
+// Consumer contract test suite — adapt endpoints and response shapes to your API
+import { ContractValidator } from '@sahina/cvt-sdk';
+
+describe('Consumer Contract Tests', () => {
+  let validator: ContractValidator;
+
+  beforeAll(async () => {
+    validator = new ContractValidator(process.env.CVT_SERVER || 'localhost:9550');
+    await validator.registerSchema('my-api', './path/to/openapi.json');
+  });
+
+  afterAll(() => { validator.close(); });
+
+  it('should validate GET /users', async () => {
+    const result = await validator.validate(
+      { method: 'GET', path: '/users', headers: { Accept: 'application/json' } },
+      { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: [{ id: '1', name: 'Alice' }] }
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it('should validate GET /users/{id}', async () => {
+    const result = await validator.validate(
+      { method: 'GET', path: '/users/1', headers: { Accept: 'application/json' } },
+      { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: { id: '1', name: 'Alice', email: 'alice@example.com' } }
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it('should validate POST /users', async () => {
+    const result = await validator.validate(
+      { method: 'POST', path: '/users', headers: { 'Content-Type': 'application/json' }, body: { name: 'Bob', email: 'bob@example.com' } },
+      { statusCode: 201, headers: { 'Content-Type': 'application/json' }, body: { id: '2', name: 'Bob', email: 'bob@example.com' } }
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it('should validate 404 response', async () => {
+    const result = await validator.validate(
+      { method: 'GET', path: '/users/999', headers: { Accept: 'application/json' } },
+      { statusCode: 404, headers: { 'Content-Type': 'application/json' }, body: { error: 'Not found' } }
+    );
+    expect(result.valid).toBe(true);
+  });
+});

@@ -1,0 +1,42 @@
+// CVT SDK v0.1.0 — @sahina/cvt-sdk
+// Producer test using ProducerTestKit — validates your API responses against the schema
+import { ProducerTestKit } from '@sahina/cvt-sdk/producer/testing';
+
+describe('Producer Contract Tests', () => {
+  let kit: ProducerTestKit;
+
+  beforeAll(() => {
+    kit = new ProducerTestKit({
+      schemaId: 'my-api',                                // Adapt: your schema ID
+      serverAddress: process.env.CVT_SERVER || 'localhost:9550',
+    });
+  });
+
+  afterAll(() => { kit.close(); });
+
+  it('should return valid response for GET /users/{id}', async () => {
+    // Call your actual API handler and capture the response
+    const response = await fetch('http://localhost:3000/users/123');
+    const body = await response.json();
+
+    const result = await kit.validateResponse({
+      method: 'GET',
+      path: '/users/123',
+      statusCode: response.status,
+      body,
+      headers: Object.fromEntries(response.headers.entries()),
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('should validate multiple endpoints via forEndpoint', async () => {
+    const userEndpoint = kit.forEndpoint('GET', '/users/{id}');
+
+    const result = await userEndpoint.validateResponse({
+      statusCode: 200,
+      body: { id: '123', name: 'Jane Doe', email: 'jane@example.com' },
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(result.valid).toBe(true);
+  });
+});

@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
  * <pre>{@code
  * ProducerTestKit testKit = ProducerTestKit.builder()
  *         .schemaId("user-api")
- *         .serverAddress("localhost:50051")
+ *         .serverAddress("localhost:9550")
  *         .tlsEnabled(true)
  *         .rootCertPath("./certs/ca.crt")
  *         .apiKey("cvt-dev-key-12345")
@@ -66,7 +66,7 @@ import java.util.concurrent.TimeUnit;
  * }</pre>
  */
 public class ProducerTestKit implements AutoCloseable {
-    private static final String DEFAULT_ADDRESS = "localhost:50051";
+    private static final String DEFAULT_ADDRESS = "localhost:9550";
     private static final Gson GSON = new Gson();
     private static final Metadata.Key<String> API_KEY_HEADER =
             Metadata.Key.of("x-api-key", Metadata.ASCII_STRING_MARSHALLER);
@@ -280,7 +280,7 @@ public class ProducerTestKit implements AutoCloseable {
         }
 
         /**
-         * Sets the server address (default: "localhost:50051").
+         * Sets the server address (default: "localhost:9550").
          *
          * @param serverAddress The server address
          * @return This builder

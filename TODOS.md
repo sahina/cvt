@@ -39,3 +39,18 @@
 **Priority:** P3
 **Depends on:** None
 **Source:** Eng Review 2026-03-19
+
+## P2: Contributor-facing agent skills
+
+**What:** Create Claude Code skills for CVT contributors: /cvt-add-feature (add server features), /cvt-add-rpc (add gRPC methods), /cvt-add-sdk-feature (add SDK features across languages), /cvt-generate (protobuf codegen), /cvt-review (code review against CVT conventions), /cvt-audit (security/quality audit).
+
+**Why:** Consumer skills encode the SDK user journey; contributor skills encode institutional knowledge for working ON CVT itself. Together they complete the agent skill suite. Reduces onboarding time for contributors and ensures consistent patterns.
+
+**Pros:** Full skill coverage for both audiences. Contributors follow consistent patterns encoded in skills.
+**Cons:** ~6 more skills to create and maintain. Requires deep understanding of CVT internals.
+**Context:** Consumer skills landed first (chore/skills branch) as the pattern to follow. Contributor skills should mirror the same SKILL.md format with frontmatter, steps, SDK-specific instructions, common errors, and success criteria.
+
+**Effort:** L (human: ~2 weeks) → with CC: M (~1 hour)
+**Priority:** P2
+**Depends on:** Consumer skills (chore/skills PR) landing first.
+**Source:** CEO Review 2026-03-24

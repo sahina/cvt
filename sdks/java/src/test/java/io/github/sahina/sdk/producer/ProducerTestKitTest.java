@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,6 +50,14 @@ class ProducerTestKitTest {
                 .build();
             assertNotNull(testKit);
             testKit.close();
+        }
+
+        @Test
+        @DisplayName("should use localhost:9550 as the default address constant")
+        void defaultAddressConstantIsCorrect() throws Exception {
+            Field field = ProducerTestKit.class.getDeclaredField("DEFAULT_ADDRESS");
+            field.setAccessible(true);
+            assertEquals("localhost:9550", field.get(null));
         }
 
         @Test
