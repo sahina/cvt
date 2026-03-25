@@ -10,7 +10,9 @@ CVT (Contract Validator Toolkit) is a consumer-based contract validation platfor
 
 ```shell
 cvt/
+├── .agents/skills/     # Agent skills for SDK consumers
 ├── api/protos/         # gRPC proto definitions
+├── assets/             # Project images and logos
 ├── cmd/cvt/            # CLI entry point
 ├── server/             # gRPC server implementation
 │   ├── cvtservice/     # Core service logic
@@ -18,11 +20,11 @@ cvt/
 ├── pkg/cvt/            # Embeddable Go library
 ├── sdks/               # Client SDKs (node, python, go, java, shared)
 ├── docs/               # Detailed documentation
+├── docs-site/          # Docusaurus documentation site
 ├── examples/           # Example code and schemas
 ├── observability/      # Prometheus/Grafana configuration
 ├── config/             # Configuration files
 ├── ci-templates/       # CI/CD templates
-├── certs/              # TLS certificates
 └── tools/              # Build and test scripts
 ```
 
@@ -100,10 +102,16 @@ _Phase 3 - Deployment Safety:_
 
 **Service Library** (`server/cvtservice/`): Core service implementation as an importable package. Key components:
 
-- `service.go`: Main service implementation
+- `validator_service.go`: Main service implementation (RegisterSchema, ValidateInteraction, CanIDeploy, etc.)
+- `compatibility_engine.go`: Breaking change detection between schema versions
+- `validation_utils.go`: Input validation utilities
 - `cache.go`: Ristretto-based schema cache (1000 schemas, 24-hour TTL)
 - `interceptors.go`: gRPC interceptors for logging, metrics, auth
 - `metrics.go`: Prometheus metrics collection
+- `auth.go`: API key authentication
+- `tls.go`: TLS/mTLS configuration
+- `health.go`: gRPC health check service
+- `logger.go`: Structured logging with Zap
 - `audit_logger.go`: Audit logging for compliance
 - `schema_metadata.go`: Schema metadata management
 
