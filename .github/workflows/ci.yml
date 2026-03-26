@@ -47,12 +47,12 @@ jobs:
 
       - name: Check coverage threshold
         run: |
-          # Exclude generated protobuf code from coverage calculation
-          grep -v "/server/pb/" coverage.out > coverage.filtered.out
+          # Exclude generated protobuf code and postgres (integration-only) from coverage
+          grep -v '/server/pb/\|/postgres/' coverage.out > coverage.filtered.out
           coverage=$(go tool cover -func=coverage.filtered.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Total coverage (excluding generated pb/ code): ${coverage}%"
-          if (( $(echo "$coverage < 70" | bc -l) )); then
-            echo "Coverage ${coverage}% is below threshold of 70%"
+          echo "Total coverage (excluding generated pb/ and postgres code): ${coverage}%"
+          if (( $(echo "$coverage < 80" | bc -l) )); then
+            echo "Coverage ${coverage}% is below threshold of 80%"
             exit 1
           fi
 
@@ -346,8 +346,8 @@ jobs:
           # Exclude generated protobuf code from coverage calculation
           coverage=$(uv run coverage report --omit="cvt_sdk/proto/*" | grep TOTAL | awk '{print $4}' | sed 's/%//')
           echo "Total coverage (excluding generated proto/ code): ${coverage}%"
-          if (( $(echo "$coverage < 70" | bc -l) )); then
-            echo "Coverage ${coverage}% is below threshold of 70%"
+          if (( $(echo "$coverage < 80" | bc -l) )); then
+            echo "Coverage ${coverage}% is below threshold of 80%"
             exit 1
           fi
 
@@ -384,12 +384,12 @@ jobs:
       - name: Check coverage threshold
         working-directory: ./sdks/go
         run: |
-          # Exclude generated protobuf code from coverage calculation
-          grep -v "/proto/" coverage.out > coverage.filtered.out
+          # Exclude generated protobuf and framework-specific adapters (integration-only) from coverage
+          grep -v '/proto/\|/producer/adapters/' coverage.out > coverage.filtered.out
           coverage=$(go tool cover -func=coverage.filtered.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Total coverage (excluding generated proto/ code): ${coverage}%"
-          if (( $(echo "$coverage < 70" | bc -l) )); then
-            echo "Coverage ${coverage}% is below threshold of 70%"
+          echo "Total coverage (excluding proto/ and producer/adapters/ code): ${coverage}%"
+          if (( $(echo "$coverage < 80" | bc -l) )); then
+            echo "Coverage ${coverage}% is below threshold of 80%"
             exit 1
           fi
 

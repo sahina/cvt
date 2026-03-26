@@ -285,7 +285,7 @@ The CLI uses the embedded library (`pkg/cvt/`) which can also be used directly i
 
 ## Testing Patterns
 
-Server tests use testify/assert and table-driven tests. Integration tests require Docker (`-tags=integration`). Coverage target is 70%+.
+Server tests use testify/assert and table-driven tests. Integration tests require Docker (`-tags=integration`). Coverage target is 80%+.
 
 ```bash
 # Run all server tests
