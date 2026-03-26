@@ -850,4 +850,192 @@ describe("ContractValidator", () => {
       expect(capturedMetadata.get("x-api-key")).toBe("secret-key-123");
     });
   });
+
+  describe("compareSchemas with schema metadata", () => {
+    it("should return old_schema and new_schema when present", async () => {
+      mockCompareSchemas.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, {
+            compatible: true,
+            breaking_changes: [],
+            old_schema: {
+              schema_id: "my-api",
+              schema_version: "1.0.0",
+            },
+            new_schema: {
+              schema_id: "my-api",
+              schema_version: "2.0.0",
+            },
+          });
+        },
+      );
+
+      const result = await validator.compareSchemas("my-api", "1.0.0", "2.0.0");
+
+      expect(result.compatible).toBe(true);
+      expect(result.oldSchema).toEqual({
+        schemaId: "my-api",
+        schemaVersion: "1.0.0",
+      });
+      expect(result.newSchema).toEqual({
+        schemaId: "my-api",
+        schemaVersion: "2.0.0",
+      });
+    });
+
+    it("should return undefined for missing old_schema and new_schema", async () => {
+      mockCompareSchemas.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, {
+            compatible: true,
+            breaking_changes: [],
+          });
+        },
+      );
+
+      const result = await validator.compareSchemas("my-api");
+
+      expect(result.oldSchema).toBeUndefined();
+      expect(result.newSchema).toBeUndefined();
+    });
+  });
+
+  describe("generateResponse", () => {
+    beforeEach(async () => {
+      mockRegisterSchema.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, { success: true });
+        },
+      );
+      const schemaPath = path.resolve(__dirname, "../../shared/openapi.json");
+      await validator.registerSchema("test-schema", schemaPath);
+    });
+
+    it("should generate a response fixture", async () => {
+      mockGenerateFixture.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, {
+            success: true,
+            response: {
+              status_code: 200,
+              headers: { "content-type": "application/json" },
+              body: '{"id": 1, "name": "test"}',
+            },
+          });
+        },
+      );
+
+      const result = await validator.generateResponse("GET", "/users/1");
+
+      expect(result.statusCode).toBe(200);
+      expect(result.headers).toEqual({ "content-type": "application/json" });
+      expect(result.body).toEqual({ id: 1, name: "test" });
+    });
+
+    it("should handle response with no body", async () => {
+      mockGenerateFixture.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, {
+            success: true,
+            response: {
+              status_code: 204,
+              headers: {},
+              body: null,
+            },
+          });
+        },
+      );
+
+      const result = await validator.generateResponse("DELETE", "/users/1");
+
+      expect(result.statusCode).toBe(204);
+      expect(result.body).toBeUndefined();
+    });
+
+    it("should throw when schema not registered", async () => {
+      const newValidator = new ContractValidator();
+      await expect(
+        newValidator.generateResponse("GET", "/users"),
+      ).rejects.toThrow("Schema not registered");
+    });
+
+    it("should reject on failure response", async () => {
+      mockGenerateFixture.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, {
+            success: false,
+            message: "Generation failed",
+          });
+        },
+      );
+
+      await expect(validator.generateResponse("GET", "/users")).rejects.toThrow(
+        "Generation failed",
+      );
+    });
+  });
+
+  describe("generateRequestBody", () => {
+    beforeEach(async () => {
+      mockRegisterSchema.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, { success: true });
+        },
+      );
+      const schemaPath = path.resolve(__dirname, "../../shared/openapi.json");
+      await validator.registerSchema("test-schema", schemaPath);
+    });
+
+    it("should generate a request body fixture", async () => {
+      mockGenerateFixture.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, {
+            success: true,
+            request_body: '{"name": "test", "email": "test@example.com"}',
+          });
+        },
+      );
+
+      const result = await validator.generateRequestBody("POST", "/users");
+
+      expect(result).toEqual({ name: "test", email: "test@example.com" });
+    });
+
+    it("should return undefined when no request body", async () => {
+      mockGenerateFixture.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, {
+            success: true,
+            request_body: null,
+          });
+        },
+      );
+
+      const result = await validator.generateRequestBody("GET", "/users");
+
+      expect(result).toBeUndefined();
+    });
+
+    it("should throw when schema not registered", async () => {
+      const newValidator = new ContractValidator();
+      await expect(
+        newValidator.generateRequestBody("POST", "/users"),
+      ).rejects.toThrow("Schema not registered");
+    });
+
+    it("should reject on failure response", async () => {
+      mockGenerateFixture.mockImplementation(
+        (req: any, metadata: any, callback: any) => {
+          callback(null, {
+            success: false,
+            message: "Generation failed",
+          });
+        },
+      );
+
+      await expect(
+        validator.generateRequestBody("POST", "/users"),
+      ).rejects.toThrow("Generation failed");
+    });
+  });
 });

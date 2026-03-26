@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.25"
           cache-dependency-path: go.sum
@@ -38,7 +38,7 @@ jobs:
 
       - name: Upload test coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-coverage-report
           path: |
@@ -47,12 +47,12 @@ jobs:
 
       - name: Check coverage threshold
         run: |
-          # Exclude generated protobuf code from coverage calculation
-          grep -v "/server/pb/" coverage.out > coverage.filtered.out
+          # Exclude generated protobuf code and postgres (integration-only) from coverage
+          grep -v '/server/pb/\|/postgres/' coverage.out > coverage.filtered.out
           coverage=$(go tool cover -func=coverage.filtered.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Total coverage (excluding generated pb/ code): ${coverage}%"
-          if (( $(echo "$coverage < 70" | bc -l) )); then
-            echo "Coverage ${coverage}% is below threshold of 70%"
+          echo "Total coverage (excluding generated pb/ and postgres code): ${coverage}%"
+          if (( $(echo "$coverage < 80" | bc -l) )); then
+            echo "Coverage ${coverage}% is below threshold of 80%"
             exit 1
           fi
 
@@ -64,10 +64,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
@@ -99,7 +99,7 @@ jobs:
           CVT_SERVER_ADDRESS: localhost:9550
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: "latest"
 
@@ -115,7 +115,7 @@ jobs:
         run: uv run pytest tests/
 
       - name: Set up Go for integration tests
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.25"
           cache-dependency-path: sdks/go/go.sum
@@ -129,7 +129,7 @@ jobs:
         run: go test -v ./...
 
       - name: Set up JDK 21 for Java SDK tests
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: "21"
@@ -151,7 +151,7 @@ jobs:
 
       - name: Upload integration test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-results
           path: |
@@ -167,10 +167,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.25"
           cache-dependency-path: go.sum
@@ -287,10 +287,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
@@ -310,7 +310,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: node-sdk-test-results
           path: sdks/node/coverage/
@@ -322,10 +322,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: "latest"
 
@@ -346,14 +346,14 @@ jobs:
           # Exclude generated protobuf code from coverage calculation
           coverage=$(uv run coverage report --omit="cvt_sdk/proto/*" | grep TOTAL | awk '{print $4}' | sed 's/%//')
           echo "Total coverage (excluding generated proto/ code): ${coverage}%"
-          if (( $(echo "$coverage < 70" | bc -l) )); then
-            echo "Coverage ${coverage}% is below threshold of 70%"
+          if (( $(echo "$coverage < 80" | bc -l) )); then
+            echo "Coverage ${coverage}% is below threshold of 80%"
             exit 1
           fi
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python-sdk-test-results
           path: sdks/python/htmlcov/
@@ -365,10 +365,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.25"
           cache-dependency-path: sdks/go/go.sum
@@ -384,18 +384,18 @@ jobs:
       - name: Check coverage threshold
         working-directory: ./sdks/go
         run: |
-          # Exclude generated protobuf code from coverage calculation
-          grep -v "/proto/" coverage.out > coverage.filtered.out
+          # Exclude generated protobuf and framework-specific adapters (integration-only) from coverage
+          grep -v '/proto/\|/producer/adapters/' coverage.out > coverage.filtered.out
           coverage=$(go tool cover -func=coverage.filtered.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Total coverage (excluding generated proto/ code): ${coverage}%"
-          if (( $(echo "$coverage < 70" | bc -l) )); then
-            echo "Coverage ${coverage}% is below threshold of 70%"
+          echo "Total coverage (excluding proto/ and producer/adapters/ code): ${coverage}%"
+          if (( $(echo "$coverage < 80" | bc -l) )); then
+            echo "Coverage ${coverage}% is below threshold of 80%"
             exit 1
           fi
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: go-sdk-coverage
           path: sdks/go/coverage.out
@@ -407,10 +407,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: "21"
@@ -422,11 +422,11 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: ./sdks/java
-        run: mvn test jacoco:report
+        run: mvn verify
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: java-sdk-test-results
           path: |
@@ -441,13 +441,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -483,10 +483,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.25"
           cache-dependency-path: go.sum
@@ -515,7 +515,7 @@ jobs:
         run: golangci-lint run --timeout=5m ./server/... ./pkg/... ./cmd/...
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
@@ -534,7 +534,7 @@ jobs:
         run: npm run format:check
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           version: "latest"
 
@@ -567,7 +567,7 @@ jobs:
         run: go vet ./...
 
       - name: Set up JDK 21 for Java linting
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: "21"

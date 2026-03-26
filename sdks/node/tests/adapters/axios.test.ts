@@ -8,6 +8,8 @@ import {
   shouldValidatePath,
   matchesPathFilter,
 } from "../../src/adapters/types";
+// Import barrel to ensure coverage of adapters/index.ts
+import "../../src/adapters/index";
 
 // Mock axios
 jest.mock("axios", () => {

@@ -58,6 +58,9 @@ norecursedirs = ".git .tox dist build *.egg"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
+[tool.coverage.run]
+omit = ["cvt_sdk/proto/*"]
+
 # [[tool.uv.index]]
 # url = "path-to-your-internal-index"
 # default = true
