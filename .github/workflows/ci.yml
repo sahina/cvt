@@ -422,7 +422,7 @@ jobs:
 
       - name: Run tests with coverage
         working-directory: ./sdks/java
-        run: mvn test jacoco:report
+        run: mvn verify
 
       - name: Upload test results
         if: always()

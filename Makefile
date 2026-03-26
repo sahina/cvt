@@ -48,7 +48,7 @@ help:
 	@echo "  make lint-python        - Run ruff on Python SDK"
 	@echo "  make lint-java          - Run Maven verify on Java SDK"
 	@echo "  make ci                 - Run CI checks locally (lint + format)"
-	@echo "  make check-coverage     - Verify all components have >= 70% test coverage"
+	@echo "  make check-coverage     - Verify all components have >= 80% test coverage"
 	@echo "  make ci-full            - Run full CI (lint + format + coverage)"
 	@echo ""
 	@echo "Docker commands:"
@@ -529,48 +529,51 @@ ci: lint lint-skills
 	@echo ""
 	@echo "✅ All CI checks passed!"
 
-# Coverage check target - enforces 80% minimum coverage
+# Coverage threshold (single source of truth for Makefile checks)
+COVERAGE_THRESHOLD := 80
+
+# Coverage check target - enforces $(COVERAGE_THRESHOLD)% minimum coverage
 check-coverage:
 	@echo ""
-	@echo "📊 Checking test coverage (minimum 80%)..."
+	@echo "📊 Checking test coverage (minimum $(COVERAGE_THRESHOLD)%)..."
 	@echo ""
 	@echo ">>> Go Server coverage..."
 	@set -o pipefail; go test -coverprofile=coverage.out -covermode=atomic ./server/... 2>&1 | tail -1
-	@grep -v "/pb/\|/postgres/" coverage.out > coverage.filtered.out
+	@grep -E -v '/pb/|/postgres/' coverage.out > coverage.filtered.out || true
 	@COVERAGE=$$(go tool cover -func=coverage.filtered.out | grep total | awk '{gsub(/%/,""); print $$3}') && \
 		echo "    Server coverage: $${COVERAGE}%" && \
-		if [ $$(echo "$${COVERAGE} < 80" | bc -l) -eq 1 ]; then \
-			echo "❌ Server coverage $${COVERAGE}% is below 80%"; \
+		if [ $$(echo "$${COVERAGE} < $(COVERAGE_THRESHOLD)" | bc -l) -eq 1 ]; then \
+			echo "❌ Server coverage $${COVERAGE}% is below $(COVERAGE_THRESHOLD)%"; \
 			exit 1; \
-		fi && echo "✅ Go Server: $${COVERAGE}% >= 80%"
+		fi && echo "✅ Go Server: $${COVERAGE}% >= $(COVERAGE_THRESHOLD)%"
 	@echo ""
 	@echo ">>> Go SDK coverage..."
 	@set -o pipefail; cd sdks/go && go test -coverprofile=coverage.out -covermode=atomic ./cvt/... 2>&1 | tail -1
-	@cd sdks/go && grep -v "/proto/\|/producer/adapters/" coverage.out > coverage.filtered.out || cp coverage.out coverage.filtered.out
+	@cd sdks/go && grep -E -v '/proto/|/producer/adapters/' coverage.out > coverage.filtered.out || true
 	@cd sdks/go && COVERAGE=$$(go tool cover -func=coverage.filtered.out | grep total | awk '{gsub(/%/,""); print $$3}') && \
 		echo "    Go SDK coverage: $${COVERAGE}%" && \
-		if [ $$(echo "$${COVERAGE} < 80" | bc -l) -eq 1 ]; then \
-			echo "❌ Go SDK coverage $${COVERAGE}% is below 80%"; \
+		if [ $$(echo "$${COVERAGE} < $(COVERAGE_THRESHOLD)" | bc -l) -eq 1 ]; then \
+			echo "❌ Go SDK coverage $${COVERAGE}% is below $(COVERAGE_THRESHOLD)%"; \
 			exit 1; \
-		fi && echo "✅ Go SDK: $${COVERAGE}% >= 80%"
+		fi && echo "✅ Go SDK: $${COVERAGE}% >= $(COVERAGE_THRESHOLD)%"
 	@echo ""
 	@echo ">>> Python SDK coverage..."
-	@set -o pipefail; cd sdks/python && uv run pytest --cov=cvt_sdk --cov-fail-under=80 tests/ -q 2>&1 | tail -5
-	@echo "✅ Python SDK: >= 80%"
+	@set -o pipefail; cd sdks/python && uv run pytest --cov=cvt_sdk --cov-fail-under=$(COVERAGE_THRESHOLD) tests/ -q 2>&1 | tail -5
+	@echo "✅ Python SDK: >= $(COVERAGE_THRESHOLD)%"
 	@echo ""
 	@echo ">>> Node.js SDK coverage..."
 	@cd sdks/node && npm test -- --coverage --silent 2>&1 | grep -E "(All files|Coverage)" || true
 	@cd sdks/node && npm test -- --coverage --silent 2>/dev/null && \
-		echo "✅ Node.js SDK: >= 80% (enforced by jest.config.js)" || \
-		(echo "❌ Node.js SDK coverage below 80%" && exit 1)
+		echo "✅ Node.js SDK: >= $(COVERAGE_THRESHOLD)% (enforced by jest.config.js)" || \
+		(echo "❌ Node.js SDK coverage below $(COVERAGE_THRESHOLD)%" && exit 1)
 	@echo ""
 	@echo ">>> Java SDK coverage..."
 	@cd sdks/java && mvn verify 2>&1 | grep -E "(covered ratio|BUILD)" | head -2 || true
 	@cd sdks/java && mvn verify -q 2>/dev/null && \
-		echo "✅ Java SDK: >= 80% (enforced by JaCoCo)" || \
-		(echo "❌ Java SDK coverage below 80%" && exit 1)
+		echo "✅ Java SDK: >= $(COVERAGE_THRESHOLD)% (enforced by JaCoCo)" || \
+		(echo "❌ Java SDK coverage below $(COVERAGE_THRESHOLD)%" && exit 1)
 	@echo ""
-	@echo "✅ All coverage checks passed (minimum 80%)!"
+	@echo "✅ All coverage checks passed (minimum $(COVERAGE_THRESHOLD)%)!"
 
 # Full CI with coverage - runs lint, format checks, and coverage verification
 ci-full: ci check-coverage

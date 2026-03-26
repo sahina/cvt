@@ -61,9 +61,6 @@ asyncio_default_fixture_loop_scope = "function"
 [tool.coverage.run]
 omit = ["cvt_sdk/proto/*"]
 
-[tool.coverage.report]
-omit = ["cvt_sdk/proto/*"]
-
 # [[tool.uv.index]]
 # url = "path-to-your-internal-index"
 # default = true
