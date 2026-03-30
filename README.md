@@ -25,9 +25,7 @@ A contract validation platform for OpenAPI v2/v3 specifications that validates A
 
 ## 🎙️ Podcast
 
-Listen to an AI-generated overview of CVT, created with [NotebookLM](https://notebooklm.google.com):
-
-<https://github.com/sahina/cvt/raw/main/assets/audio/cvt.mp3>
+Listen to an [AI-generated podcast](https://github.com/sahina/cvt/raw/main/assets/audio/cvt.mp3) of CVT, created with [NotebookLM](https://notebooklm.google.com)
 
 ## Features
 
