@@ -15,9 +15,17 @@
   <a href="https://ghcr.io/sahina/cvt"><img src="https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker" alt="Docker"></a>
 </p>
 
+<p align="center">
+  <a href="https://sahina.github.io/cvt/">📖 Documentation</a>
+</p>
+
 A contract validation platform for OpenAPI v2/v3 specifications that validates API requests and responses against API contracts. Supports both consumer-side (client) and producer-side (server) validation.
 
 > **Examples**: For complete working examples with real-world usage patterns, see the [CVT Demo Repository](https://github.com/sahina/cvt-demo).
+
+## 🎙️ Podcast
+
+Listen to an [AI-generated podcast](https://github.com/sahina/cvt/raw/main/assets/audio/cvt.mp3) of CVT, created with [NotebookLM](https://notebooklm.google.com)
 
 ## Features
 
