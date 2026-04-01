@@ -43,6 +43,10 @@ curl http://localhost:9551/metrics
 # Should return Prometheus metrics
 ```
 
+:::info Producer vs Consumer
+In a team environment, the **producer** (API owner) registers their OpenAPI schema with the shared CVT server, and **consumers** validate against it. In this Quick Start, we combine both steps for simplicity. See the [CI/CD Integration Guide](../guides/ci-cd-integration.mdx#recommended-workflow) for the recommended production workflow.
+:::
+
 ## Step 2: Create a Simple Test
 
 <Tabs groupId="language">

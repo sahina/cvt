@@ -28,6 +28,10 @@ await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/
 
 Producer testing answers the question: **"Does my API match my spec?"**
 
+:::tip Producer Owns the Schema
+As the producer, **you own the OpenAPI spec** — it is the source of truth for your API's contract. Your CI/CD pipeline should register the schema with the shared CVT server so that consumers can validate against it and register their dependencies. This enables deployment safety via `can-i-deploy`. See [Schema Registration in CI/CD](#schema-registration-in-cicd) below.
+:::
+
 | Approach             | Who Uses It   | What It Tests                    |
 | -------------------- | ------------- | -------------------------------- |
 | **Consumer Testing** | API consumers | "Can I call this API correctly?" |
@@ -691,6 +695,67 @@ cvt generate --schema ./openapi.json --method POST --path /pet --output-type req
 # Use examples from schema
 cvt generate --schema ./openapi.json --method GET --path /pet/{petId} --use-examples
 ```
+
+---
+
+## Schema Registration in CI/CD
+
+As the API producer, your CI/CD pipeline is responsible for registering your OpenAPI schema with the shared CVT server. This is how consumers discover your contract and how `can-i-deploy` knows what to check against.
+
+```text
+Producer CI/CD Pipeline:
+
+  Build & Test → Register Schema → Deploy
+                       │
+                       ▼
+                  CVT Server (shared)
+                       ▲
+                       │
+  Consumer CI/CD:  Validate interactions → Register as consumer
+```
+
+### Register on merge to main
+
+<Tabs groupId="sdk-language">
+<TabItem value="cli" label="CLI">
+
+```bash
+# In your producer CI/CD pipeline
+cvt register-schema my-api ./openapi.json \
+  --version "$API_VERSION" \
+  --server "$CVT_SERVER_URL" \
+  --check-compatibility \
+  --fail-on-breaking
+```
+
+</TabItem>
+<TabItem value="nodejs" label="Node.js">
+
+```typescript
+// In a CI/CD script or test setup
+const validator = new ContractValidator(process.env.CVT_SERVER_URL);
+await validator.registerSchemaWithVersion("my-api", "./openapi.json", process.env.API_VERSION);
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+validator, _ := cvt.NewValidator(os.Getenv("CVT_SERVER_URL"))
+err := validator.RegisterSchemaWithVersion(ctx, "my-api", "./openapi.json", os.Getenv("API_VERSION"))
+```
+
+</TabItem>
+</Tabs>
+
+### Why the producer must register
+
+| If the producer registers...           | If the consumer registers...             |
+| -------------------------------------- | ---------------------------------------- |
+| Schema always matches the real API     | Schema may be stale or incorrect         |
+| Single source of truth                 | Multiple consumers may register different versions |
+| `can-i-deploy` checks are meaningful   | Breaking change detection is unreliable  |
+| Clear ownership and accountability     | Unclear who maintains the contract       |
 
 ---
 

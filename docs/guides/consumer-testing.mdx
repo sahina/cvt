@@ -39,14 +39,20 @@ When your service depends on external APIs, you need confidence that:
 │   Your Service      │ ────────────► │   Upstream API      │
 │   (Consumer)        │               │   (Producer)        │
 └─────────────────────┘               └─────────────────────┘
-         │
-         │ Register & Validate
-         ▼
-┌─────────────────────┐
-│    CVT Server       │
-│    + Schema         │
-└─────────────────────┘
+         │                                      │
+         │ Validate & Register Consumer         │ Register Schema (owns it)
+         ▼                                      ▼
+┌───────────────────────────────────────────────────────────┐
+│                    CVT Server (shared)                     │
+│              Producer's Schema = Source of Truth           │
+└───────────────────────────────────────────────────────────┘
 ```
+
+:::info Who registers the schema?
+In production workflows, **the producer registers their OpenAPI schema** with the shared CVT server — they own the spec and publish it as part of their CI/CD pipeline. Consumers validate their interactions against that registered schema and register themselves as consumers.
+
+The `registerSchema` calls in the examples below are a **convenience for local development and getting started**. In a team environment, the producer's pipeline handles schema registration (see the [CI/CD Integration Guide](./ci-cd-integration.mdx#recommended-workflow)).
+:::
 
 ---
 
