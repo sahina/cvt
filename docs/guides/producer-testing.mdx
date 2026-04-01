@@ -16,12 +16,17 @@ This guide covers how to use CVT for producer-side contract testing. Producer te
 The examples in this guide use the Petstore schema from `sdks/shared/openapi.json`. Copy it to your project as `openapi.json` or adjust the paths to reference it directly.
 
 All `registerSchema` methods accept both **file paths** and **URLs**:
+
 ```typescript
 // From file
 await validator.registerSchema("petstore", "./openapi.json");
 // From URL
-await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
+await validator.registerSchema(
+  "petstore",
+  "https://petstore3.swagger.io/api/v3/openapi.json",
+);
 ```
+
 :::
 
 ## Overview
@@ -734,7 +739,11 @@ cvt register-schema my-api ./openapi.json \
 ```typescript
 // In a CI/CD script or test setup
 const validator = new ContractValidator(process.env.CVT_SERVER_URL);
-await validator.registerSchemaWithVersion("my-api", "./openapi.json", process.env.API_VERSION);
+await validator.registerSchemaWithVersion(
+  "my-api",
+  "./openapi.json",
+  process.env.API_VERSION,
+);
 ```
 
 </TabItem>
@@ -750,12 +759,12 @@ err := validator.RegisterSchemaWithVersion(ctx, "my-api", "./openapi.json", os.G
 
 ### Why the producer must register
 
-| If the producer registers...           | If the consumer registers...             |
-| -------------------------------------- | ---------------------------------------- |
-| Schema always matches the real API     | Schema may be stale or incorrect         |
-| Single source of truth                 | Multiple consumers may register different versions |
-| `can-i-deploy` checks are meaningful   | Breaking change detection is unreliable  |
-| Clear ownership and accountability     | Unclear who maintains the contract       |
+| If the producer registers...         | If the consumer registers...                       |
+| ------------------------------------ | -------------------------------------------------- |
+| Schema always matches the real API   | Schema may be stale or incorrect                   |
+| Single source of truth               | Multiple consumers may register different versions |
+| `can-i-deploy` checks are meaningful | Breaking change detection is unreliable            |
+| Clear ownership and accountability   | Unclear who maintains the contract                 |
 
 ---
 

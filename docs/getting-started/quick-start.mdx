@@ -5,8 +5,8 @@ sidebar_position: 2
 description: Your first contract test in 5 minutes
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 
 # Quick Start
 
@@ -18,6 +18,7 @@ This guide walks you through your first contract test in under 5 minutes.
 - An OpenAPI schema to test against (we'll use the included Petstore schema)
 
 You can either:
+
 - Save the [Petstore OpenAPI schema](https://petstore3.swagger.io/api/v3/openapi.json) as `./openapi.json` in your project directory, OR
 - Use the URL directly: `https://petstore3.swagger.io/api/v3/openapi.json`
 
@@ -55,48 +56,48 @@ In a team environment, the **producer** (API owner) registers their OpenAPI sche
 Create a test file `contract.test.ts`:
 
 ```typescript
-import { ContractValidator } from '@sahina/cvt-sdk';
-import * as path from 'path';
+import { ContractValidator } from "@sahina/cvt-sdk";
+import * as path from "path";
 
-describe('Petstore API Contract', () => {
+describe("Petstore API Contract", () => {
   let validator: ContractValidator;
 
   beforeAll(async () => {
-    validator = new ContractValidator('localhost:9550');
+    validator = new ContractValidator("localhost:9550");
 
     // Register the Petstore schema from file
-    const schemaPath = path.resolve(__dirname, './openapi.json');
-    await validator.registerSchema('petstore', schemaPath);
+    const schemaPath = path.resolve(__dirname, "./openapi.json");
+    await validator.registerSchema("petstore", schemaPath);
     // Or register from URL:
     // await validator.registerSchema('petstore', 'https://petstore3.swagger.io/api/v3/openapi.json');
   });
 
   afterAll(() => validator.close());
 
-  it('validates a correct pet response', async () => {
+  it("validates a correct pet response", async () => {
     const result = await validator.validate(
-      { method: 'GET', path: '/pet/123' },
+      { method: "GET", path: "/pet/123" },
       {
         statusCode: 200,
         body: {
           id: 123,
-          name: 'doggie',
-          photoUrls: ['https://example.com/photo.jpg'],
-          status: 'available'
-        }
-      }
+          name: "doggie",
+          photoUrls: ["https://example.com/photo.jpg"],
+          status: "available",
+        },
+      },
     );
 
     expect(result.valid).toBe(true);
   });
 
-  it('catches invalid responses', async () => {
+  it("catches invalid responses", async () => {
     const result = await validator.validate(
-      { method: 'GET', path: '/pet/123' },
+      { method: "GET", path: "/pet/123" },
       {
         statusCode: 200,
-        body: { id: 123 }  // missing required 'name' and 'photoUrls' fields
-      }
+        body: { id: 123 }, // missing required 'name' and 'photoUrls' fields
+      },
     );
 
     expect(result.valid).toBe(false);
@@ -359,7 +360,10 @@ Now that you've validated your first interaction, explore:
 
 ```typescript
 // Register schema directly from URL
-await validator.registerSchema('petstore', 'https://petstore3.swagger.io/api/v3/openapi.json');
+await validator.registerSchema(
+  "petstore",
+  "https://petstore3.swagger.io/api/v3/openapi.json",
+);
 ```
 
 ### Using HTTP Adapters
@@ -367,14 +371,18 @@ await validator.registerSchema('petstore', 'https://petstore3.swagger.io/api/v3/
 Automatically validate all HTTP traffic:
 
 ```typescript
-import axios from 'axios';
-import { createAxiosAdapter } from '@sahina/cvt-sdk/adapters';
+import axios from "axios";
+import { createAxiosAdapter } from "@sahina/cvt-sdk/adapters";
 
-const api = axios.create({ baseURL: 'http://api.example.com' });
-const adapter = createAxiosAdapter({ axios: api, validator, autoValidate: true });
+const api = axios.create({ baseURL: "http://api.example.com" });
+const adapter = createAxiosAdapter({
+  axios: api,
+  validator,
+  autoValidate: true,
+});
 
 // All requests/responses are now validated automatically
-const pet = await api.get('/pet/123');
+const pet = await api.get("/pet/123");
 
 // Check validation results
 const interactions = adapter.getInteractions();
@@ -387,13 +395,17 @@ Enable deployment safety checks:
 
 ```typescript
 await validator.registerConsumer({
-  consumerId: 'my-service',
-  consumerVersion: '1.0.0',
-  schemaId: 'petstore',
-  schemaVersion: '1.0.0',
-  environment: 'dev',
+  consumerId: "my-service",
+  consumerVersion: "1.0.0",
+  schemaId: "petstore",
+  schemaVersion: "1.0.0",
+  environment: "dev",
   usedEndpoints: [
-    { method: 'GET', path: '/pet/{petId}', usedFields: ['id', 'name', 'status'] }
-  ]
+    {
+      method: "GET",
+      path: "/pet/{petId}",
+      usedFields: ["id", "name", "status"],
+    },
+  ],
 });
 ```
