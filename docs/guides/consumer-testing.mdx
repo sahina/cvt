@@ -5,8 +5,8 @@ sidebar_position: 1
 description: Complete guide to testing your API consumers with CVT
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 
 # Consumer Testing Guide
 
@@ -16,12 +16,17 @@ This guide covers how to test your service's API integrations using CVT. Consume
 The examples in this guide use the Petstore schema from `sdks/shared/openapi.json`. Copy it to your project as `openapi.json` or adjust the paths to reference it directly.
 
 All `registerSchema` methods accept both **file paths** and **URLs**:
+
 ```typescript
 // From file
 await validator.registerSchema("petstore", "./openapi.json");
 // From URL
-await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
+await validator.registerSchema(
+  "petstore",
+  "https://petstore3.swagger.io/api/v3/openapi.json",
+);
 ```
+
 :::
 
 ## Overview
@@ -39,14 +44,20 @@ When your service depends on external APIs, you need confidence that:
 │   Your Service      │ ────────────► │   Upstream API      │
 │   (Consumer)        │               │   (Producer)        │
 └─────────────────────┘               └─────────────────────┘
-         │
-         │ Register & Validate
-         ▼
-┌─────────────────────┐
-│    CVT Server       │
-│    + Schema         │
-└─────────────────────┘
+         │                                      │
+         │ Validate & Register Consumer         │ Register Schema (owns it)
+         ▼                                      ▼
+┌───────────────────────────────────────────────────────────┐
+│                    CVT Server (shared)                    │
+│              Producer's Schema = Source of Truth          │
+└───────────────────────────────────────────────────────────┘
 ```
+
+:::info Who registers the schema?
+In production workflows, **the producer registers their OpenAPI schema** with the shared CVT server — they own the spec and publish it as part of their CI/CD pipeline. Consumers validate their interactions against that registered schema and register themselves as consumers.
+
+The `registerSchema` calls in the examples below are a **convenience for local development and getting started**. In a team environment, the producer's pipeline handles schema registration (see the [CI/CD Integration Guide](./ci-cd-integration.mdx#recommended-workflow)).
+:::
 
 ---
 
@@ -86,7 +97,10 @@ describe("Petstore Contract", () => {
   it("GET /pet/{petId} returns valid response", async () => {
     const result = await validator.validate(
       { method: "GET", path: "/pet/123" },
-      { statusCode: 200, body: { id: 123, name: "Fluffy", status: "available", photoUrls: [] } },
+      {
+        statusCode: 200,
+        body: { id: 123, name: "Fluffy", status: "available", photoUrls: [] },
+      },
     );
     expect(result.valid).toBe(true);
   });
@@ -211,13 +225,13 @@ CVT supports multiple ways to validate your API interactions.
 
 ### Choosing an Approach
 
-| Scenario                              | Recommended Approach |
-| ------------------------------------- | -------------------- |
-| CI/CD pipeline without services       | Mock Client          |
-| Adding validation to existing tests   | HTTP Adapter         |
-| Testing specific error responses      | Manual Validation    |
-| Unit testing consumer logic           | Mock Client          |
-| Integration testing with real API     | HTTP Adapter         |
+| Scenario                            | Recommended Approach |
+| ----------------------------------- | -------------------- |
+| CI/CD pipeline without services     | Mock Client          |
+| Adding validation to existing tests | HTTP Adapter         |
+| Testing specific error responses    | Manual Validation    |
+| Unit testing consumer logic         | Mock Client          |
+| Integration testing with real API   | HTTP Adapter         |
 
 ### Approach 1: Manual Validation
 

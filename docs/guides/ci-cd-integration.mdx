@@ -23,6 +23,52 @@ For PR checks that detect breaking changes when your OpenAPI spec file changes, 
 
 ---
 
+## Recommended Workflow
+
+CVT works best when each team has a clear role. The **producer owns the schema**, the **consumer validates against it**, and CVT is the **shared infrastructure** that connects them.
+
+```text
+┌──────────────────────────────┐
+│     Producer CI/CD           │
+│                              │
+│  1. Build & test API         │
+│  2. Register schema with CVT │◄── Producer owns the OpenAPI spec
+│  3. can-i-deploy check       │
+│  4. Deploy                   │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│     CVT Server (shared)      │
+│                              │
+│  • Registered schemas        │◄── Central source of truth
+│  • Consumer registrations    │
+│  • Validation engine         │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│     Consumer CI/CD           │
+│                              │
+│  1. Run contract tests       │◄── Validates against producer's schema
+│  2. Register as consumer     │
+│  3. Deploy                   │
+└──────────────────────────────┘
+```
+
+| Step                  | Who          | What                                     | When                     |
+| --------------------- | ------------ | ---------------------------------------- | ------------------------ |
+| Register schema       | **Producer** | Publishes OpenAPI spec to CVT            | On merge to main         |
+| Validate interactions | **Consumer** | Tests requests/responses against schema  | On every CI run          |
+| Register consumer     | **Consumer** | Records which endpoints are used         | After tests pass on main |
+| can-i-deploy          | **Producer** | Checks if schema changes break consumers | Before deploying         |
+
+:::caution Schema Registration Ownership
+The **producer** should register their schema in CVT — not the consumer. If consumers register schemas independently, you risk stale or inconsistent contracts. In local development, consumers may register schemas for convenience, but in CI/CD the producer's pipeline should be the single source of truth.
+:::
+
+---
+
 ## GitHub Actions
 
 ### Consumer Contract Tests
@@ -71,7 +117,7 @@ The published CVT server image is available at `ghcr.io/sahina/cvt:latest`. You 
 1. Build your own image: `docker build -t cvt .`
 2. Use `make up` to run CVT locally
 3. Host CVT as a shared service in your infrastructure
-:::
+   :::
 
 ### Producer Deployment Safety
 
