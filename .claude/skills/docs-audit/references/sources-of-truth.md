@@ -16,7 +16,7 @@ This reference maps each audit scope to the implementation files that serve as t
 - **Python SDK main**: `sdks/python/cvt_sdk/__init__.py` — ContractValidator class with all methods: register_schema, validate, compare_schemas, generate_fixture, generate_response, generate_request_body, list_endpoints, register_consumer, list_consumers, deregister_consumer, can_i_deploy, close
 - **Python SDK types**: `sdks/python/cvt_sdk/__init__.py` — Dataclasses: TLSOptions, ContractValidatorOptions, GenerateOptions, EndpointUsage, RegisterConsumerOptions. TypedDicts: ValidationRequest, ValidationResponse, ValidationResult, BreakingChange, CompareResult, GeneratedRequest, GeneratedResponse, GeneratedFixture, EndpointInfo, ConsumerInfo, ConsumerImpact, CanIDeployResult
 - **Python SDK adapters**: `sdks/python/cvt_sdk/adapters/` — requests_adapter.py, mock_adapter.py, types.py
-- **Python SDK producer**: `sdks/python/cvt_sdk/producer/` — producer.py, config.py, testing.py
+- **Python SDK producer**: `sdks/python/cvt_sdk/producer/` — producer.py, config.py, testing.py; adapters: fastapi.py, flask.py
 - **Python SDK auto-register**: `sdks/python/cvt_sdk/auto_register.py`
 - **Python package**: `sdks/python/pyproject.toml` — Name: cvt-sdk, Python >=3.11, dependencies: grpcio>=1.76.0, protobuf>=6.33.2
 
@@ -29,7 +29,7 @@ This reference maps each audit scope to the implementation files that serve as t
 - **Java SDK main**: `sdks/java/src/main/java/io/github/sahina/sdk/ContractValidator.java` — Builder pattern client
 - **Java SDK types**: `sdks/java/src/main/java/io/github/sahina/sdk/` — ValidationRequest.java, ValidationResponse.java, ValidationResult.java, BreakingChange.java, CompareResult.java, GenerateOptions.java, GeneratedFixture.java, GeneratedRequest.java, GeneratedResponse.java, EndpointInfo.java, EndpointUsage.java, ConsumerInfo.java, RegisterConsumerOptions.java, ConsumerImpact.java, CanIDeployResult.java, AutoRegisterConfig.java, AutoRegisterUtils.java
 - **Java SDK adapters**: `sdks/java/src/main/java/io/github/sahina/sdk/adapters/` — OkHttpContractAdapter.java, MockInterceptor.java, AdapterConfig.java, CapturedInteraction.java, MockConfig.java
-- **Java SDK producer**: `sdks/java/src/main/java/io/github/sahina/sdk/producer/` — Producer.java, ProducerConfig.java, ProducerTestKit.java, ValidationMode.java, Validator.java; adapters: ServletFilter.java, SpringInterceptor.java
+- **Java SDK producer**: `sdks/java/src/main/java/io/github/sahina/sdk/producer/` — Producer.java, ProducerConfig.java, ProducerTestKit.java, ProducerValidationResult.java, TestRequestContext.java, TestResponseData.java, TestValidationResult.java, ValidationMode.java, Validator.java; adapters: ServletFilter.java, SpringInterceptor.java
 - **Java package**: `sdks/java/pom.xml` — GroupId: io.github.sahina, ArtifactId: cvt-sdk, Version: 0.1.0
 
 ### Documentation to audit
@@ -94,7 +94,7 @@ This reference maps each audit scope to the implementation files that serve as t
 - **gRPC API**: `api/protos/cvt.proto` — ContractValidator service with 11 RPC methods, all message types, BreakingChangeType enum
 - **Server implementation**: `server/cvtservice/validator_service.go` — RegisterSchema, ValidateInteraction, CompareSchemas, GenerateFixture, ListEndpoints, RegisterConsumer, ListConsumers, DeregisterConsumer, CanIDeploy, GetSchema, ListSchemas, ValidateProducerResponse
 - **Configuration**: `server/storage/config.go` (storage env vars), `server/cvtservice/auth.go` (API key env vars), `server/cvtservice/tls.go` (TLS env vars), `cmd/cvt/serve.go` (core env vars)
-- **Storage backends**: `server/storage/storage.go` (interface), `server/storage/memory.go`, `server/storage/sqlite/sqlite.go`, `server/storage/postgres/postgres.go`
+- **Storage backends**: `server/storage/storage.go` (interface), `server/storage/memory.go`, `server/storage/sqlite/sqlite.go`, `server/storage/postgres/postgres.go`, `server/storage/factory.go` (backend factory)
 - **Cache**: `server/cvtservice/cache.go` — Ristretto cache with 1000 max schemas, 24h TTL
 - **Metrics**: `server/cvtservice/metrics.go` — Prometheus metrics
 - **Interceptors**: `server/cvtservice/interceptors.go` — gRPC interceptors

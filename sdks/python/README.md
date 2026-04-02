@@ -150,15 +150,17 @@ app.wsgi_app = WSGIMiddleware(app.wsgi_app, config)
 
 ### Configuration Options
 
-| Option                | Type             | Description                                |
-| --------------------- | ---------------- | ------------------------------------------ |
-| `schema_id`           | `str`            | Schema ID to validate against              |
-| `validator`           | `Validator`      | ContractValidator instance                 |
-| `mode`                | `ValidationMode` | `STRICT`, `WARN`, or `SHADOW`              |
-| `exclude_paths`       | `list[str]`      | Paths to skip validation (e.g., `/health`) |
-| `include_paths`       | `list[str]`      | Only validate matching paths               |
-| `validate_response`   | `bool`           | Enable response validation (default: True) |
-| `on_validation_error` | `Callable`       | Custom error handler callback              |
+| Option                | Type               | Description                                       |
+| --------------------- | ------------------ | ------------------------------------------------- |
+| `schema_id`           | `str`              | Schema ID to validate against                     |
+| `validator`           | `Validator`        | ContractValidator instance                        |
+| `mode`                | `ValidationMode`   | `STRICT`, `WARN`, or `SHADOW`                     |
+| `validate_request`    | `bool`             | Enable request validation (default: True)         |
+| `validate_response`   | `bool`             | Enable response validation (default: True)        |
+| `exclude_paths`       | `list[PathFilter]` | Paths to skip validation (str or regex Pattern)   |
+| `include_paths`       | `list[PathFilter]` | Only validate matching paths (str or regex Pattern)|
+| `on_request_failure`  | `Callable`         | Called when request validation fails               |
+| `on_response_failure` | `Callable`         | Called when response validation fails              |
 
 ## Breaking Change Detection
 

@@ -481,6 +481,8 @@ from cvt_sdk import (
     EndpointInfo,
     RegisterConsumerOptions,
     ConsumerInfo,
+    ConsumerImpact,
+    EndpointUsage,
     CanIDeployResult,
 )
 ```

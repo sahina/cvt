@@ -649,6 +649,42 @@ type EndpointUsage struct {
     UsedFields []string
 }
 
+type GenerateOptions struct {
+    UseExamples bool
+    OutputType  string
+}
+
+type GeneratedRequest struct {
+    Method  string
+    Path    string
+    Headers map[string]string
+    Body    any
+}
+
+type GeneratedResponse struct {
+    StatusCode int
+    Headers    map[string]string
+    Body       any
+}
+
+type GeneratedFixture struct {
+    Request  GeneratedRequest
+    Response GeneratedResponse
+}
+
+type EndpointInfo struct {
+    Method  string
+    Path    string
+    Summary string
+}
+
+type ConsumerImpact struct {
+    ConsumerID      string
+    ConsumerVersion string
+    WillBreak       bool
+    RelevantChanges []BreakingChange
+}
+
 type CanIDeployResult struct {
     SafeToDeploy      bool
     Summary           string

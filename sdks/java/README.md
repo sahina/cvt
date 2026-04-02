@@ -169,15 +169,17 @@ public FilterRegistrationBean<ServletFilter> validationFilter() {
 
 ### Configuration Options
 
-| Option              | Type             | Description                                |
-| ------------------- | ---------------- | ------------------------------------------ |
-| `schemaId`          | `String`         | Schema ID to validate against              |
-| `validator`         | `Validator`      | ContractValidator instance                 |
-| `mode`              | `ValidationMode` | `STRICT`, `WARN`, or `SHADOW`              |
-| `excludePaths`      | `List<String>`   | Paths to skip validation (e.g., `/health`) |
-| `includePaths`      | `List<String>`   | Only validate matching paths               |
-| `validateResponse`  | `boolean`        | Enable response validation (default: true) |
-| `onValidationError` | `Consumer`       | Custom error handler callback              |
+| Option              | Type             | Description                                        |
+| ------------------- | ---------------- | -------------------------------------------------- |
+| `schemaId`          | `String`         | Schema ID to validate against                      |
+| `validator`         | `Validator`      | ContractValidator instance                         |
+| `mode`              | `ValidationMode` | `STRICT`, `WARN`, or `SHADOW`                      |
+| `validateRequest`   | `boolean`        | Enable request validation (default: true)          |
+| `validateResponse`  | `boolean`        | Enable response validation (default: true)         |
+| `excludePath`       | `String` (regex) | Paths to skip validation (builder adds patterns)   |
+| `includePath`       | `String` (regex) | Only validate matching paths (builder adds patterns)|
+| `onRequestFailure`  | `BiFunction`     | Called when request validation fails                |
+| `onResponseFailure` | `Consumer`       | Called when response validation fails               |
 
 ## Breaking Change Detection
 

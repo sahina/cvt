@@ -304,7 +304,7 @@ Check that your fixture files have the correct structure:
   "response": {
     "statusCode": 200,
     "headers": { "Content-Type": "application/json" },
-    "body": "{\"id\": 123, \"name\": \"John\"}"
+    "body": { "id": 123, "name": "John" }
   }
 }
 ```
