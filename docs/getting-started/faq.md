@@ -33,7 +33,7 @@ This is sometimes called "provider-generated stubs." The key advantage is that t
 
 | Language | Mock Adapter            | Drop-in for          |
 | -------- | ----------------------- | -------------------- |
-| Node.js  | `createMockAdapter()`   | `fetch()`            |
+| Node.js  | `createMockFetch()`     | `fetch()`            |
 | Python   | `create_mock_session()` | `requests.Session`   |
 | Go       | `NewMockClient()`       | `http.Client`        |
 | Java     | `MockInterceptor`       | OkHttp `Interceptor` |
