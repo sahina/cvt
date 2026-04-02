@@ -584,21 +584,22 @@ public class ConsumerInfo {
 }
 
 public class GenerateOptions {
+    private int statusCode;
     private boolean useExamples;
-    private String outputType;
+    private String contentType;
 }
 
 public class GeneratedRequest {
     private String method;
     private String path;
     private Map<String, String> headers;
-    private String body;
+    private Object body;
 }
 
 public class GeneratedResponse {
     private int statusCode;
     private Map<String, String> headers;
-    private String body;
+    private Object body;
 }
 
 public class GeneratedFixture {
@@ -630,6 +631,8 @@ public class RegisterConsumerOptions {
 public class ConsumerImpact {
     private String consumerId;
     private String consumerVersion;
+    private String currentSchemaVersion;
+    private String environment;
     private boolean willBreak;
     private List<BreakingChange> relevantChanges;
 }

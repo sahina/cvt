@@ -650,8 +650,9 @@ type EndpointUsage struct {
 }
 
 type GenerateOptions struct {
+    StatusCode  int
     UseExamples bool
-    OutputType  string
+    ContentType string
 }
 
 type GeneratedRequest struct {
@@ -679,10 +680,12 @@ type EndpointInfo struct {
 }
 
 type ConsumerImpact struct {
-    ConsumerID      string
-    ConsumerVersion string
-    WillBreak       bool
-    RelevantChanges []BreakingChange
+    ConsumerID           string
+    ConsumerVersion      string
+    CurrentSchemaVersion string
+    Environment          string
+    WillBreak            bool
+    RelevantChanges      []BreakingChange
 }
 
 type CanIDeployResult struct {
