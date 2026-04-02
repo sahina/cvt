@@ -132,8 +132,8 @@ The Node SDK uses dynamic proto loading and doesn't require code generation.
 
 ### Coverage Requirements
 
-- Server: 70% minimum coverage
-- SDKs: 70% minimum coverage
+- Server: 80% minimum coverage
+- SDKs: 80% minimum coverage
 - All new code should include tests
 
 ### Writing Good Tests

@@ -23,7 +23,6 @@ The CVT server is a Go-based gRPC service that validates HTTP interactions again
 
 ```shell
 server/
-├── main.go                    # Server entry point (thin wrapper)
 ├── cvtservice/                # Core service implementation (importable package)
 │   ├── validator_service.go   # Core validation service (RegisterSchema, ValidateInteraction, CanIDeploy)
 │   ├── compatibility_engine.go # Breaking change detection between schema versions
@@ -35,27 +34,24 @@ server/
 │   ├── auth.go                # API key authentication
 │   ├── tls.go                 # TLS/mTLS configuration
 │   ├── audit_logger.go        # Audit logging for compliance
+│   ├── interceptors.go        # gRPC interceptors for logging, metrics, auth
+│   ├── schema_metadata.go     # Schema metadata management
 │   └── *_test.go              # Comprehensive test suite
 ├── storage/                   # Persistent storage layer
 │   ├── storage.go             # Storage interface
 │   ├── config.go              # Storage configuration
+│   ├── factory.go             # Storage backend factory
+│   ├── memory.go              # In-memory storage backend
 │   ├── sqlite/                # SQLite backend
 │   └── postgres/              # PostgreSQL backend
-├── pb/                        # Generated protobuf code
-│   ├── cvt.pb.go
-│   └── cvt_grpc.pb.go
-├── testdata/                  # Test fixtures
-├── go.mod                     # Go module dependencies
-├── go.sum                     # Dependency checksums
-├── Dockerfile                 # Multi-stage Docker build
 └── README.md                  # This file
 ```
 
 ### Package Structure
 
-The server is organized as an importable library (`cvtservice`) with a thin main wrapper:
+The server is organized as an importable library (`cvtservice`) with the CLI entry point at `cmd/cvt/`:
 
-- **`server/main.go`**: Entry point that imports and configures the service
+- **`cmd/cvt/serve.go`**: Entry point that imports and configures the service
 - **`server/cvtservice/`**: Core service logic (can be imported by CLI and other tools)
 - **`server/storage/`**: Pluggable persistence backends (SQLite, PostgreSQL, in-memory)
 
@@ -87,7 +83,7 @@ make up
 
 ```bash
 # Run directly
-go run .
+go run ./cmd/cvt serve
 
 # Or run the built binary
 cvt serve
@@ -99,7 +95,7 @@ make run-server
 The server will start on port `9550` by default. You can change it by setting the `CVT_PORT` environment variable:
 
 ```bash
-CVT_PORT=9552 go run .
+CVT_PORT=9552 go run ./cmd/cvt serve
 ```
 
 ### Run in Docker
@@ -164,8 +160,8 @@ make test-cache
 
 Core dependencies (see `go.mod` for full list):
 
-- **kin-openapi** (v0.133.0): OpenAPI 3.0/2.0 validation
-- **gRPC** (v1.77.0): gRPC server implementation
+- **kin-openapi** (v0.134.0): OpenAPI 3.0/2.0 validation
+- **gRPC** (v1.79.3): gRPC server implementation
 - **Ristretto** (v0.2.0): High-performance caching
 - **Zap** (v1.27.1): Structured logging
 
@@ -298,7 +294,7 @@ docker inspect cvt-server --format='{{.State.Health.Status}}'
 - **CPU Usage**: Low (async I/O, efficient caching)
 - **Startup Time**: <1 second
 
-> **Note**: Official benchmarking suite is currently under development (see `docs/poc_status.md`).
+> **Note**: Official benchmarking suite is currently under development.
 
 ### Optimization Tips
 
@@ -323,9 +319,9 @@ docker inspect cvt-server --format='{{.State.Health.Status}}'
 1. **Enable TLS**: Set `CVT_TLS_ENABLED=true` with `CVT_TLS_CERT_FILE` and `CVT_TLS_KEY_FILE`
 2. **Enable mTLS** (if required): Also set `CVT_TLS_CA_FILE` and `CVT_TLS_CLIENT_AUTH=require`
 3. **Enable Authentication**: Set `CVT_API_KEY_ENABLED=true` with `CVT_API_KEYS` or `CVT_API_KEYS_FILE`
-3. **Rate Limiting**: Add per-client rate limits
-4. **Network Security**: Use firewall rules and VPC
-5. **Monitoring**: Enable metrics and alerting
+4. **Rate Limiting**: Add per-client rate limits
+5. **Network Security**: Use firewall rules and VPC
+6. **Monitoring**: Enable metrics and alerting
 
 ## Troubleshooting
 
@@ -336,7 +332,7 @@ docker inspect cvt-server --format='{{.State.Health.Status}}'
 lsof -i :9550
 
 # Check logs
-go run . 2>&1 | grep -i error
+go run ./cmd/cvt serve 2>&1 | grep -i error
 
 # Run with debug logging
 # (Edit logger.go: InitLogger(true) for development mode)
@@ -408,7 +404,7 @@ docker exec cvt-server /bin/grpc-health-probe -addr=:9550
 When adding new features:
 
 1. Write tests first (TDD approach)
-2. Maintain test coverage >70% (Enforced in CI/CD)
+2. Maintain test coverage >= 80% (Enforced in CI/CD)
 3. Run `go fmt ./...` before committing
 4. Run `go vet ./...` to catch issues
 5. Update documentation

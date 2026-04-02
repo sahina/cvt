@@ -183,15 +183,17 @@ fastify.register(fastifyProducerPlugin, {
 
 ### Configuration Options
 
-| Option              | Type        | Description                                |
-| ------------------- | ----------- | ------------------------------------------ |
-| `schemaId`          | `string`    | Schema ID to validate against              |
-| `validator`         | `Validator` | ContractValidator instance                 |
-| `mode`              | `string`    | `strict`, `warn`, or `shadow`              |
-| `excludePaths`      | `string[]`  | Paths to skip validation (e.g., `/health`) |
-| `includePaths`      | `string[]`  | Only validate matching paths               |
-| `validateResponse`  | `boolean`   | Enable response validation (default: true) |
-| `onValidationError` | `function`  | Custom error handler callback              |
+| Option              | Type             | Description                                      |
+| ------------------- | ---------------- | ------------------------------------------------ |
+| `schemaId`          | `string`         | Schema ID to validate against                    |
+| `validator`         | `Validator`      | ContractValidator instance                       |
+| `mode`              | `string`         | `strict`, `warn`, or `shadow`                    |
+| `validateRequest`   | `boolean`        | Enable request validation (default: true)        |
+| `validateResponse`  | `boolean`        | Enable response validation (default: true)       |
+| `excludePaths`      | `PathFilter[]`   | Paths to skip validation (string or RegExp)      |
+| `includePaths`      | `PathFilter[]`   | Only validate matching paths (string or RegExp)  |
+| `onRequestFailure`  | `function`       | Called when request validation fails              |
+| `onResponseFailure` | `function`       | Called when response validation fails             |
 
 ## Breaking Change Detection
 
@@ -260,8 +262,10 @@ const testKit = new ProducerTestKit({
 const result = await testKit.validateResponse({
   method: "GET",
   path: "/users/123",
-  statusCode: 200,
-  body: { id: "123", name: "Alice", email: "alice@example.com" },
+  response: {
+    statusCode: 200,
+    body: { id: "123", name: "Alice", email: "alice@example.com" },
+  },
 });
 
 expect(result.valid).toBe(true);

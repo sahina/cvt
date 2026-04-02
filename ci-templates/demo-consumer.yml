@@ -150,7 +150,8 @@ jobs:
       #
       # EXAMPLE TEST CODE (Jest + CVT SDK):
       # ```javascript
-      # import { ContractValidator, createMockAdapter } from '@sahina/cvt-sdk';
+      # import { ContractValidator } from '@sahina/cvt-sdk';
+      # import { createMockAdapter } from '@sahina/cvt-sdk/adapters';
       #
       # const validator = new ContractValidator({
       #   address: process.env.CVT_SERVER_URL,

@@ -480,6 +480,8 @@ import {
   EndpointInfo,
   RegisterConsumerOptions,
   ConsumerInfo,
+  ConsumerImpact,
+  EndpointUsage,
   CanIDeployResult,
 } from "@sahina/cvt-sdk";
 ```

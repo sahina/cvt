@@ -583,6 +583,60 @@ public class ConsumerInfo {
     private List<EndpointUsage> usedEndpoints;
 }
 
+public class GenerateOptions {
+    private int statusCode;
+    private boolean useExamples;
+    private String contentType;
+}
+
+public class GeneratedRequest {
+    private String method;
+    private String path;
+    private Map<String, String> headers;
+    private Object body;
+}
+
+public class GeneratedResponse {
+    private int statusCode;
+    private Map<String, String> headers;
+    private Object body;
+}
+
+public class GeneratedFixture {
+    private GeneratedRequest request;
+    private GeneratedResponse response;
+}
+
+public class EndpointInfo {
+    private String method;
+    private String path;
+    private String summary;
+}
+
+public class EndpointUsage {
+    private String method;
+    private String path;
+    private List<String> usedFields;
+}
+
+public class RegisterConsumerOptions {
+    private String consumerId;
+    private String consumerVersion;
+    private String schemaId;
+    private String schemaVersion;
+    private String environment;
+    private List<EndpointUsage> usedEndpoints;
+}
+
+public class ConsumerImpact {
+    private String consumerId;
+    private String consumerVersion;
+    private String currentSchemaVersion;
+    private String environment;
+    private boolean willBreak;
+    private List<BreakingChange> relevantChanges;
+}
+
 public class CanIDeployResult {
     private boolean safeToDeploy;
     private String summary;

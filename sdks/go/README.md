@@ -180,15 +180,17 @@ r.Use(adapters.ChiMiddleware(config))
 
 ### Configuration Options
 
-| Option              | Type        | Description                                |
-| ------------------- | ----------- | ------------------------------------------ |
-| `SchemaID`          | `string`    | Schema ID to validate against              |
-| `Validator`         | `Validator` | ContractValidator instance                 |
-| `Mode`              | `Mode`      | `ModeStrict`, `ModeWarn`, or `ModeShadow`  |
-| `ExcludePaths`      | `[]string`  | Paths to skip validation (e.g., `/health`) |
-| `IncludePaths`      | `[]string`  | Only validate matching paths               |
-| `ValidateResponse`  | `bool`      | Enable response validation (default: true) |
-| `OnValidationError` | `func`      | Custom error handler callback              |
+| Option              | Type             | Description                                       |
+| ------------------- | ---------------- | ------------------------------------------------- |
+| `SchemaID`          | `string`         | Schema ID to validate against                     |
+| `Validator`         | `Validator`      | ContractValidator instance                        |
+| `Mode`              | `ValidationMode` | `ModeStrict`, `ModeWarn`, or `ModeShadow`         |
+| `ValidateRequest`   | `bool`           | Enable request validation (default: true)         |
+| `ValidateResponse`  | `bool`           | Enable response validation (default: true)        |
+| `ExcludePaths`      | `[]PathFilter`   | Paths to skip validation (string or *regexp.Regexp)|
+| `IncludePaths`      | `[]PathFilter`   | Only validate matching paths (string or *regexp.Regexp)|
+| `OnRequestFailure`  | `func`           | Called when request validation fails               |
+| `OnResponseFailure` | `func`           | Called when response validation fails              |
 
 ## HTTP Adapter Options
 

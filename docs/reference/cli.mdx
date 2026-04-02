@@ -258,11 +258,15 @@ cvt generate --schema ./openapi.json --method GET --path /pets/{petId} -o fixtur
     }
   },
   "response": {
-    "status_code": 200,
+    "statusCode": 200,
     "headers": {
       "Content-Type": "application/json"
     },
-    "body": "{\"id\":123,\"name\":\"doggie\",\"status\":\"available\"}"
+    "body": {
+      "id": 123,
+      "name": "doggie",
+      "status": "available"
+    }
   }
 }
 ```

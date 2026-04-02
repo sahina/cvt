@@ -443,26 +443,31 @@ resp, _ := client.Get("http://petstore-api/pet/123")
 
 ```java
 import io.github.sahina.sdk.ContractValidator;
-import io.github.sahina.sdk.adapters.ValidatingHttpClient;
+import io.github.sahina.sdk.adapters.OkHttpContractAdapter;
+import io.github.sahina.sdk.adapters.AdapterConfig;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
-ContractValidator validator = new ContractValidator("localhost:9550");
+ContractValidator validator = ContractValidator.builder()
+    .address("localhost:9550")
+    .build();
 validator.registerSchema("petstore", "./openapi.json");
 
-// Wrap HttpClient with validating client
-ValidatingHttpClient client = ValidatingHttpClient.builder()
-    .validator(validator)
-    .schemaId("petstore")
-    .autoValidate(true)
-    .onValidationFailure(result -> {
-        throw new RuntimeException("Contract violation: " + result.getErrors());
-    })
+// Create OkHttp interceptor that validates against schema
+OkHttpContractAdapter adapter = new OkHttpContractAdapter(validator)
+    .withConfig(AdapterConfig.builder()
+        .autoValidate(true)
+        .build());
+
+OkHttpClient client = new OkHttpClient.Builder()
+    .addInterceptor(adapter)
     .build();
 
 // Use normally - validation happens transparently
-HttpResponse<String> response = client.send(
-    HttpRequest.newBuilder().uri(URI.create("http://petstore-api/pet/123")).build(),
-    HttpResponse.BodyHandlers.ofString()
-);
+Response response = client.newCall(
+    new Request.Builder().url("http://petstore-api/pet/123").build()
+).execute();
 
 validator.close();
 ```
@@ -547,28 +552,35 @@ interactions := mock.GetInteractions()
 
 ```java
 import io.github.sahina.sdk.ContractValidator;
-import io.github.sahina.sdk.adapters.MockClient;
+import io.github.sahina.sdk.adapters.MockInterceptor;
+import io.github.sahina.sdk.adapters.MockConfig;
+import io.github.sahina.sdk.adapters.CapturedInteraction;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
-ContractValidator validator = new ContractValidator("localhost:9550");
+ContractValidator validator = ContractValidator.builder()
+    .address("localhost:9550")
+    .build();
 validator.registerSchema("petstore", "./openapi.json");
 
-// Create mock client that auto-generates responses from schema
-MockClient mock = MockClient.builder()
-    .validator(validator)
-    .schemaId("petstore")
-    .cache(true)
+// Create mock interceptor that auto-generates responses from schema
+MockInterceptor mock = new MockInterceptor(validator)
+    .withConfig(MockConfig.builder()
+        .cache()
+        .build());
+
+OkHttpClient client = new OkHttpClient.Builder()
+    .addInterceptor(mock)
     .build();
 
 // Make requests - responses are generated from OpenAPI schema
-HttpResponse<String> response = mock.send(
-    HttpRequest.newBuilder()
-        .uri(URI.create("http://mock.petstore/pet/456"))
-        .build(),
-    HttpResponse.BodyHandlers.ofString()
-);
+Response response = client.newCall(
+    new Request.Builder().url("http://mock.petstore/pet/456").build()
+).execute();
 
 // Check recorded interactions for consumer registration
-List<Interaction> interactions = mock.getInteractions();
+List<CapturedInteraction> interactions = mock.getInteractions();
 
 validator.close();
 ```
@@ -701,22 +713,35 @@ validator.close()
 
 ```java
 import io.github.sahina.sdk.ContractValidator;
-import io.github.sahina.sdk.adapters.MockClient;
+import io.github.sahina.sdk.adapters.MockInterceptor;
+import io.github.sahina.sdk.adapters.MockConfig;
+import io.github.sahina.sdk.adapters.CapturedInteraction;
 import io.github.sahina.sdk.AutoRegisterConfig;
 import io.github.sahina.sdk.ConsumerInfo;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.MediaType;
 
-ContractValidator validator = new ContractValidator("localhost:9550");
+ContractValidator validator = ContractValidator.builder()
+    .address("localhost:9550")
+    .build();
 validator.registerSchema("petstore", "./openapi.json");
 
-// Create mock client to capture interactions
-MockClient mock = MockClient.builder()
-    .validator(validator)
-    .cache(true)
+// Create mock interceptor to capture interactions
+MockInterceptor mock = new MockInterceptor(validator)
+    .withConfig(MockConfig.builder()
+        .cache()
+        .build());
+
+OkHttpClient client = new OkHttpClient.Builder()
+    .addInterceptor(mock)
     .build();
 
 // Run tests using the mock
-mock.get("http://mock.petstore/pet/123");
-mock.post("http://mock.petstore/pet", "{}");
+client.newCall(new Request.Builder().url("http://mock.petstore/pet/123").build()).execute();
+client.newCall(new Request.Builder().url("http://mock.petstore/pet")
+    .post(RequestBody.create("{}", MediaType.parse("application/json"))).build()).execute();
 
 // Auto-register consumer from captured interactions
 ConsumerInfo consumerInfo = validator.registerConsumerFromInteractions(
@@ -859,14 +884,14 @@ List<EndpointUsage> endpoints = Arrays.asList(
     new EndpointUsage("POST", "/pet", Arrays.asList("id"))
 );
 
-validator.registerConsumer(new RegisterConsumerOptions(
-    "order-service",   // consumerId
-    "2.1.0",           // consumerVersion
-    "petstore",        // schemaId
-    "1.0.0",           // schemaVersion
-    "dev",             // environment
-    endpoints
-));
+validator.registerConsumer(RegisterConsumerOptions.builder()
+    .consumerId("order-service")
+    .consumerVersion("2.1.0")
+    .schemaId("petstore")
+    .schemaVersion("1.0.0")
+    .environment("dev")
+    .usedEndpoints(endpoints)
+    .build());
 ```
 
 </TabItem>
