@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CVT — Enterprise Deployment Models</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* =====================================================================
+       CUSTOM PROPERTIES
+       ===================================================================== */
+    :root {
+      /* CVT brand — emerald */
+      --brand:          #10b981;
+      --brand-dark:     #059669;
+      --brand-darker:   #047857;
+      --brand-light:    #34d399;
+      --brand-glow:     rgba(16, 185, 129, 0.15);
+
+      /* Model / concept colors */
+      --model-a:   #06b6d4;   /* CLI-only — cyan */
+      --model-b:   #10b981;   /* Git-native — emerald */
+      --model-srv: #6366f1;   /* Server — indigo */
+      --phase-pre: #f59e0b;   /* Prerequisite — amber */
+
+      /* Status colors */
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error:   #ef4444;
+
+      /* Refined dark palette */
+      --bg:             #08080b;
+      --surface:        #101014;
+      --surface-raised: #0b0b0f;
+      --border:         #1a1a24;
+      --border-subtle:  rgba(255, 255, 255, 0.04);
+      --text:           #eae5dc;
+      --text-secondary: #9e968c;
+      --text-muted:     #585248;
+
+      /* Animation */
+      --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    /* =====================================================================
+       RESET & BASE
+       ===================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-snap-type: y proximity;
+      overflow-y: scroll;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background: var(--bg);
+      position: relative;
+    }
+
+    ::selection {
+      background: rgba(16, 185, 129, 0.3);
+      color: var(--text);
+    }
+
+    /* =====================================================================
+       GRAIN TEXTURE
+       ===================================================================== */
+    .grain {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      pointer-events: none;
+      opacity: 0.035;
+      mix-blend-mode: overlay;
+    }
+
+    /* =====================================================================
+       TYPOGRAPHY
+       ===================================================================== */
+    h1 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(2.4rem, 5.5vw, 4.2rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    h2 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+    }
+
+    h3 {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: clamp(0.95rem, 1.8vw, 1.2rem);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    p {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+      color: var(--text-secondary);
+      line-height: 1.75;
+      font-weight: 400;
+    }
+
+    code, .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85em;
+    }
+
+    /* =====================================================================
+       SLIDE CONTAINER
+       ===================================================================== */
+    .slide {
+      scroll-snap-align: start;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 4rem 6vw;
+      padding-left: max(6vw, 5rem);
+      position: relative;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .slide-inner {
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    /* =====================================================================
+       SCROLL REVEAL ANIMATIONS
+       ===================================================================== */
+    .slide .slide-inner {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.9s var(--ease-out-expo),
+                  transform 0.9s var(--ease-out-expo);
+    }
+
+    .slide.visible .slide-inner {
+      opacity: 1;
+      transform: none;
+    }
+
+    .slide .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s var(--ease-out-expo),
+                  transform 0.7s var(--ease-out-expo);
+    }
+
+    .slide.visible .reveal {
+      opacity: 1;
+      transform: none;
+    }
+
+    .slide.visible .reveal.d1 { transition-delay: 0.1s; }
+    .slide.visible .reveal.d2 { transition-delay: 0.2s; }
+    .slide.visible .reveal.d3 { transition-delay: 0.3s; }
+    .slide.visible .reveal.d4 { transition-delay: 0.4s; }
+    .slide.visible .reveal.d5 { transition-delay: 0.5s; }
+    .slide.visible .reveal.d6 { transition-delay: 0.6s; }
+    .slide.visible .reveal.d7 { transition-delay: 0.7s; }
+    .slide.visible .reveal.d8 { transition-delay: 0.8s; }
+
+    /* =====================================================================
+       PROGRESS TIMELINE (Fixed Left)
+       ===================================================================== */
+    .progress-nav {
+      position: fixed;
+      left: 1.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .progress-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--border);
+      border: 1.5px solid transparent;
+      transition: all 0.5s var(--ease-out-expo);
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
+    }
+
+    .progress-dot:hover {
+      background: var(--text-muted);
+    }
+
+    .progress-dot.active {
+      background: var(--brand);
+      border-color: var(--brand);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
+      transform: scale(1.5);
+    }
+
+    .progress-line {
+      width: 1px;
+      height: 14px;
+      background: var(--border);
+    }
+
+    /* =====================================================================
+       SLIDE NUMBER
+       ===================================================================== */
+    .slide-number {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 2rem;
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      opacity: 0.6;
+    }
+
+    /* =====================================================================
+       SPEAKER NOTE
+       ===================================================================== */
+    .speaker-note {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      border-left: 2px solid var(--border);
+      padding-left: 0.85rem;
+      margin-top: 2.5rem;
+      font-style: italic;
+      line-height: 1.55;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    /* =====================================================================
+       MOCKUP (terminal / code chrome)
+       ===================================================================== */
+    .mockup {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      width: 100%;
+      box-shadow:
+        0 4px 24px -4px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.03),
+        0 0 80px -20px var(--brand-glow);
+      transition: box-shadow 0.4s ease;
+    }
+
+    .mockup:hover {
+      box-shadow:
+        0 8px 40px -8px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 0 100px -20px rgba(16, 185, 129, 0.2);
+    }
+
+    .mockup-large {
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    .mockup-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      background: var(--surface-raised);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mockup-header .dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .mockup-header .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-red    { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green  { background: #22c55e; }
+
+    .mockup-header .title {
+      flex: 1;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+    }
+
+    .mockup-body {
+      padding: 0.5rem 0;
+    }
+
+    /* =====================================================================
+       TERMINAL BODY
+       ===================================================================== */
+    .terminal-body {
+      padding: 20px 22px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13.5px;
+      line-height: 1.9;
+    }
+
+    .terminal-body .prompt   { color: var(--brand); }
+    .terminal-body .cmd      { color: var(--text); }
+    .terminal-body .flag     { color: var(--brand-light); }
+    .terminal-body .output   { color: var(--text-muted); }
+    .terminal-body .ok       { color: var(--success); }
+    .terminal-body .warn     { color: var(--warning); }
+    .terminal-body .err      { color: var(--error); }
+    .terminal-body .divider  { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+    .terminal-body .hint     { color: var(--text-muted); font-size: 12px; font-style: italic; font-family: 'IBM Plex Sans', sans-serif; }
+    .terminal-body .comment  { color: var(--text-muted); font-size: 12px; }
+
+    /* =====================================================================
+       CODE BODY
+       ===================================================================== */
+    .code-body {
+      padding: 1rem 1.1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      white-space: pre;
+      overflow-x: hidden;
+      margin: 0;
+    }
+
+    .code-body .kw  { color: #c4b5fd; }   /* keyword */
+    .code-body .tp  { color: var(--brand-light); } /* type */
+    .code-body .fn  { color: #93c5fd; }   /* function */
+    .code-body .st  { color: #86efac; }   /* string */
+    .code-body .nm  { color: #fbbf24; }   /* number/field */
+    .code-body .cm  { color: var(--text-muted); font-style: italic; } /* comment */
+    .code-body .ky  { color: var(--brand-light); } /* yaml key */
+    .code-body .vl  { color: #86efac; }   /* yaml value */
+
+    /* =====================================================================
+       SPLIT DIAGRAM
+       ===================================================================== */
+    .split-diagram {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 2rem;
+      align-items: start;
+      margin: 2.5rem 0;
+    }
+
+    .split-left, .split-right {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .split-left h3, .split-right h3 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+    }
+
+    .split-divider {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding-top: 2rem;
+    }
+
+    .split-divider .line {
+      width: 1px;
+      height: 60px;
+      background: linear-gradient(180deg, transparent, var(--border), transparent);
+    }
+
+    .split-divider .label {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 500;
+    }
+
+    .db-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1.1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .db-row:hover { border-color: rgba(16, 185, 129, 0.2); }
+
+    .db-row .db-label {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+    }
+
+    .db-row .db-field {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.2rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .db-row .db-field:last-child { border-bottom: none; }
+    .db-row .field-key { color: var(--text-muted); }
+    .db-row .field-val { color: var(--text); }
+    .db-row .field-val.red { color: var(--error); }
+    .db-row .field-val.green { color: var(--success); }
+
+    .system-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      transition: border-color 0.3s ease, transform 0.3s var(--ease-out-expo);
+    }
+
+    .system-box:hover {
+      border-color: rgba(16, 185, 129, 0.2);
+      transform: translateX(4px);
+    }
+
+    .system-box .sys-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .system-box .sys-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* =====================================================================
+       BOTTOM NOTE
+       ===================================================================== */
+    .bottom-note {
+      margin-top: 1.75rem;
+      padding: 0.95rem 1.2rem;
+      background: rgba(16, 185, 129, 0.04);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .bottom-note code {
+      color: var(--brand-light);
+      background: rgba(16, 185, 129, 0.08);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+    }
+
+    /* =====================================================================
+       DOMAIN CARDS
+       ===================================================================== */
+    .domain-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      margin: 2.5rem 0;
+    }
+
+    .domain-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem;
+      transition: border-color 0.3s ease, transform 0.4s var(--ease-out-expo);
+    }
+
+    .domain-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .domain-card.card-model-a { border-top: 2px solid var(--model-a); }
+    .domain-card.card-model-a:hover { border-color: rgba(6, 182, 212, 0.3); }
+
+    .domain-card.card-model-b { border-top: 2px solid var(--model-b); }
+    .domain-card.card-model-b:hover { border-color: rgba(16, 185, 129, 0.3); }
+
+    .domain-card.card-model-srv { border-top: 2px solid var(--model-srv); }
+    .domain-card.card-model-srv:hover { border-color: rgba(99, 102, 241, 0.3); }
+
+    .domain-card .card-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', sans-serif;
+    }
+
+    .domain-card.card-model-a .card-label   { color: var(--model-a); }
+    .domain-card.card-model-b .card-label   { color: var(--model-b); }
+    .domain-card.card-model-srv .card-label { color: var(--model-srv); }
+
+    .domain-card h3 {
+      font-size: 1rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .domain-card p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    .domain-card .best-for {
+      margin-top: 0.85rem;
+      padding: 0.6rem 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 6px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .domain-card .best-for strong {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* =====================================================================
+       PIVOT LINE
+       ===================================================================== */
+    .pivot-line {
+      text-align: center;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-style: italic;
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      margin-top: 1.25rem;
+    }
+
+    /* =====================================================================
+       BADGE
+       ===================================================================== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.18rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .badge-new      { background: rgba(16, 185, 129, 0.14); color: var(--brand-light); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .badge-existing { background: rgba(99, 102, 241, 0.14);  color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.25); }
+    .badge-phase1a  { background: rgba(16, 185, 129, 0.14); color: var(--brand-light); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .badge-prereq   { background: rgba(245, 158, 11, 0.14); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-stub     { background: rgba(88, 82, 72, 0.4);    color: var(--text-muted); border: 1px solid rgba(255,255,255,0.06); }
+
+    /* =====================================================================
+       PHASE TIMELINE (Slide 9)
+       ===================================================================== */
+    .phase-row {
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      font-size: 14px;
+      transition: background 0.2s ease;
+    }
+
+    .phase-row:last-child { border-bottom: none; }
+    .phase-row:hover { background: rgba(255, 255, 255, 0.015); }
+
+    .phase-row .phase-icon { font-size: 15px; line-height: 1; margin-top: 2px; flex-shrink: 0; width: 20px; text-align: center; }
+    .phase-row .phase-name { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-secondary); min-width: 120px; flex-shrink: 0; margin-top: 2px; }
+    .phase-row .phase-items { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+    .phase-row .phase-items strong { color: var(--text-secondary); font-weight: 500; }
+
+    .phase-row.active {
+      background: rgba(16, 185, 129, 0.04);
+      border-left: 2px solid var(--brand);
+    }
+
+    .phase-row.active .phase-name { color: var(--text); font-weight: 600; }
+
+    .phase-row.blocking {
+      background: rgba(245, 158, 11, 0.04);
+      border-left: 2px solid var(--phase-pre);
+    }
+
+    .phase-row.blocking .phase-name { color: #fcd34d; }
+
+    /* =====================================================================
+       SPLIT TERMINAL (Slide 6)
+       ===================================================================== */
+    .split-terminal {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-top: 2rem;
+    }
+
+    .split-terminal .term-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 0.6rem;
+    }
+
+    /* =====================================================================
+       VALIDATION RULES
+       ===================================================================== */
+    .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .rule-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      transition: border-color 0.2s ease;
+    }
+
+    .rule-item:hover { border-color: rgba(16, 185, 129, 0.2); }
+
+    .rule-item .rule-icon { color: var(--brand); font-size: 13px; margin-top: 2px; flex-shrink: 0; }
+    .rule-item .rule-text { color: var(--text-secondary); line-height: 1.5; font-family: 'IBM Plex Sans', sans-serif; }
+    .rule-item .rule-text code { color: var(--brand-light); background: rgba(16,185,129,0.08); padding: 0.1em 0.3em; border-radius: 3px; }
+
+    /* =====================================================================
+       ARCHITECTURE LAYOUT (Slide 4)
+       ===================================================================== */
+    .arch-layout {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 3rem;
+      align-items: start;
+      margin-top: 2rem;
+    }
+
+    .arch-desc p {
+      font-size: 0.98rem;
+      line-height: 1.8;
+      margin-bottom: 1rem;
+    }
+
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .tech-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.28rem 0.7rem;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 20px;
+      font-size: 0.76rem;
+      color: var(--brand-light);
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      transition: background 0.3s ease;
+    }
+
+    .tech-pill:hover {
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .tech-pill.muted {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--border);
+      color: var(--text-muted);
+    }
+
+    /* =====================================================================
+       PROVIDER TABLE (Slide 5)
+       ===================================================================== */
+    .provider-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin-top: 1.5rem;
+    }
+
+    .provider-table th {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .provider-table td {
+      padding: 0.7rem 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      vertical-align: top;
+    }
+
+    .provider-table tr:last-child td { border-bottom: none; }
+    .provider-table tr:hover td { background: rgba(255,255,255,0.015); }
+
+    .provider-table td.scheme { color: var(--brand-light); white-space: nowrap; }
+    .provider-table td.phase  { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.78rem; }
+
+    /* =====================================================================
+       TITLE SLIDE
+       ===================================================================== */
+    .slide-title {
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .slide-title::before {
+      content: '';
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      width: 700px;
+      height: 500px;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(ellipse, var(--brand-glow) 0%, transparent 65%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+
+    .slide-title.visible::before { opacity: 1; }
+
+    .slide-title .logo { margin-bottom: 2.5rem; }
+
+    /* Logo path entrance animation */
+    .slide-title .logo-path {
+      stroke-dashoffset: 500;
+      stroke-dasharray: 500;
+      transition: stroke-dashoffset 1s var(--ease-out-expo);
+    }
+
+    .slide-title.visible .logo-path {
+      stroke-dashoffset: 0;
+    }
+
+    .slide-title.visible .logo-path:nth-child(1) { transition-delay: 0.1s; }
+    .slide-title.visible .logo-path:nth-child(2) { transition-delay: 0.25s; }
+    .slide-title.visible .logo-path:nth-child(3) { transition-delay: 0.4s; }
+
+    .slide-title h1 {
+      margin-bottom: 0.85rem;
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+      transition-delay: 0.55s;
+    }
+
+    .slide-title.visible h1 { opacity: 1; transform: none; }
+
+    .slide-title .tagline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(0.75rem, 1.5vw, 0.95rem);
+      font-weight: 500;
+      color: var(--brand);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+      transition-delay: 0.65s;
+    }
+
+    .slide-title.visible .tagline { opacity: 1; transform: none; }
+
+    .slide-title .subtitle {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-style: italic;
+      font-size: clamp(0.95rem, 1.8vw, 1.2rem);
+      color: var(--text-muted);
+      letter-spacing: 0.01em;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+      transition-delay: 0.85s;
+    }
+
+    .slide-title.visible .subtitle { opacity: 1; transform: none; }
+
+    /* =====================================================================
+       SLIDE HEADING AREA
+       ===================================================================== */
+    .slide-heading { margin-bottom: 0.75rem; }
+
+    .slide-heading h2 { color: var(--text); }
+
+    .slide-heading h2::after {
+      content: '';
+      display: block;
+      width: 40px;
+      height: 2px;
+      background: var(--brand);
+      margin-top: 0.65rem;
+      opacity: 0.6;
+      border-radius: 1px;
+    }
+
+    /* =====================================================================
+       CLOSING SLIDE
+       ===================================================================== */
+    .closing-headline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.6rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+    }
+
+    .closing-text {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-style: italic;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--text-secondary);
+      max-width: 640px;
+      line-height: 1.8;
+    }
+
+    .decisions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-top: 0.5rem;
+      max-width: 600px;
+    }
+
+    .decision-item {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-family: 'IBM Plex Sans', sans-serif;
+      line-height: 1.5;
+    }
+
+    .decision-item .num {
+      color: var(--brand);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* =====================================================================
+       KEYBOARD HINT
+       ===================================================================== */
+    .keyboard-hint {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      opacity: 0.4;
+      letter-spacing: 0.05em;
+      transition: opacity 0.4s ease;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .keyboard-hint.hidden { opacity: 0; }
+
+    /* =====================================================================
+       RESPONSIVE
+       ===================================================================== */
+    @media (max-width: 768px) {
+      .slide {
+        padding: 3rem 1.25rem;
+        padding-left: 1.25rem;
+        justify-content: flex-start;
+        padding-top: 4rem;
+      }
+
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.5rem; }
+
+      .progress-nav  { display: none; }
+      .keyboard-hint { display: none; }
+
+      .split-diagram {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .split-divider {
+        flex-direction: row;
+        padding-top: 0;
+        justify-content: center;
+      }
+
+      .split-divider .line  { width: 40px; height: 1px; }
+      .split-divider .label { writing-mode: horizontal-tb; }
+
+      .domain-cards  { grid-template-columns: 1fr; }
+      .arch-layout   { grid-template-columns: 1fr; }
+      .split-terminal { grid-template-columns: 1fr; }
+    }
+
+    /* =====================================================================
+       PRINT
+       ===================================================================== */
+    @media print {
+      html { scroll-snap-type: none; overflow: visible; }
+
+      .slide {
+        scroll-snap-align: none;
+        min-height: auto;
+        page-break-after: always;
+        padding: 2rem;
+      }
+
+      .slide .slide-inner,
+      .slide .reveal {
+        opacity: 1 !important;
+        transform: none !important;
+      }
+
+      .slide-number { position: static; margin-top: 1rem; text-align: right; }
+      .progress-nav, .grain, .keyboard-hint { display: none; }
+      .slide-title::before { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Grain texture overlay -->
+  <svg class="grain" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <filter id="grain-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <rect width="100%" height="100%" filter="url(#grain-filter)"/>
+  </svg>
+
+  <!-- Progress timeline nav -->
+  <nav class="progress-nav" aria-label="Slide progress"></nav>
+
+  <!-- Keyboard navigation hint -->
+  <div class="keyboard-hint">&#8593; &#8595; Navigate slides</div>
+
+  <!-- ==================================================================
+       SLIDE 1: TITLE
+       ================================================================== -->
+  <section class="slide slide-title" data-slide="0">
+    <div class="slide-inner">
+      <div class="logo">
+        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="80" height="80" aria-label="CVT logo">
+          <defs>
+            <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#10b981"/>
+              <stop offset="40%" stop-color="#059669"/>
+              <stop offset="100%" stop-color="#047857"/>
+            </linearGradient>
+          </defs>
+          <rect x="10" y="10" width="492" height="492" rx="64" fill="url(#bg-grad)"/>
+          <rect x="10" y="10" width="492" height="492" rx="64" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4"/>
+          <!-- Consumer arrow - top (animated) -->
+          <path class="logo-path" d="M72 112 L215 112" stroke="rgba(255,255,255,0.75)" stroke-width="34" fill="none" stroke-linecap="round"/>
+          <path class="logo-path" d="M179 58 L231 112 L179 166" stroke="white" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Producer arrow - bottom (animated) -->
+          <path class="logo-path" d="M440 400 L297 400 M333 346 L281 400 L333 454" stroke="rgba(255,255,255,0.55)" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Center check -->
+          <circle cx="256" cy="256" r="66" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.45)" stroke-width="8"/>
+          <path d="M216 256 L246 288 L296 228" stroke="white" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1>Enterprise Deployment<br/>Models</h1>
+      <p class="tagline">Contract Validator Toolkit</p>
+      <p class="subtitle">Phase 1a Design Alignment &mdash; 2026-04-10</p>
+    </div>
+    <span class="slide-number">1 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 2: THE CONSTRAINT
+       ================================================================== -->
+  <section class="slide" data-slide="1">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>Today's Limitation</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem; font-style: italic;">For a single team, this works perfectly. For a large enterprise, it doesn't scale.</p>
+      </div>
+
+      <div class="split-diagram reveal d2">
+        <div class="split-left">
+          <h3>Current Model</h3>
+          <div class="db-row">
+            <div class="db-label">cvt serve &mdash; single deployment</div>
+            <div class="db-field">
+              <span class="field-key">infrastructure</span>
+              <span class="field-val red">shared server required</span>
+            </div>
+            <div class="db-field">
+              <span class="field-key">storage</span>
+              <span class="field-val red">PostgreSQL / SQLite</span>
+            </div>
+            <div class="db-field">
+              <span class="field-key">blast radius</span>
+              <span class="field-val red">all teams, one instance</span>
+            </div>
+            <div class="db-field">
+              <span class="field-key">registry integration</span>
+              <span class="field-val red">gRPC registration only</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="split-divider">
+          <div class="line"></div>
+          <div class="label">enterprise reality</div>
+          <div class="line"></div>
+        </div>
+
+        <div class="split-right">
+          <h3>Enterprise Requirements</h3>
+          <div class="system-box">
+            <div class="sys-name">Hundreds of teams</div>
+            <div class="sys-desc">Each team owns their schema and consumers independently</div>
+          </div>
+          <div class="system-box">
+            <div class="sys-name">Existing schema registries</div>
+            <div class="sys-desc">Homegrown, GitHub Enterprise, internal registries already in use</div>
+          </div>
+          <div class="system-box">
+            <div class="sys-name">Git as source of truth</div>
+            <div class="sys-desc">Contracts should live in repos, not in a separate database</div>
+          </div>
+          <div class="system-box">
+            <div class="sys-name">Zero shared infrastructure</div>
+            <div class="sys-desc">Teams should be able to validate without a running CVT server</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-note reveal d3">
+        Every enterprise adopting CVT hits this gap immediately. The database isn't optional &mdash; it's a blocker.
+      </div>
+
+      <p class="speaker-note reveal d4">
+        The current architecture is the right design for a single team or small org. These new models extend it for enterprise scale without replacing anything.
+      </p>
+    </div>
+    <span class="slide-number">2 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 3: THREE TOPOLOGIES
+       ================================================================== -->
+  <section class="slide" data-slide="2">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>Three Deployment Models</h2>
+      </div>
+
+      <div class="domain-cards">
+        <div class="domain-card card-model-srv reveal d2">
+          <div class="card-label">Existing Model</div>
+          <h3>Server (Unchanged)</h3>
+          <p>Teams using <code>cvt serve</code> with PostgreSQL or SQLite continue exactly as before. New models add options &mdash; they do not change or replace this model.</p>
+          <div class="best-for"><strong>Best for:</strong> Teams already running <code>cvt serve</code> who want a shared registry with consumer management.</div>
+        </div>
+        <div class="domain-card card-model-a reveal d3">
+          <div class="card-label">Model A</div>
+          <h3>CLI-Only</h3>
+          <p>Teams run <code>cvt validate</code>, <code>cvt compare</code>, <code>cvt generate</code> in CI pipelines. Schemas pulled from any URL or file. No server, no database, no shared state.</p>
+          <div class="best-for"><strong>Best for:</strong> Teams that want schema validation and breaking change detection with zero infrastructure.</div>
+        </div>
+        <div class="domain-card card-model-b reveal d4">
+          <div class="card-label">Model B</div>
+          <h3>Git-Native</h3>
+          <p>Contracts and schemas live as files in git repos. Teams choose where contracts are stored &mdash; centralized repo, consumer repos, or a mix. CVT reads from wherever they are.</p>
+          <div class="best-for"><strong>Best for:</strong> Cross-team contract validation with minimal infrastructure, using git as the source of truth.</div>
+        </div>
+      </div>
+
+      <p class="pivot-line reveal d5">New models add options &mdash; nothing that works today breaks.</p>
+
+      <p class="speaker-note reveal d6">
+        The key design principle: backward compatibility is absolute. No flags change meaning, no existing behavior changes. Teams opt in to new models explicitly.
+      </p>
+    </div>
+    <span class="slide-number">3 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 4: ARCHITECTURE
+       ================================================================== -->
+  <section class="slide" data-slide="3">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>New Package Boundary</h2>
+      </div>
+
+      <div class="reveal d2" style="max-width: 860px; margin: 2rem auto 0;">
+        <svg viewBox="0 0 780 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;" aria-label="CVT package architecture">
+          <defs>
+            <linearGradient id="arrow-green" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#10b981" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#10b981" stop-opacity="0.1"/>
+            </linearGradient>
+            <linearGradient id="arrow-indigo" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#6366f1" stop-opacity="0.1"/>
+            </linearGradient>
+          </defs>
+
+          <!-- ===== CLI TIER ===== -->
+          <rect x="44" y="14" width="108" height="36" rx="7" fill="rgba(16,185,129,0.05)" stroke="rgba(16,185,129,0.22)" stroke-width="1"/>
+          <text x="98" y="37" text-anchor="middle" fill="#34d399" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500">cvt validate</text>
+
+          <rect x="162" y="14" width="108" height="36" rx="7" fill="rgba(16,185,129,0.05)" stroke="rgba(16,185,129,0.22)" stroke-width="1"/>
+          <text x="216" y="37" text-anchor="middle" fill="#34d399" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500">cvt compare</text>
+
+          <rect x="280" y="14" width="138" height="36" rx="7" fill="rgba(16,185,129,0.05)" stroke="rgba(16,185,129,0.22)" stroke-width="1"/>
+          <text x="349" y="37" text-anchor="middle" fill="#34d399" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500">cvt can-i-deploy</text>
+
+          <rect x="428" y="14" width="100" height="36" rx="7" fill="rgba(16,185,129,0.05)" stroke="rgba(16,185,129,0.22)" stroke-width="1"/>
+          <text x="478" y="37" text-anchor="middle" fill="#34d399" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500">cvt init</text>
+
+          <rect x="538" y="14" width="100" height="36" rx="7" fill="rgba(16,185,129,0.05)" stroke="rgba(16,185,129,0.22)" stroke-width="1"/>
+          <text x="588" y="37" text-anchor="middle" fill="#34d399" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500">cvt lint</text>
+
+          <!-- ===== ARROWS: CLI → packages ===== -->
+          <!-- Merge lines -->
+          <line x1="98"  y1="50" x2="98"  y2="66" stroke="rgba(16,185,129,0.25)" stroke-width="1"/>
+          <line x1="216" y1="50" x2="216" y2="66" stroke="rgba(16,185,129,0.25)" stroke-width="1"/>
+          <line x1="349" y1="50" x2="349" y2="66" stroke="rgba(16,185,129,0.25)" stroke-width="1"/>
+          <line x1="478" y1="50" x2="478" y2="66" stroke="rgba(16,185,129,0.25)" stroke-width="1"/>
+          <line x1="588" y1="50" x2="588" y2="66" stroke="rgba(16,185,129,0.25)" stroke-width="1"/>
+          <line x1="98" y1="66" x2="588" y2="66" stroke="rgba(16,185,129,0.12)" stroke-width="1"/>
+          <!-- Down to pkg/contracts -->
+          <line x1="230" y1="66" x2="230" y2="96" stroke="rgba(16,185,129,0.35)" stroke-width="1.5"/>
+          <polygon points="225,96 230,104 235,96" fill="rgba(16,185,129,0.45)"/>
+          <!-- Down to pkg/cvt -->
+          <line x1="530" y1="66" x2="530" y2="96" stroke="rgba(99,102,241,0.35)" stroke-width="1.5"/>
+          <polygon points="525,96 530,104 535,96" fill="rgba(99,102,241,0.45)"/>
+
+          <!-- ===== PACKAGE TIER ===== -->
+          <!-- pkg/contracts (NEW) -->
+          <rect x="44" y="102" width="360" height="94" rx="10" fill="rgba(16,185,129,0.03)" stroke="rgba(16,185,129,0.35)" stroke-width="1.5"/>
+          <text x="62" y="126" fill="#10b981" font-size="13" font-family="'JetBrains Mono', monospace" font-weight="600">pkg/contracts/</text>
+          <rect x="62" y="132" width="40" height="14" rx="3" fill="rgba(16,185,129,0.14)"/>
+          <text x="82" y="143" text-anchor="middle" fill="#34d399" font-size="8.5" font-family="'IBM Plex Sans',sans-serif" font-weight="700" letter-spacing="0.06em">NEW</text>
+          <text x="62" y="163" fill="#585248" font-size="10.5" font-family="'JetBrains Mono', monospace">ContractFile · UsedEndpoint · CapturedInteraction</text>
+          <text x="62" y="179" fill="#585248" font-size="10.5" font-family="'JetBrains Mono', monospace">LoadContract · ValidateContract · ExportContract</text>
+
+          <!-- Arrow: imports → -->
+          <line x1="404" y1="150" x2="436" y2="150" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,3"/>
+          <polygon points="434,146 442,150 434,154" fill="rgba(255,255,255,0.15)"/>
+          <text x="414" y="144" fill="#585248" font-size="9" font-family="'IBM Plex Sans',sans-serif" font-style="italic">imports</text>
+
+          <!-- pkg/cvt (EXISTING) -->
+          <rect x="444" y="102" width="292" height="94" rx="10" fill="rgba(99,102,241,0.03)" stroke="rgba(99,102,241,0.25)" stroke-width="1"/>
+          <text x="462" y="126" fill="#a5b4fc" font-size="13" font-family="'JetBrains Mono', monospace" font-weight="600">pkg/cvt/</text>
+          <rect x="462" y="132" width="64" height="14" rx="3" fill="rgba(99,102,241,0.12)"/>
+          <text x="494" y="143" text-anchor="middle" fill="#a5b4fc" font-size="8.5" font-family="'IBM Plex Sans',sans-serif" font-weight="700" letter-spacing="0.06em">EXISTING</text>
+          <text x="462" y="163" fill="#585248" font-size="10.5" font-family="'JetBrains Mono', monospace">compatibility.go · validator.go</text>
+          <text x="462" y="179" fill="#585248" font-size="10.5" font-family="'JetBrains Mono', monospace">generator.go · SchemaProvider</text>
+
+          <!-- ===== ARROW: contracts → Store ===== -->
+          <line x1="230" y1="196" x2="230" y2="224" stroke="rgba(16,185,129,0.35)" stroke-width="1.5"/>
+          <polygon points="225,224 230,232 235,224" fill="rgba(16,185,129,0.45)"/>
+
+          <!-- ===== STORE TIER ===== -->
+          <!-- Store interface -->
+          <rect x="44" y="230" width="692" height="44" rx="8" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+          <text x="390" y="256" text-anchor="middle" fill="#9e968c" font-size="12.5" font-family="'JetBrains Mono', monospace" font-weight="500">Store interface</text>
+
+          <!-- ===== ARROWS: Store → backends ===== -->
+          <line x1="120" y1="274" x2="120" y2="296" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+          <polygon points="116,296 120,304 124,296" fill="rgba(16,185,129,0.4)"/>
+
+          <line x1="290" y1="274" x2="290" y2="296" stroke="rgba(99,102,241,0.3)" stroke-width="1.5"/>
+          <polygon points="286,296 290,304 294,296" fill="rgba(99,102,241,0.4)"/>
+
+          <line x1="460" y1="274" x2="460" y2="296" stroke="rgba(99,102,241,0.3)" stroke-width="1.5"/>
+          <polygon points="456,296 460,304 464,296" fill="rgba(99,102,241,0.4)"/>
+
+          <line x1="640" y1="274" x2="640" y2="296" stroke="rgba(99,102,241,0.3)" stroke-width="1.5"/>
+          <polygon points="636,296 640,304 644,296" fill="rgba(99,102,241,0.4)"/>
+
+          <!-- ===== BACKEND BOXES ===== -->
+          <rect x="44" y="302" width="152" height="64" rx="8" fill="rgba(16,185,129,0.04)" stroke="rgba(16,185,129,0.28)" stroke-width="1.5"/>
+          <text x="120" y="328" text-anchor="middle" fill="#34d399" font-size="12.5" font-family="'JetBrains Mono', monospace" font-weight="600">file</text>
+          <text x="120" y="348" text-anchor="middle" fill="#585248" font-size="10" font-family="'IBM Plex Sans', sans-serif">YAML · git-diffable</text>
+          <text x="120" y="360" text-anchor="middle" fill="#585248" font-size="9.5" font-family="'JetBrains Mono',monospace">Phase 1a — NEW</text>
+
+          <rect x="214" y="302" width="152" height="64" rx="8" fill="rgba(99,102,241,0.04)" stroke="rgba(99,102,241,0.25)" stroke-width="1"/>
+          <text x="290" y="328" text-anchor="middle" fill="#a5b4fc" font-size="12.5" font-family="'JetBrains Mono', monospace" font-weight="500">sqlite</text>
+          <text x="290" y="348" text-anchor="middle" fill="#585248" font-size="10" font-family="'IBM Plex Sans', sans-serif">local persistent</text>
+          <text x="290" y="360" text-anchor="middle" fill="#6366f1" font-size="9.5" font-family="'JetBrains Mono',monospace">existing</text>
+
+          <rect x="384" y="302" width="152" height="64" rx="8" fill="rgba(99,102,241,0.04)" stroke="rgba(99,102,241,0.25)" stroke-width="1"/>
+          <text x="460" y="328" text-anchor="middle" fill="#a5b4fc" font-size="12.5" font-family="'JetBrains Mono', monospace" font-weight="500">postgres</text>
+          <text x="460" y="348" text-anchor="middle" fill="#585248" font-size="10" font-family="'IBM Plex Sans', sans-serif">shared production</text>
+          <text x="460" y="360" text-anchor="middle" fill="#6366f1" font-size="9.5" font-family="'JetBrains Mono',monospace">existing</text>
+
+          <rect x="554" y="302" width="152" height="64" rx="8" fill="rgba(99,102,241,0.04)" stroke="rgba(99,102,241,0.25)" stroke-width="1"/>
+          <text x="630" y="328" text-anchor="middle" fill="#a5b4fc" font-size="12.5" font-family="'JetBrains Mono', monospace" font-weight="500">memory</text>
+          <text x="630" y="348" text-anchor="middle" fill="#585248" font-size="10" font-family="'IBM Plex Sans', sans-serif">ephemeral / test</text>
+          <text x="630" y="360" text-anchor="middle" fill="#6366f1" font-size="9.5" font-family="'JetBrains Mono',monospace">existing</text>
+        </svg>
+      </div>
+
+      <p class="speaker-note reveal d3">
+        <code>pkg/contracts</code> is a new package that imports <code>pkg/cvt</code> — not the other way around. This keeps the dependency direction clean. The file backend is a new peer of sqlite/postgres/memory, not a special case.
+      </p>
+    </div>
+    <span class="slide-number">4 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 5: SCHEMA PROVIDERS
+       ================================================================== -->
+  <section class="slide" data-slide="4">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>Pluggable Schema Sources</h2>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1.1fr;gap:2.5rem;margin-top:2rem;align-items:start;">
+
+        <div class="reveal d2">
+          <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.1em;font-family:'JetBrains Mono',monospace;font-weight:600;">Interface</p>
+          <div class="mockup">
+            <div class="mockup-header">
+              <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+              <span class="title">pkg/cvt/provider.go</span>
+            </div>
+<pre class="code-body"><span class="kw">type</span> <span class="tp">SchemaProvider</span> <span class="kw">interface</span> {
+    <span class="fn">Scheme</span>() <span class="kw">string</span>
+
+    <span class="fn">Fetch</span>(
+        ctx <span class="tp">context.Context</span>,
+        ref <span class="kw">string</span>,
+    ) ([]<span class="kw">byte</span>, <span class="kw">error</span>)
+
+    <span class="fn">FetchVersion</span>(
+        ctx <span class="tp">context.Context</span>,
+        ref     <span class="kw">string</span>,
+        version <span class="kw">string</span>,
+    ) ([]<span class="kw">byte</span>, <span class="kw">error</span>)
+}
+
+<span class="cm">// FetchVersion required for offline</span>
+<span class="cm">// can-i-deploy to compare schema</span>
+<span class="cm">// versions without a running server.</span></pre>
+          </div>
+        </div>
+
+        <div class="reveal d3">
+          <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.1em;font-family:'JetBrains Mono',monospace;font-weight:600;">Built-in Providers</p>
+          <table class="provider-table">
+            <thead>
+              <tr>
+                <th>Scheme</th>
+                <th>Example</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="scheme" style="color:#a5b4fc;">file://</td>
+                <td>file://./openapi.yaml<br/><span style="color:var(--text-muted);font-size:0.75em;">or just ./openapi.yaml</span></td>
+                <td class="phase"><span class="badge badge-existing">existing</span></td>
+              </tr>
+              <tr>
+                <td class="scheme" style="color:#a5b4fc;">https://</td>
+                <td>https://api.example.com/<br/>openapi.json</td>
+                <td class="phase"><span class="badge badge-existing">existing</span></td>
+              </tr>
+              <tr>
+                <td class="scheme">github://</td>
+                <td>github://org/repo/<br/>openapi.yaml@main</td>
+                <td class="phase"><span class="badge badge-new">new</span></td>
+              </tr>
+              <tr>
+                <td class="scheme">registry://</td>
+                <td>registry://payments-api<br/>@1.0.0</td>
+                <td class="phase"><span class="badge badge-new">new</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:1rem;padding:0.75rem 1rem;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid var(--border);">
+            <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.6;">
+              <code>github://</code> and <code>registry://</code> are optional convenience wrappers. Any schema reachable via HTTPS works with <code>https://</code> directly — no provider needed.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="speaker-note reveal d4">
+        The interface is minimal by design: three methods, no configuration in the interface itself. Config for things like auth tokens lives in <code>.cvt/config.yaml</code> and is picked up by the provider at initialization time.
+      </p>
+    </div>
+    <span class="slide-number">5 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 6: OFFLINE CAN-I-DEPLOY
+       ================================================================== -->
+  <section class="slide" data-slide="5">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>can-i-deploy, Serverless</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Same safety gate. No server required.</p>
+      </div>
+
+      <div class="split-terminal reveal d2">
+
+        <div>
+          <p class="term-label" style="color:var(--error);">Today — server required</p>
+          <div class="mockup">
+            <div class="mockup-header">
+              <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+              <span class="title">Terminal</span>
+            </div>
+            <div class="terminal-body" style="font-size:12.5px;">
+              <div><span class="prompt">$</span> <span class="cmd">cvt can-i-deploy \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--schema</span> <span class="cmd">payments-api \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--version</span> <span class="cmd">2.0.0 \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--env</span> <span class="cmd">prod</span></div>
+              <div>&nbsp;</div>
+              <div><span class="output">Querying CVT server at</span></div>
+              <div><span class="output">localhost:9550 ...</span></div>
+              <div>&nbsp;</div>
+              <div><span class="err">Error: connection refused</span></div>
+              <div><span class="err">Is cvt serve running?</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="term-label" style="color:var(--brand);">Phase 1a — offline</p>
+          <div class="mockup">
+            <div class="mockup-header">
+              <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+              <span class="title">Terminal</span>
+            </div>
+            <div class="terminal-body" style="font-size:12.5px;">
+              <div><span class="prompt">$</span> <span class="cmd">cvt can-i-deploy \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--schema</span> <span class="cmd">payments-api \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--version</span> <span class="cmd">2.0.0 \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--env</span> <span class="cmd">prod \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--contracts-dir</span> <span class="cmd">./consumers/</span></div>
+              <div>&nbsp;</div>
+              <div><span class="output">Reading 3 contract files...</span></div>
+              <div><span class="ok">✓ checkout-service 3.1.0</span></div>
+              <div><span class="ok">✓ billing-service 2.0.0</span></div>
+              <div><span class="ok">✓ reporting-svc 1.5.0</span></div>
+              <div>&nbsp;</div>
+              <div><span class="ok">✓ Safe to deploy.</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1.5rem;" class="reveal d3">
+        <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
+          <span style="color:var(--brand-light);">--contracts-dir</span> <span style="color:var(--text-muted);">&lt;path&gt;</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Reads YAML contract files from a local directory</div>
+        </div>
+        <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
+          <span style="color:var(--brand-light);">--offline</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Auto-detects .cvt/consumers/ in current repo</div>
+        </div>
+        <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
+          <span style="color:var(--brand-light);">--require-contracts</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Fails if no contract files found — CI safety gate</div>
+        </div>
+        <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
+          <span style="color:var(--brand-light);">--offline</span> <span style="color:var(--error);">+</span> <span style="color:var(--brand-light);">--server</span>
+          <div style="color:var(--error);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Error — mutually exclusive</div>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d4">
+        Offline mode mirrors server logic exactly — same compatibility check, same output format, same exit codes. The only difference is where it reads consumers from.
+      </p>
+    </div>
+    <span class="slide-number">6 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 7: CONTRACT FORMAT
+       ================================================================== -->
+  <section class="slide" data-slide="6">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>The Contract File</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">What a consumer team commits to their repo.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:2.5rem;margin-top:2rem;align-items:start;">
+
+        <div class="reveal d2">
+          <div class="mockup">
+            <div class="mockup-header">
+              <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+              <span class="title">.cvt/payments-api.yaml</span>
+            </div>
+<pre class="code-body"><span class="ky">format</span>: <span class="vl">v1</span>
+<span class="ky">consumer_id</span>: <span class="vl">checkout-service</span>
+<span class="ky">consumer_version</span>: <span class="vl">3.1.0</span>
+<span class="ky">schema_id</span>: <span class="vl">payments-api</span>
+<span class="ky">schema_version</span>: <span class="vl">"1.2.0"</span>    <span class="cm"># pinned, no ranges</span>
+<span class="ky">environment</span>: <span class="vl">prod</span>
+
+<span class="ky">used_endpoints</span>:
+  - <span class="ky">method</span>: <span class="vl">GET</span>
+    <span class="ky">path</span>: <span class="vl">/payments/{id}</span>
+    <span class="ky">response_fields</span>: [<span class="vl">id</span>, <span class="vl">amount</span>, <span class="vl">currency</span>, <span class="vl">status</span>]
+
+  - <span class="ky">method</span>: <span class="vl">POST</span>
+    <span class="ky">path</span>: <span class="vl">/payments</span>
+    <span class="ky">request_fields</span>: [<span class="vl">amount</span>, <span class="vl">currency</span>]</pre>
+          </div>
+        </div>
+
+        <div class="reveal d3">
+          <p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.75rem;">Validation Rules</p>
+          <div class="rules-list">
+            <div class="rule-item">
+              <span class="rule-icon">✓</span>
+              <span class="rule-text"><code>format</code> must be <code>"v1"</code></span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">✓</span>
+              <span class="rule-text"><code>consumer_id</code>, <code>schema_id</code>, <code>schema_version</code> are required</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">✓</span>
+              <span class="rule-text"><code>schema_version</code> must be valid semver — pinned only, no ranges like <code>^1.0.0</code> or <code>>=1.0.0</code></span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">✓</span>
+              <span class="rule-text">Each endpoint must have <code>method</code> and <code>path</code>. Method must be a valid HTTP verb.</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">⚠</span>
+              <span class="rule-text"><code>consumer_version</code> and <code>environment</code> are optional but warn if missing</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">⚠</span>
+              <span class="rule-text">Concrete paths like <code>/payments/123</code> warn — use template <code>/payments/{id}</code></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="speaker-note reveal d4">
+        Pinned versions are a deliberate design choice. Ranges like <code>^1.0.0</code> require semver range parsing and create ambiguity about what's actually being validated. Pinned versions are mechanically verifiable.
+      </p>
+    </div>
+    <span class="slide-number">7 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 8: NEW CLI COMMANDS
+       ================================================================== -->
+  <section class="slide" data-slide="7">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>New CLI Commands</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Four new commands ship in Phase 1a.</p>
+      </div>
+
+      <div class="mockup mockup-large reveal d2" style="margin-top:2rem;">
+        <div class="mockup-header">
+          <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="title">Terminal</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="comment"># Scaffold .cvt/ directory structure</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt init</span> <span class="flag">--mode consumer</span></div>
+          <div><span class="output">&nbsp; ▶ Created .cvt/payments-api.yaml (sample contract)</span></div>
+          <div><span class="output">&nbsp; ▶ Created .cvt/config.yaml</span></div>
+          <div>&nbsp;</div>
+          <div><span class="comment"># Validate contract file format (shallow lint)</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt lint</span> <span class="flag">.cvt/payments-api.yaml</span></div>
+          <div><span class="ok">&nbsp; ✓ format: v1</span></div>
+          <div><span class="ok">&nbsp; ✓ schema_version pinned: 1.2.0</span></div>
+          <div><span class="ok">&nbsp; ✓ 2 endpoints valid</span></div>
+          <hr class="divider"/>
+          <div><span class="comment"># Export a contract from SDK test interactions</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt export-contract</span> <span class="flag">--consumer</span> <span class="cmd">checkout-service \</span></div>
+          <div>&nbsp;&nbsp;<span class="flag">--schema</span> <span class="cmd">payments-api</span> <span class="flag">--interactions</span> <span class="cmd">./test-results/</span></div>
+          <div><span class="ok">&nbsp; ✓ Exported .cvt/payments-api.yaml (8 interactions → 3 endpoints)</span></div>
+          <div>&nbsp;</div>
+          <div><span class="comment"># Show loaded contracts and versions</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt status</span></div>
+          <div><span class="output">&nbsp; 3 contract files · payments-api@1.2.0 · auth-api@2.0.0 · user-api@3.1.0</span></div>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d3">
+        <code>cvt lint</code> is deliberately shallow — it validates the contract file format, not schema compatibility. That distinction matters: format validation is fast and local; compatibility checking requires the full engine.
+      </p>
+    </div>
+    <span class="slide-number">8 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 9: IMPLEMENTATION PHASES
+       ================================================================== -->
+  <section class="slide" data-slide="8">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>What We're Agreeing To</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Priority order — top blocks everything below it.</p>
+      </div>
+
+      <div class="mockup reveal d2" style="max-width:720px;margin-top:1.75rem;">
+        <div class="mockup-header">
+          <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="title">Implementation Plan — Issue #83</span>
+        </div>
+        <div class="mockup-body">
+
+          <div class="phase-row">
+            <span class="phase-icon">⬡</span>
+            <span class="phase-name">Prerequisite</span>
+            <div class="phase-items">
+              <strong>CompatibilityEngine consolidation</strong> — make <code>pkg/cvt/</code> canonical, refactor server to convert types at gRPC boundary
+            </div>
+          </div>
+
+          <div class="phase-row">
+            <span class="phase-icon">⬡</span>
+            <span class="phase-name">Phase 1a</span>
+            <div class="phase-items">
+              <code>FileProvider</code> + <code>HTTPProvider</code> · <code>dir://</code> contract source · offline <code>can-i-deploy</code> · <code>cvt init</code>, <code>cvt lint</code> · <code>pkg/contracts/</code> package
+            </div>
+          </div>
+
+          <div class="phase-row">
+            <span class="phase-icon">⬡</span>
+            <span class="phase-name">Phase 1b</span>
+            <div class="phase-items">
+              <code>GitHubProvider</code> + <code>RegistryProvider</code> · provider caching with per-scheme invalidation
+            </div>
+          </div>
+
+          <div class="phase-row">
+            <span class="phase-icon">⬡</span>
+            <span class="phase-name">Phase 2</span>
+            <div class="phase-items">
+              Contract sources: <code>repo://</code>, <code>discover://</code>, multi · GitHub issue notifications · webhooks — needs separate design doc
+            </div>
+          </div>
+
+          <div class="phase-row">
+            <span class="phase-icon">⬡</span>
+            <span class="phase-name">Phase 3</span>
+            <div class="phase-items">
+              <code>--live-verify</code> · <code>exportContract()</code> across all SDKs · callback mechanism and consumer consent model TBD
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div style="margin-top:1.5rem;" class="reveal d3">
+        <p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.6rem;">88 tests across Phase 1a</p>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+          <span class="tech-pill">1. CompatibilityEngine rewrite</span>
+          <span class="tech-pill">2. SchemaProvider + FetchVersion</span>
+          <span class="tech-pill">3. Contract loading + validation</span>
+          <span class="tech-pill">4. Offline can-i-deploy</span>
+          <span class="tech-pill">5. CLI: init, lint, extended flags</span>
+          <span class="tech-pill">6. E2E integration tests</span>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d4">
+        The prerequisite is load-bearing. If we start Phase 1a before the CompatibilityEngine consolidation, we'll end up with two diverging implementations of the same logic. That's the one thing we cannot let happen.
+      </p>
+    </div>
+    <span class="slide-number">9 / 10</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 10: CLOSING
+       ================================================================== -->
+  <section class="slide slide-title" data-slide="9">
+    <div class="slide-inner" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:1.75rem;">
+
+      <h1 class="closing-headline">No database required.<br/>Teams choose.</h1>
+
+      <p class="closing-text">
+        When contracts live in git and schemas are pulled by URI, deployment safety gates work without shared infrastructure. Teams opt into the model that fits their workflow &mdash; and nothing that works today changes.
+      </p>
+
+      <div style="width:100%;max-width:560px;text-align:left;">
+        <p style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.75rem;">Decisions to align on today</p>
+        <div class="decisions-list">
+          <div class="decision-item">
+            <span class="num">01</span>
+            <span><code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">SchemaProvider</code> interface is the contract — all schema sources implement it, no special cases</span>
+          </div>
+          <div class="decision-item">
+            <span class="num">02</span>
+            <span><code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">Store</code> interface is top-level — <code style="color:var(--brand-light);">file</code>, <code style="color:var(--brand-light);">sqlite</code>, <code style="color:var(--brand-light);">postgres</code>, <code style="color:var(--brand-light);">memory</code> are peers</span>
+          </div>
+          <div class="decision-item">
+            <span class="num">03</span>
+            <span>Offline <code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">can-i-deploy</code> mirrors server logic exactly — same exit codes, same output</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:0.75rem 1.5rem;font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:0.01em;margin-top:0.25rem;">
+        <span style="color:var(--brand);">$</span> <span style="color:var(--text);">go build -o cvt ./cmd/cvt</span><br/>
+        <span style="color:var(--brand);">$</span> <span style="color:var(--text);">cvt init --mode consumer</span>
+      </div>
+
+      <div class="logo" style="margin-top:0.75rem;">
+        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="44" height="44" aria-label="CVT logo" style="opacity:0.5;">
+          <defs>
+            <linearGradient id="bg-grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#10b981"/>
+              <stop offset="100%" stop-color="#047857"/>
+            </linearGradient>
+          </defs>
+          <rect x="10" y="10" width="492" height="492" rx="64" fill="url(#bg-grad2)"/>
+          <circle cx="256" cy="256" r="66" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.45)" stroke-width="8"/>
+          <path d="M216 256 L246 288 L296 228" stroke="white" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <span class="slide-number">10 / 10</span>
+  </section>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const slides = document.querySelectorAll('.slide');
+      const progressNav = document.querySelector('.progress-nav');
+      const keyboardHint = document.querySelector('.keyboard-hint');
+
+      /* Build progress nav */
+      slides.forEach((_, i) => {
+        if (i > 0) {
+          const line = document.createElement('div');
+          line.className = 'progress-line';
+          progressNav.appendChild(line);
+        }
+        const dot = document.createElement('div');
+        dot.className = 'progress-dot';
+        dot.dataset.index = i;
+        dot.addEventListener('click', () => {
+          slides[i].scrollIntoView({ behavior: 'smooth' });
+        });
+        progressNav.appendChild(dot);
+      });
+
+      const dots = progressNav.querySelectorAll('.progress-dot');
+
+      /* Scroll-triggered reveal */
+      const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) entry.target.classList.add('visible');
+        });
+      }, { threshold: 0.12 });
+
+      slides.forEach(slide => revealObserver.observe(slide));
+
+      /* Progress tracking */
+      const progressObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const idx = parseInt(entry.target.dataset.slide);
+            dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+          }
+        });
+      }, { threshold: 0.5 });
+
+      slides.forEach(slide => progressObserver.observe(slide));
+
+      /* Keyboard navigation */
+      let isNavigating = false;
+
+      function findCurrentSlide() {
+        const scrollY = window.scrollY;
+        let current = 0;
+        for (let i = 0; i < slides.length; i++) {
+          if (slides[i].offsetTop <= scrollY + window.innerHeight * 0.4) current = i;
+        }
+        return current;
+      }
+
+      document.addEventListener('keydown', function(e) {
+        if (isNavigating) return;
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowRight' &&
+            e.key !== 'ArrowUp'  && e.key !== 'ArrowLeft') return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const current = findCurrentSlide();
+        const target = (e.key === 'ArrowDown' || e.key === 'ArrowRight')
+          ? Math.min(current + 1, slides.length - 1)
+          : Math.max(current - 1, 0);
+
+        if (target === current) return;
+
+        isNavigating = true;
+        document.documentElement.style.scrollSnapType = 'none';
+        window.scrollTo({ top: slides[target].offsetTop, behavior: 'smooth' });
+
+        setTimeout(function() {
+          document.documentElement.style.scrollSnapType = 'y proximity';
+          isNavigating = false;
+        }, 700);
+      });
+
+      /* Hide keyboard hint after first scroll */
+      let hintHidden = false;
+      window.addEventListener('scroll', () => {
+        if (!hintHidden && window.scrollY > 100) {
+          hintHidden = true;
+          keyboardHint.classList.add('hidden');
+        }
+      }, { passive: true });
+    });
+  </script>
+
+</body>
+</html>
