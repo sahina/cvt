@@ -1612,12 +1612,13 @@
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>The Contract File</h2>
-        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">What a consumer team commits to their repo.</p>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">The consumer's declaration of which endpoints they call and what shapes they expect — named after the producer, owned by the consumer.</p>
       </div>
 
       <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:2.5rem;margin-top:2rem;align-items:start;">
 
         <div class="reveal d2">
+          <p style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.6rem;">checkout-service repo &nbsp;·&nbsp; <span style="color:var(--brand-light);">owned by the consumer</span></p>
           <div class="mockup">
             <div class="mockup-header">
               <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
@@ -1719,7 +1720,7 @@
       </div>
 
       <p class="speaker-note reveal d3">
-        <code>cvt lint</code> is deliberately shallow — it validates the contract file format, not schema compatibility. That distinction matters: format validation is fast and local; compatibility checking requires the full engine.
+        The file is named after the producer (payments-api) but lives in the consumer's repo and is authored by the consumer. It is not a copy of the OpenAPI spec — it's a declaration of the subset the consumer actually calls. The producer never touches it; the producer only reads it when running can-i-deploy. <code>cvt lint</code> validates the file format only — schema compatibility requires the full engine.
       </p>
     </div>
     <span class="slide-number">10 / 12</span>
