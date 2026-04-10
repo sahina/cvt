@@ -201,6 +201,8 @@
     }
 
     .progress-dot {
+      appearance: none;
+      padding: 0;
       width: 7px;
       height: 7px;
       border-radius: 50%;
@@ -1006,7 +1008,7 @@
 <body>
 
   <!-- Grain texture overlay -->
-  <svg class="grain" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+  <svg class="grain" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <filter id="grain-filter">
       <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"/>
       <feColorMatrix type="saturate" values="0"/>
@@ -1652,7 +1654,7 @@
             </div>
             <div class="rule-item">
               <span class="rule-icon">✓</span>
-              <span class="rule-text"><code>schema_version</code> must be valid semver — pinned only, no ranges like <code>^1.0.0</code> or <code>>=1.0.0</code></span>
+              <span class="rule-text"><code>schema_version</code> must be valid semver — pinned only, no ranges like <code>^1.0.0</code> or <code>&gt;=1.0.0</code></span>
             </div>
             <div class="rule-item">
               <span class="rule-icon">✓</span>
@@ -1859,6 +1861,19 @@
       const slides = document.querySelectorAll('.slide');
       const progressNav = document.querySelector('.progress-nav');
       const keyboardHint = document.querySelector('.keyboard-hint');
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let isNavigating = false;
+
+      function navigateTo(index) {
+        if (isNavigating) return;
+        isNavigating = true;
+        document.documentElement.style.scrollSnapType = 'none';
+        window.scrollTo({ top: slides[index].offsetTop, behavior: prefersReducedMotion ? 'instant' : 'smooth' });
+        setTimeout(() => {
+          document.documentElement.style.scrollSnapType = '';
+          isNavigating = false;
+        }, 700);
+      }
 
       /* Build progress nav */
       slides.forEach((_, i) => {
@@ -1867,12 +1882,12 @@
           line.className = 'progress-line';
           progressNav.appendChild(line);
         }
-        const dot = document.createElement('div');
+        const dot = document.createElement('button');
         dot.className = 'progress-dot';
         dot.dataset.index = i;
-        dot.addEventListener('click', () => {
-          slides[i].scrollIntoView({ behavior: 'smooth' });
-        });
+        dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+        dot.setAttribute('aria-current', 'false');
+        dot.addEventListener('click', () => navigateTo(i));
         progressNav.appendChild(dot);
       });
 
@@ -1892,7 +1907,10 @@
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             const idx = parseInt(entry.target.dataset.slide);
-            dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+            dots.forEach((d, i) => {
+              d.classList.toggle('active', i === idx);
+              d.setAttribute('aria-current', i === idx ? 'true' : 'false');
+            });
           }
         });
       }, { threshold: 0.5 });
@@ -1900,8 +1918,6 @@
       slides.forEach(slide => progressObserver.observe(slide));
 
       /* Keyboard navigation */
-      let isNavigating = false;
-
       function findCurrentSlide() {
         const scrollY = window.scrollY;
         let current = 0;
@@ -1911,8 +1927,9 @@
         return current;
       }
 
-      document.addEventListener('keydown', function(e) {
+      document.addEventListener('keydown', (e) => {
         if (isNavigating) return;
+        if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowRight' &&
             e.key !== 'ArrowUp'  && e.key !== 'ArrowLeft') return;
 
@@ -1925,15 +1942,7 @@
           : Math.max(current - 1, 0);
 
         if (target === current) return;
-
-        isNavigating = true;
-        document.documentElement.style.scrollSnapType = 'none';
-        window.scrollTo({ top: slides[target].offsetTop, behavior: 'smooth' });
-
-        setTimeout(function() {
-          document.documentElement.style.scrollSnapType = 'y proximity';
-          isNavigating = false;
-        }, 700);
+        navigateTo(target);
       });
 
       /* Hide keyboard hint after first scroll */
