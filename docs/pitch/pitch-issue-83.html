@@ -1052,7 +1052,7 @@
       <p class="tagline">Contract Validator Toolkit</p>
       <p class="subtitle">Phase 1a Design Alignment &mdash; 2026-04-10</p>
     </div>
-    <span class="slide-number">1 / 12</span>
+    <span class="slide-number">1 / 13</span>
   </section>
 
   <!-- ==================================================================
@@ -1124,7 +1124,7 @@
         The current architecture is the right design for a single team or small org. These new models extend it for enterprise scale without replacing anything.
       </p>
     </div>
-    <span class="slide-number">2 / 12</span>
+    <span class="slide-number">2 / 13</span>
   </section>
 
   <!-- ==================================================================
@@ -1163,7 +1163,7 @@
         The key design principle: backward compatibility is absolute. No flags change meaning, no existing behavior changes. Teams opt in to new models explicitly.
       </p>
     </div>
-    <span class="slide-number">3 / 12</span>
+    <span class="slide-number">3 / 13</span>
   </section>
 
   <!-- ==================================================================
@@ -1290,7 +1290,7 @@
         <code>pkg/contracts</code> is a new package that imports <code>pkg/cvt</code> — not the other way around. This keeps the dependency direction clean. The file backend is a new peer of sqlite/postgres/memory, not a special case.
       </p>
     </div>
-    <span class="slide-number">4 / 12</span>
+    <span class="slide-number">4 / 13</span>
   </section>
 
   <!-- ==================================================================
@@ -1378,7 +1378,7 @@
         The interface is minimal by design: three methods, no configuration in the interface itself. Config for things like auth tokens lives in <code>.cvt/config.yaml</code> and is picked up by the provider at initialization time.
       </p>
     </div>
-    <span class="slide-number">5 / 12</span>
+    <span class="slide-number">5 / 13</span>
   </section>
 
   <!-- ==================================================================
@@ -1464,13 +1464,102 @@
         Offline mode mirrors server logic exactly — same compatibility check, same output format, same exit codes. The only difference is where it reads consumers from.
       </p>
     </div>
-    <span class="slide-number">6 / 12</span>
+    <span class="slide-number">6 / 13</span>
   </section>
 
   <!-- ==================================================================
-       SLIDE 7: BREAKING CHANGE ACKNOWLEDGMENT (Phase 2)
+       SLIDE 7: STATIC CHECK (Phase 1a)
        ================================================================== -->
   <section class="slide" data-slide="6">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>Static Check</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Compares the new schema version against every consumer's declared endpoints and field shapes.</p>
+      </div>
+
+      <div class="split-terminal reveal d2">
+
+        <div>
+          <p class="term-label" style="color:var(--brand);">All consumers compatible — safe to deploy</p>
+          <div class="mockup">
+            <div class="mockup-header">
+              <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+              <span class="title">Terminal</span>
+            </div>
+            <div class="terminal-body" style="font-size:12.5px;">
+              <div><span class="prompt">$</span> <span class="cmd">cvt can-i-deploy \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--schema</span> <span class="cmd">payments-api \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--version</span> <span class="cmd">2.0.0 \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--contracts-dir</span> <span class="cmd">./consumers/</span></div>
+              <div>&nbsp;</div>
+              <div><span class="output">Reading 3 contract files...</span></div>
+              <div><span class="ok">✓ checkout-service 3.1.0</span></div>
+              <div><span class="ok">&nbsp;&nbsp;GET /payments/{id}  compatible</span></div>
+              <div><span class="ok">&nbsp;&nbsp;POST /payments      compatible</span></div>
+              <div><span class="ok">✓ billing-service 2.0.0</span></div>
+              <div><span class="ok">&nbsp;&nbsp;GET /payments/{id}  compatible</span></div>
+              <div><span class="ok">✓ reporting-svc 1.5.0</span></div>
+              <div><span class="ok">&nbsp;&nbsp;GET /payments       compatible</span></div>
+              <div>&nbsp;</div>
+              <div><span class="ok">✓ Safe to deploy. Exit 0.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="term-label" style="color:var(--error);">Breaking change detected — blocked</p>
+          <div class="mockup">
+            <div class="mockup-header">
+              <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+              <span class="title">Terminal</span>
+            </div>
+            <div class="terminal-body" style="font-size:12.5px;">
+              <div><span class="prompt">$</span> <span class="cmd">cvt can-i-deploy \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--schema</span> <span class="cmd">payments-api \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--version</span> <span class="cmd">2.0.0 \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--contracts-dir</span> <span class="cmd">./consumers/</span></div>
+              <div>&nbsp;</div>
+              <div><span class="output">Reading 3 contract files...</span></div>
+              <div><span class="ok">✓ checkout-service 3.1.0  compatible</span></div>
+              <div><span class="err">✗ billing-service 2.0.0</span></div>
+              <div><span class="err">&nbsp;&nbsp;GET /payments/{id}: field</span></div>
+              <div><span class="err">&nbsp;&nbsp;'amount' type string → number</span></div>
+              <div><span class="err">✗ reporting-svc 1.5.0</span></div>
+              <div><span class="err">&nbsp;&nbsp;DELETE /payments: endpoint removed</span></div>
+              <div>&nbsp;</div>
+              <div><span class="err">✗ Cannot deploy. 2 consumers would break. Exit 1.</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1.25rem;" class="reveal d3">
+        <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
+          <span style="color:var(--brand-light);">Exit 0</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">All consumers compatible — CI passes</div>
+        </div>
+        <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
+          <span style="color:var(--error);">Exit 1</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">At least one consumer would break — CI blocks deploy</div>
+        </div>
+        <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
+          <span style="color:var(--text-muted);">checks only declared endpoints</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Unused endpoints don't fail the check</div>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d4">
+        The static check reads contract files and runs the CompatibilityEngine — no network, no server, no consumer CI triggered. It answers: "does the new schema surface still cover every field each consumer declared it uses?" Exit codes are stable so this drops straight into any CI pipeline.
+      </p>
+    </div>
+    <span class="slide-number">7 / 13</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 8: BREAKING CHANGE ACKNOWLEDGMENT (Phase 2)
+       ================================================================== -->
+  <section class="slide" data-slide="7">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>Acknowledged Breaking Changes</h2>
@@ -1550,13 +1639,13 @@
         Phase 2 recognises that breaking changes are sometimes intentional — a major version cut, a deprecation cycle. The flag pair gives teams an escape hatch that still leaves a paper trail. Consumer teams wake up to a GitHub issue, not a broken pipeline.
       </p>
     </div>
-    <span class="slide-number">7 / 12</span>
+    <span class="slide-number">8 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 8: LIVE VERIFY (Phase 3)
        ================================================================== -->
-  <section class="slide" data-slide="7">
+  <section class="slide" data-slide="8">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>Live Verify</h2>
@@ -1602,13 +1691,13 @@
         This is the most important feature in the issue. A schema can be contract-compatible but still break a consumer's integration tests — because the tests encode real usage, not just the schema surface. Live verify closes that gap. The callback design is the open question we need to resolve.
       </p>
     </div>
-    <span class="slide-number">8 / 12</span>
+    <span class="slide-number">9 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 9: CONTRACT FORMAT
        ================================================================== -->
-  <section class="slide" data-slide="8">
+  <section class="slide" data-slide="9">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>The Contract File</h2>
@@ -1678,13 +1767,13 @@
         Pinned versions are a deliberate design choice. Ranges like <code>^1.0.0</code> require semver range parsing and create ambiguity about what's actually being validated. Pinned versions are mechanically verifiable.
       </p>
     </div>
-    <span class="slide-number">9 / 12</span>
+    <span class="slide-number">10 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 10: NEW CLI COMMANDS
        ================================================================== -->
-  <section class="slide" data-slide="9">
+  <section class="slide" data-slide="10">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>New CLI Commands</h2>
@@ -1723,13 +1812,13 @@
         The file is named after the producer (payments-api) but lives in the consumer's repo and is authored by the consumer. It is not a copy of the OpenAPI spec — it's a declaration of the subset the consumer actually calls. The producer never touches it; the producer only reads it when running can-i-deploy. <code>cvt lint</code> validates the file format only — schema compatibility requires the full engine.
       </p>
     </div>
-    <span class="slide-number">10 / 12</span>
+    <span class="slide-number">11 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 11: IMPLEMENTATION PHASES
        ================================================================== -->
-  <section class="slide" data-slide="10">
+  <section class="slide" data-slide="11">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>What We're Agreeing To</h2>
@@ -1802,13 +1891,13 @@
         The prerequisite is load-bearing. If we start Phase 1a before the CompatibilityEngine consolidation, we'll end up with two diverging implementations of the same logic. That's the one thing we cannot let happen.
       </p>
     </div>
-    <span class="slide-number">11 / 12</span>
+    <span class="slide-number">12 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 12: CLOSING
        ================================================================== -->
-  <section class="slide slide-title" data-slide="11">
+  <section class="slide slide-title" data-slide="12">
     <div class="slide-inner" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:1.75rem;">
 
       <h1 class="closing-headline">No database required.<br/>Teams choose.</h1>
@@ -1854,7 +1943,7 @@
         </svg>
       </div>
     </div>
-    <span class="slide-number">12 / 12</span>
+    <span class="slide-number">13 / 13</span>
   </section>
 
   <script>
