@@ -207,8 +207,9 @@ func (v *Validator) validateInteraction(doc *openapi3.T, interaction *Interactio
 		httpReq.Header.Set(k, val)
 	}
 
-	// Temporarily strip basePath from server URLs for routing
-	originalServers := doc.Servers
+	// Create a shallow clone of the doc with stripped server URLs for routing.
+	// This avoids mutating doc.Servers in place, which is not thread-safe.
+	routingDoc := *doc
 	if len(doc.Servers) > 0 {
 		modifiedServers := make(openapi3.Servers, 0, len(doc.Servers))
 		for _, server := range doc.Servers {
@@ -225,15 +226,11 @@ func (v *Validator) validateInteraction(doc *openapi3.T, interaction *Interactio
 				modifiedServers = append(modifiedServers, server)
 			}
 		}
-		doc.Servers = modifiedServers
+		routingDoc.Servers = modifiedServers
 	}
 
-	// Create router
-	router, err := gorillamux.NewRouter(doc)
-
-	// Restore original servers
-	doc.Servers = originalServers
-
+	// Create router from the clone (original doc is never mutated)
+	router, err := gorillamux.NewRouter(&routingDoc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create router: %w", err)
 	}
@@ -274,6 +271,108 @@ func (v *Validator) validateInteraction(doc *openapi3.T, interaction *Interactio
 	}
 
 	if err := openapi3filter.ValidateResponse(ctx, responseValidationInput); err != nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, err.Error())
+		return &result, nil
+	}
+
+	return &result, nil
+}
+
+// ValidateRequest validates only the HTTP request (no response) against a registered schema.
+// This is useful for mock servers that need to validate incoming requests without a response.
+func (v *Validator) ValidateRequest(schemaID, method, path string, headers map[string]string, body string) (*ValidationResult, error) {
+	v.mu.RLock()
+	doc, ok := v.schemas[schemaID]
+	v.mu.RUnlock()
+
+	if !ok {
+		return nil, fmt.Errorf("schema not found: %s", schemaID)
+	}
+
+	var result ValidationResult
+	result.Valid = true
+
+	// Handle basePath from Swagger 2.0 schemas
+	requestPath := path
+	if len(doc.Servers) > 0 {
+		for _, server := range doc.Servers {
+			if serverURL, err := url.Parse(server.URL); err == nil && serverURL.Path != "" && serverURL.Path != "/" {
+				basePath := strings.TrimSuffix(serverURL.Path, "/")
+				if strings.HasPrefix(requestPath, basePath+"/") {
+					requestPath = strings.TrimPrefix(requestPath, basePath)
+					break
+				}
+			}
+		}
+	}
+
+	// Create HTTP request
+	var bodyReader io.Reader
+	if body != "" {
+		bodyReader = strings.NewReader(body)
+	}
+
+	baseURL := "http://localhost"
+	if len(doc.Servers) > 0 {
+		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil {
+			baseURL = fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
+		}
+	}
+
+	httpReq, err := http.NewRequest(method, baseURL+requestPath, bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	for k, val := range headers {
+		httpReq.Header.Set(k, val)
+	}
+
+	// Create a shallow clone of the doc with stripped server URLs for routing.
+	routingDoc := *doc
+	if len(doc.Servers) > 0 {
+		modifiedServers := make(openapi3.Servers, 0, len(doc.Servers))
+		for _, server := range doc.Servers {
+			if serverURL, err := url.Parse(server.URL); err == nil {
+				serverURL.Path = ""
+				serverURL.RawPath = ""
+				newServer := &openapi3.Server{
+					URL:         serverURL.String(),
+					Description: server.Description,
+					Variables:   server.Variables,
+				}
+				modifiedServers = append(modifiedServers, newServer)
+			} else {
+				modifiedServers = append(modifiedServers, server)
+			}
+		}
+		routingDoc.Servers = modifiedServers
+	}
+
+	// Create router from the clone (original doc is never mutated)
+	router, err := gorillamux.NewRouter(&routingDoc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create router: %w", err)
+	}
+
+	// Find route
+	route, pathParams, err := router.FindRoute(httpReq)
+	if err != nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, fmt.Sprintf("route not found: %v", err))
+		return &result, nil
+	}
+
+	// Validate request only (no response validation)
+	ctx := context.Background()
+	requestValidationInput := &openapi3filter.RequestValidationInput{
+		Request:    httpReq,
+		PathParams: pathParams,
+		Route:      route,
+	}
+
+	if err := openapi3filter.ValidateRequest(ctx, requestValidationInput); err != nil {
 		result.Valid = false
 		result.Errors = append(result.Errors, err.Error())
 		return &result, nil
