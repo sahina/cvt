@@ -345,6 +345,23 @@ EOF
 cvt validate --schema openapi.json --request request.json --response response.json
 ```
 
+### Mock Server
+
+Start a mock HTTP server from any OpenAPI schema — useful for frontend development, manual testing, or mocking upstream APIs:
+
+```bash
+# Start mock server on port 8080
+cvt mock --schema openapi.json
+
+# With request validation and hot-reload
+cvt mock --schema openapi.json --validate-requests --watch
+
+# Test it
+curl http://localhost:8080/pet/123
+```
+
+See the [CLI Reference](../reference/cli.mdx#mock) for all mock server options.
+
 ## What's Next?
 
 Now that you've validated your first interaction, explore:
