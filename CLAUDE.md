@@ -226,6 +226,16 @@ cvt generate --schema https://petstore3.swagger.io/api/v3/openapi.json --list  #
 cvt generate --schema ./openapi.json --method GET --path /users --use-examples  # Use schema examples
 ```
 
+**mock** - Start a mock HTTP server from OpenAPI schemas:
+
+```bash
+cvt mock --schema ./openapi.json                                # Basic mock server on port 8080
+cvt mock --schema a.json --schema b.json --port 3000            # Multiple schemas, custom port
+cvt mock --schema ./openapi.json --validate-requests --watch    # Validate requests + hot-reload
+cvt mock --schema https://petstore3.swagger.io/api/v3/openapi.json  # From URL
+cvt mock --schema ./openapi.json --latency 200                  # Simulate 200ms network delay
+```
+
 **can-i-deploy** - Check deployment safety against registered consumers (requires server):
 
 ```bash
@@ -278,6 +288,7 @@ The CLI uses the embedded library (`pkg/cvt/`) which can also be used directly i
 
 ## Port Configuration
 
+- **8080**: Mock HTTP server (default for `cvt mock`)
 - **9550**: gRPC server (both local and Docker)
 - **9551**: Prometheus metrics endpoint
 - **9091**: Prometheus UI (when running observability stack)
