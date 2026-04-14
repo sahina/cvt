@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sahina/cvt/pkg/cvt"
+	"github.com/sahina/cvt/pkg/mock"
 	"github.com/sahina/cvt/server/cvtservice"
 	"github.com/sahina/cvt/server/pb"
 	"github.com/sahina/cvt/server/storage"
@@ -28,6 +30,7 @@ func serveCmd() *cobra.Command {
 	var (
 		port        int
 		metricsPort int
+		mockPort    int
 		tlsEnabled  bool
 		tlsCert     string
 		tlsKey      string
@@ -205,6 +208,49 @@ Examples:
 			reflection.Register(grpcServer)
 			cvtservice.Info("Registered ProtoReflectionService")
 
+			// Start mock HTTP server if --mock-port is specified
+			var mockServer *http.Server
+			if cmd.Flags().Changed("mock-port") || os.Getenv("CVT_MOCK_PORT") != "" {
+				resolvedMockPort := mockPort
+				if !cmd.Flags().Changed("mock-port") {
+					if mp, err := strconv.Atoi(os.Getenv("CVT_MOCK_PORT")); err == nil {
+						resolvedMockPort = mp
+					}
+				}
+
+				// Create a pkg/cvt Validator for mock serving
+				mockValidator := cvt.NewValidator()
+				var mockSchemaIDs []string
+
+				mockHandler := mock.NewMockHandler(mockValidator, mockSchemaIDs, mock.HandlerConfig{
+					UseExamples: true,
+					Quiet:       false,
+				})
+				indexH := mock.IndexHandler(mockValidator, mockSchemaIDs)
+
+				mockMux := http.NewServeMux()
+				mockMux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/" && r.Method == "GET" {
+						indexH.ServeHTTP(w, r)
+						return
+					}
+					mockHandler.ServeHTTP(w, r)
+				}))
+
+				mockServer = &http.Server{
+					Addr:         fmt.Sprintf(":%d", resolvedMockPort),
+					Handler:      mock.CORSMiddleware(mockMux),
+					ReadTimeout:  30 * time.Second,
+					WriteTimeout: 30 * time.Second,
+				}
+				go func() {
+					cvtservice.Info("Mock server listening", zap.String("address", mockServer.Addr))
+					if err := mockServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+						cvtservice.Error("Mock server failed", zap.Error(err))
+					}
+				}()
+			}
+
 			// Start Prometheus metrics HTTP server
 			metricsServer := &http.Server{
 				Addr:         fmt.Sprintf(":%d", metricsPort),
@@ -261,6 +307,17 @@ Examples:
 				cvtservice.Info("Metrics server stopped")
 			}
 
+			// Shutdown mock server if running
+			if mockServer != nil {
+				mockShutdownCtx, mockCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer mockCancel()
+				if err := mockServer.Shutdown(mockShutdownCtx); err != nil {
+					cvtservice.Error("Failed to shutdown mock server", zap.Error(err))
+				} else {
+					cvtservice.Info("Mock server stopped")
+				}
+			}
+
 			// Perform graceful shutdown
 			cvtservice.Info("Shutting down server gracefully...")
 			grpcServer.GracefulStop()
@@ -272,6 +329,7 @@ Examples:
 
 	cmd.Flags().IntVarP(&port, "port", "p", 9550, "gRPC server port")
 	cmd.Flags().IntVar(&metricsPort, "metrics-port", 9551, "Metrics server port")
+	cmd.Flags().IntVar(&mockPort, "mock-port", 0, "Start mock HTTP server on this port (0 = disabled)")
 	cmd.Flags().BoolVar(&tlsEnabled, "tls", false, "Enable TLS")
 	cmd.Flags().StringVar(&tlsCert, "cert", "", "TLS certificate file")
 	cmd.Flags().StringVar(&tlsKey, "key", "", "TLS private key file")
