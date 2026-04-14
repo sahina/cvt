@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -56,7 +57,11 @@ func (h *MockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		router, err := gorillamux.NewRouter(doc)
+		// Strip server base paths so routes match without the prefix
+		// (e.g., Petstore has servers: [{url: "/api/v3"}], we want /pets not /api/v3/pets)
+		routingDoc := stripServerBasePaths(doc)
+
+		router, err := gorillamux.NewRouter(routingDoc)
 		if err != nil {
 			continue
 		}
@@ -285,4 +290,30 @@ func getFirstContentType(op *openapi3.Operation, statusCode int) string {
 		return contentType
 	}
 	return ""
+}
+
+// stripServerBasePaths returns a shallow copy of the doc with server URL paths removed.
+// This ensures routes match without the base path prefix (e.g., /pets instead of /api/v3/pets).
+func stripServerBasePaths(doc *openapi3.T) *openapi3.T {
+	if len(doc.Servers) == 0 {
+		return doc
+	}
+
+	clone := *doc
+	stripped := make(openapi3.Servers, 0, len(doc.Servers))
+	for _, server := range doc.Servers {
+		if serverURL, err := url.Parse(server.URL); err == nil {
+			serverURL.Path = ""
+			serverURL.RawPath = ""
+			stripped = append(stripped, &openapi3.Server{
+				URL:         serverURL.String(),
+				Description: server.Description,
+				Variables:   server.Variables,
+			})
+		} else {
+			stripped = append(stripped, server)
+		}
+	}
+	clone.Servers = stripped
+	return &clone
 }
