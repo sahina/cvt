@@ -29,7 +29,7 @@ help:
 	@echo "Test commands:"
 	@echo "  make test               - Run all tests with direct server (fast, no Docker)"
 	@echo "  make test-docker        - Run all tests with Docker + PostgreSQL (CI/CD)"
-	@echo "  make test-all           - Run all tests with Docker (same as 'make test-docker')"
+	@echo "  make test-all           - Run all tests with Docker + e2e"
 	@echo "  make test-with-observability - Run all tests, keep Docker Compose up"
 	@echo "  make test-server        - Run Go server unit tests only"
 	@echo "  make test-node-sdk      - Run Node.js SDK tests"
@@ -261,7 +261,7 @@ test-cache:
 	go test -v -run TestCache ./server/...
 	@echo "✅ Cache tests passed!"
 
-test-all: test-docker
+test-all: test-docker test-e2e
 
 test-with-observability:
 	@echo "🧪 Running all tests (server + all 4 SDKs) with observability stack..."
