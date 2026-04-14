@@ -553,3 +553,89 @@ func TestGenerateResponse_RouteNotFound(t *testing.T) {
 		t.Error("expected error for non-existent route")
 	}
 }
+
+func TestGenerateValue_TypelessSchemaWithProperties(t *testing.T) {
+	schema := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {
+	                  "properties": {
+	                    "name": {"type": "string"},
+	                    "age": {"type": "integer"}
+	                  }
+	                }
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("typeless", []byte(schema))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	resp, err := v.GenerateResponse("typeless", "GET", "/test", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+
+	body, ok := resp.Body.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected object body for schema with properties, got %T", resp.Body)
+	}
+	if body["name"] == nil {
+		t.Error("expected 'name' field in generated object")
+	}
+}
+
+func TestGenerateValue_TypelessSchemaNoProperties(t *testing.T) {
+	schema := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {}
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("typeless-empty", []byte(schema))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	resp, err := v.GenerateResponse("typeless-empty", "GET", "/test", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+	_ = resp
+}

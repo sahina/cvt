@@ -465,7 +465,16 @@ func (v *Validator) generateValue(doc *openapi3.T, schemaRef *openapi3.SchemaRef
 	}
 
 	// Handle by type
-	switch schema.Type.Slice()[0] {
+	types := schema.Type.Slice()
+	if len(types) == 0 {
+		// Type-less schema (valid in OpenAPI 3.1 with composition)
+		if len(schema.Properties) > 0 {
+			return v.generateObject(doc, schema, useExamples, depth)
+		}
+		return nil
+	}
+
+	switch types[0] {
 	case "object":
 		return v.generateObject(doc, schema, useExamples, depth)
 	case "array":
@@ -479,7 +488,6 @@ func (v *Validator) generateValue(doc *openapi3.T, schemaRef *openapi3.SchemaRef
 	case "boolean":
 		return v.generateBoolean(schema)
 	default:
-		// Check if properties exist (implicit object)
 		if len(schema.Properties) > 0 {
 			return v.generateObject(doc, schema, useExamples, depth)
 		}
