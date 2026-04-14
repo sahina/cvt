@@ -6,7 +6,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/sahina/cvt/pkg/cvt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -290,6 +292,246 @@ func TestHandler_PanicRecovery(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "internal server error", body["error"])
 }
+
+func TestSelectSuccessStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		op       *openapi3.Operation
+		expected int
+	}{
+		{
+			name:     "nil responses returns 200",
+			op:       &openapi3.Operation{Responses: nil},
+			expected: 200,
+		},
+		{
+			name: "only 201 defined returns 201",
+			op: &openapi3.Operation{
+				Responses: &openapi3.Responses{
+					Extensions: map[string]interface{}{},
+				},
+			},
+			expected: 201,
+		},
+		{
+			name: "only 202 defined returns 202",
+			op: &openapi3.Operation{
+				Responses: &openapi3.Responses{
+					Extensions: map[string]interface{}{},
+				},
+			},
+			expected: 202,
+		},
+		{
+			name: "only 204 defined returns 204",
+			op: &openapi3.Operation{
+				Responses: &openapi3.Responses{
+					Extensions: map[string]interface{}{},
+				},
+			},
+			expected: 204,
+		},
+		{
+			name: "non-standard 2XX (206) returns 206",
+			op: &openapi3.Operation{
+				Responses: &openapi3.Responses{
+					Extensions: map[string]interface{}{},
+				},
+			},
+			expected: 206,
+		},
+		{
+			name: "no 2XX codes returns 200",
+			op: &openapi3.Operation{
+				Responses: &openapi3.Responses{
+					Extensions: map[string]interface{}{},
+				},
+			},
+			expected: 200,
+		},
+	}
+
+	// Set up responses for each test case
+	// Case: only 201
+	tests[1].op.Responses.Set("201", &openapi3.ResponseRef{Value: &openapi3.Response{Description: ptr("Created")}})
+	// Case: only 202
+	tests[2].op.Responses.Set("202", &openapi3.ResponseRef{Value: &openapi3.Response{Description: ptr("Accepted")}})
+	// Case: only 204
+	tests[3].op.Responses.Set("204", &openapi3.ResponseRef{Value: &openapi3.Response{Description: ptr("No Content")}})
+	// Case: non-standard 206
+	tests[4].op.Responses.Set("206", &openapi3.ResponseRef{Value: &openapi3.Response{Description: ptr("Partial Content")}})
+	// Case: no 2XX codes (only 400)
+	tests[5].op.Responses.Set("400", &openapi3.ResponseRef{Value: &openapi3.Response{Description: ptr("Bad Request")}})
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := selectSuccessStatus(tt.op)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestHasJSONResponse(t *testing.T) {
+	tests := []struct {
+		name     string
+		op       *openapi3.Operation
+		status   int
+		expected bool
+	}{
+		{
+			name:     "nil responses returns false",
+			op:       &openapi3.Operation{Responses: nil},
+			status:   200,
+			expected: false,
+		},
+		{
+			name: "nil content returns false",
+			op: func() *openapi3.Operation {
+				op := &openapi3.Operation{Responses: &openapi3.Responses{Extensions: map[string]interface{}{}}}
+				op.Responses.Set("200", &openapi3.ResponseRef{Value: &openapi3.Response{
+					Description: ptr("OK"),
+					Content:     nil,
+				}})
+				return op
+			}(),
+			status:   200,
+			expected: false,
+		},
+		{
+			name: "xml only returns false",
+			op: func() *openapi3.Operation {
+				op := &openapi3.Operation{Responses: &openapi3.Responses{Extensions: map[string]interface{}{}}}
+				op.Responses.Set("200", &openapi3.ResponseRef{Value: &openapi3.Response{
+					Description: ptr("OK"),
+					Content: openapi3.Content{
+						"application/xml": &openapi3.MediaType{},
+					},
+				}})
+				return op
+			}(),
+			status:   200,
+			expected: false,
+		},
+		{
+			name: "json present returns true",
+			op: func() *openapi3.Operation {
+				op := &openapi3.Operation{Responses: &openapi3.Responses{Extensions: map[string]interface{}{}}}
+				op.Responses.Set("200", &openapi3.ResponseRef{Value: &openapi3.Response{
+					Description: ptr("OK"),
+					Content: openapi3.Content{
+						"application/json": &openapi3.MediaType{},
+					},
+				}})
+				return op
+			}(),
+			status:   200,
+			expected: true,
+		},
+		{
+			name: "status not found returns false",
+			op: func() *openapi3.Operation {
+				op := &openapi3.Operation{Responses: &openapi3.Responses{Extensions: map[string]interface{}{}}}
+				op.Responses.Set("201", &openapi3.ResponseRef{Value: &openapi3.Response{
+					Description: ptr("Created"),
+					Content: openapi3.Content{
+						"application/json": &openapi3.MediaType{},
+					},
+				}})
+				return op
+			}(),
+			status:   200,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasJSONResponse(tt.op, tt.status)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestGetFirstContentType(t *testing.T) {
+	tests := []struct {
+		name     string
+		op       *openapi3.Operation
+		status   int
+		expected string
+	}{
+		{
+			name:     "nil responses returns empty",
+			op:       &openapi3.Operation{Responses: nil},
+			status:   200,
+			expected: "",
+		},
+		{
+			name: "nil content returns empty",
+			op: func() *openapi3.Operation {
+				op := &openapi3.Operation{Responses: &openapi3.Responses{Extensions: map[string]interface{}{}}}
+				op.Responses.Set("200", &openapi3.ResponseRef{Value: &openapi3.Response{
+					Description: ptr("OK"),
+					Content:     nil,
+				}})
+				return op
+			}(),
+			status:   200,
+			expected: "",
+		},
+		{
+			name: "returns first content type",
+			op: func() *openapi3.Operation {
+				op := &openapi3.Operation{Responses: &openapi3.Responses{Extensions: map[string]interface{}{}}}
+				op.Responses.Set("200", &openapi3.ResponseRef{Value: &openapi3.Response{
+					Description: ptr("OK"),
+					Content: openapi3.Content{
+						"application/xml": &openapi3.MediaType{},
+					},
+				}})
+				return op
+			}(),
+			status:   200,
+			expected: "application/xml",
+		},
+		{
+			name: "status not found returns empty",
+			op: func() *openapi3.Operation {
+				op := &openapi3.Operation{Responses: &openapi3.Responses{Extensions: map[string]interface{}{}}}
+				op.Responses.Set("201", &openapi3.ResponseRef{Value: &openapi3.Response{
+					Description: ptr("Created"),
+					Content: openapi3.Content{
+						"application/json": &openapi3.MediaType{},
+					},
+				}})
+				return op
+			}(),
+			status:   200,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getFirstContentType(tt.op, tt.status)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestLogRequest_NotQuiet(t *testing.T) {
+	v := cvt.NewValidator()
+	err := v.RegisterSchema("test-api", []byte(testSchema))
+	require.NoError(t, err)
+
+	h := NewMockHandler(v, []string{"test-api"}, HandlerConfig{Quiet: false})
+
+	req := httptest.NewRequest(http.MethodGet, "/users", nil)
+	// Should not panic when quiet=false
+	h.logRequest(req, http.StatusOK, time.Now())
+}
+
+// ptr is a helper to create a pointer to a string.
+func ptr(s string) *string { return &s }
 
 func TestHandler_MultiSchema(t *testing.T) {
 	v := cvt.NewValidator()

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/sahina/cvt/pkg/cvt"
 )
 
 func getFreePort() int {
@@ -109,6 +111,155 @@ func TestServer_Integration_BasicMocking(t *testing.T) {
 
 	// Shutdown
 	srv.httpSrv.Close()
+}
+
+func TestFilterFilePaths(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []string
+		want  []string
+	}{
+		{
+			name:  "mix of files and URLs",
+			input: []string{"./openapi.json", "https://example.com/api.json", "/abs/path.yaml", "http://localhost/spec.json"},
+			want:  []string{"./openapi.json", "/abs/path.yaml"},
+		},
+		{
+			name:  "all URLs",
+			input: []string{"https://a.com/x.json", "http://b.com/y.json"},
+			want:  nil,
+		},
+		{
+			name:  "all files",
+			input: []string{"a.json", "b.yaml"},
+			want:  []string{"a.json", "b.yaml"},
+		},
+		{
+			name:  "empty input",
+			input: []string{},
+			want:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := filterFilePaths(tt.input)
+			if tt.want == nil {
+				if got != nil {
+					t.Errorf("filterFilePaths(%v) = %v, want nil", tt.input, got)
+				}
+			} else {
+				if len(got) != len(tt.want) {
+					t.Fatalf("filterFilePaths(%v) = %v, want %v", tt.input, got, tt.want)
+				}
+				for i := range got {
+					if got[i] != tt.want[i] {
+						t.Errorf("filterFilePaths(%v)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestIsURL(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"http://example.com/api.json", true},
+		{"https://example.com/api.json", true},
+		{"./openapi.json", false},
+		{"/abs/path.yaml", false},
+		{"openapi.json", false},
+		{"ftp://example.com/file", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := isURL(tt.input)
+			if got != tt.want {
+				t.Errorf("isURL(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDetectOverlaps(t *testing.T) {
+	// Create two schemas that both define GET /users
+	schema1 := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "API One", "version": "1.0.0"},
+	  "paths": {
+	    "/users": {
+	      "get": {
+	        "operationId": "listUsers1",
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {"type": "array", "items": {"type": "object", "properties": {"id": {"type": "integer"}}}}
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+	schema2 := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "API Two", "version": "1.0.0"},
+	  "paths": {
+	    "/users": {
+	      "get": {
+	        "operationId": "listUsers2",
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {"type": "array", "items": {"type": "object", "properties": {"id": {"type": "integer"}}}}
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := cvt.NewValidator()
+	if err := v.RegisterSchema("api-one", []byte(schema1)); err != nil {
+		t.Fatalf("register schema1: %v", err)
+	}
+	if err := v.RegisterSchema("api-two", []byte(schema2)); err != nil {
+		t.Fatalf("register schema2: %v", err)
+	}
+
+	// Test with quiet=false to exercise the overlap warning branch
+	srv := NewServer(ServerConfig{Quiet: false})
+	// Should not panic
+	srv.detectOverlaps(v, []string{"api-one", "api-two"})
+
+	// Test with quiet=true (early return)
+	srvQuiet := NewServer(ServerConfig{Quiet: true})
+	srvQuiet.detectOverlaps(v, []string{"api-one", "api-two"})
+
+	// Test with single schema (early return on len < 2)
+	srv.detectOverlaps(v, []string{"api-one"})
+}
+
+func TestPrintBanner_NotQuiet(t *testing.T) {
+	v := cvt.NewValidator()
+	if err := v.RegisterSchema("test-api", []byte(testSchema)); err != nil {
+		t.Fatalf("register schema: %v", err)
+	}
+
+	srv := NewServer(ServerConfig{Quiet: false})
+	// Should not panic when quiet=false
+	srv.printBanner(v, []string{"test-api"})
 }
 
 func TestServer_SchemaIDFromPath(t *testing.T) {
