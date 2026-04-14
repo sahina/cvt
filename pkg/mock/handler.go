@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -292,28 +291,17 @@ func getFirstContentType(op *openapi3.Operation, statusCode int) string {
 	return ""
 }
 
-// stripServerBasePaths returns a shallow copy of the doc with server URL paths removed.
-// This ensures routes match without the base path prefix (e.g., /pets instead of /api/v3/pets).
+// stripServerBasePaths returns a shallow copy of the doc with Servers set to nil.
+// gorillamux matches requests against server URLs (including hostname), so a schema
+// with servers: [{url: "https://petstore.io/api/v3"}] would require requests to
+// https://petstore.io/api/v3/pets. By clearing Servers, gorillamux matches paths only,
+// which is what a mock server needs (incoming requests are to localhost, not the real host).
 func stripServerBasePaths(doc *openapi3.T) *openapi3.T {
 	if len(doc.Servers) == 0 {
 		return doc
 	}
 
 	clone := *doc
-	stripped := make(openapi3.Servers, 0, len(doc.Servers))
-	for _, server := range doc.Servers {
-		if serverURL, err := url.Parse(server.URL); err == nil {
-			serverURL.Path = ""
-			serverURL.RawPath = ""
-			stripped = append(stripped, &openapi3.Server{
-				URL:         serverURL.String(),
-				Description: server.Description,
-				Variables:   server.Variables,
-			})
-		} else {
-			stripped = append(stripped, server)
-		}
-	}
-	clone.Servers = stripped
+	clone.Servers = nil
 	return &clone
 }

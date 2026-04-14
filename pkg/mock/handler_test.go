@@ -145,6 +145,64 @@ const testSchema2 = `{
   }
 }`
 
+// testSchemaWithBasePath has a server URL with a path prefix, like Petstore's /api/v3.
+// Routes should match WITHOUT the prefix (e.g., /items, not /api/v2/items).
+const testSchemaWithBasePath = `{
+  "openapi": "3.0.0",
+  "info": {"title": "API with BasePath", "version": "1.0.0"},
+  "servers": [
+    {"url": "https://example.com/api/v2"}
+  ],
+  "paths": {
+    "/items": {
+      "get": {
+        "operationId": "listItems",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {"type": "integer"},
+                      "name": {"type": "string"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{id}": {
+      "get": {
+        "operationId": "getItem",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {"type": "integer"},
+                    "name": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+
 func newTestHandler(t *testing.T) *MockHandler {
 	t.Helper()
 	v := cvt.NewValidator()
@@ -564,4 +622,90 @@ func TestHandler_MultiSchema(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
 	assert.Equal(t, "no matching route", body["error"])
+}
+
+func TestHandler_SchemaWithServerBasePath(t *testing.T) {
+	v := cvt.NewValidator()
+	err := v.RegisterSchema("basepath-api", []byte(testSchemaWithBasePath))
+	require.NoError(t, err)
+
+	h := NewMockHandler(v, []string{"basepath-api"}, HandlerConfig{Quiet: true})
+
+	// Routes should match WITHOUT the /api/v2 prefix
+	req := httptest.NewRequest(http.MethodGet, "/items", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code, "GET /items should match (basePath stripped)")
+
+	var body interface{}
+	err = json.Unmarshal(w.Body.Bytes(), &body)
+	assert.NoError(t, err, "response should be valid JSON")
+
+	// Path params should work too
+	req = httptest.NewRequest(http.MethodGet, "/items/42", nil)
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code, "GET /items/42 should match (basePath stripped)")
+
+	// The full prefixed path should NOT match (we strip it)
+	req = httptest.NewRequest(http.MethodGet, "/api/v2/items", nil)
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code, "/api/v2/items should 404 (prefix is stripped)")
+}
+
+func TestHandler_MultiSchemaWithBasePath(t *testing.T) {
+	v := cvt.NewValidator()
+	// Schema 1: no server URL
+	err := v.RegisterSchema("no-base", []byte(testSchema))
+	require.NoError(t, err)
+	// Schema 2: has server URL with /api/v2 prefix
+	err = v.RegisterSchema("with-base", []byte(testSchemaWithBasePath))
+	require.NoError(t, err)
+
+	h := NewMockHandler(v, []string{"no-base", "with-base"}, HandlerConfig{Quiet: true})
+
+	// /users from schema 1 (no base path)
+	req := httptest.NewRequest(http.MethodGet, "/users", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code, "GET /users should match schema 1")
+
+	// /items from schema 2 (base path stripped)
+	req = httptest.NewRequest(http.MethodGet, "/items", nil)
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code, "GET /items should match schema 2 (basePath stripped)")
+}
+
+func TestStripServerBasePaths(t *testing.T) {
+	t.Run("no servers returns same doc", func(t *testing.T) {
+		doc := &openapi3.T{OpenAPI: "3.0.0"}
+		result := stripServerBasePaths(doc)
+		assert.Equal(t, doc, result, "should return same pointer when no servers")
+	})
+
+	t.Run("clears servers when present", func(t *testing.T) {
+		doc := &openapi3.T{
+			OpenAPI: "3.0.0",
+			Servers: openapi3.Servers{
+				{URL: "https://api.example.com/v1/api"},
+			},
+		}
+		result := stripServerBasePaths(doc)
+		assert.NotEqual(t, doc, result, "should return new doc")
+		assert.Nil(t, result.Servers, "servers should be nil after stripping")
+	})
+
+	t.Run("does not mutate original doc", func(t *testing.T) {
+		doc := &openapi3.T{
+			OpenAPI: "3.0.0",
+			Servers: openapi3.Servers{
+				{URL: "https://api.example.com/v1"},
+			},
+		}
+		_ = stripServerBasePaths(doc)
+		assert.Len(t, doc.Servers, 1, "original doc should not be mutated")
+		assert.Equal(t, "https://api.example.com/v1", doc.Servers[0].URL)
+	})
 }
