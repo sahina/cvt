@@ -14,6 +14,7 @@ The CVT CLI lets you validate contracts locally without running a server. Use it
 - Quick one-off validations during development
 - CI/CD pipelines that need schema comparison
 - Generating test fixtures from OpenAPI schemas
+- Running a mock HTTP server from OpenAPI schemas
 - Starting a CVT server for remote validation
 
 ## Installation
@@ -33,6 +34,7 @@ go install github.com/sahina/cvt/cmd/cvt@latest
 | `validate`        | Validate an interaction against a schema             |
 | `compare`         | Compare schemas for breaking changes                 |
 | `generate`        | Generate test fixtures from schemas                  |
+| `mock`            | Start a mock HTTP server from OpenAPI schemas        |
 | `can-i-deploy`    | Check deployment safety against registered consumers |
 | `wait`            | Wait for CVT server to become ready                  |
 | `register-schema` | Register an OpenAPI schema with the server           |
@@ -281,6 +283,72 @@ Available endpoints:
   PUT /pets/{petId}
   DELETE /pets/{petId}
 ```
+
+---
+
+## mock
+
+Start an HTTP mock server that generates responses from OpenAPI schemas. The server matches incoming requests to schema operations and returns spec-compliant responses with CORS headers for frontend development.
+
+### Usage
+
+```bash
+cvt mock --schema <path-or-url> [options]
+```
+
+### Options
+
+| Flag                  | Short | Description                                           | Default   |
+| --------------------- | ----- | ----------------------------------------------------- | --------- |
+| `--schema`            | `-s`  | OpenAPI schema file path or URL (repeatable)          | (required)|
+| `--port`              | `-p`  | HTTP server port                                      | 8080      |
+| `--host`              |       | Bind address                                          | 127.0.0.1 |
+| `--watch`             | `-w`  | Watch schema files for changes and hot-reload         | false     |
+| `--validate-requests` |       | Validate incoming requests against the schema         | false     |
+| `--no-examples`       |       | Use generated values instead of schema examples       | false     |
+| `--latency`           |       | Artificial response delay in milliseconds             | 0         |
+| `--quiet`             | `-q`  | Suppress request logging                              | false     |
+
+### Examples
+
+```bash
+# Basic mock server on default port 8080
+cvt mock --schema ./openapi.json
+
+# Multiple schemas on a custom port
+cvt mock --schema users.json --schema orders.json --port 3000
+
+# With request validation and hot-reload during development
+cvt mock --schema ./openapi.json --validate-requests --watch
+
+# Mock from a remote URL
+cvt mock --schema https://petstore3.swagger.io/api/v3/openapi.json
+
+# Simulate 200ms network latency
+cvt mock --schema ./openapi.json --latency 200
+
+# Quiet mode (no per-request logging)
+cvt mock --schema ./openapi.json --quiet
+```
+
+### How It Works
+
+1. Parses and loads all provided OpenAPI schemas
+2. Builds a route table from all schema operations
+3. Matches each incoming HTTP request to a schema operation
+4. Returns a generated response using schema examples (or synthetic values with `--no-examples`)
+5. Adds CORS headers (`Access-Control-Allow-Origin: *`) to all responses
+
+When `--validate-requests` is enabled, the server validates incoming requests against the schema and returns `400 Bad Request` with details if validation fails.
+
+When `--watch` is enabled, the server watches schema files on disk for changes and automatically reloads them without restart.
+
+### Exit Codes
+
+| Code | Meaning                                |
+| ---- | -------------------------------------- |
+| 0    | Server shut down cleanly               |
+| 1    | Failed to start (invalid schema, etc.) |
 
 ---
 
