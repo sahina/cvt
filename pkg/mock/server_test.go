@@ -14,10 +14,14 @@ import (
 	"github.com/sahina/cvt/pkg/cvt"
 )
 
-func getFreePort() int {
-	l, _ := net.Listen("tcp", "127.0.0.1:0")
+func getFreePort(t *testing.T) int {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("getFreePort: %v", err)
+	}
 	port := l.Addr().(*net.TCPAddr).Port
-	l.Close()
+	_ = l.Close()
 	return port
 }
 
@@ -25,9 +29,11 @@ func TestServer_Integration_BasicMocking(t *testing.T) {
 	// Write testSchema to a temp file
 	dir := t.TempDir()
 	schemaPath := filepath.Join(dir, "api.json")
-	os.WriteFile(schemaPath, []byte(testSchema), 0644)
+	if err := os.WriteFile(schemaPath, []byte(testSchema), 0644); err != nil {
+		t.Fatalf("write schema: %v", err)
+	}
 
-	port := getFreePort()
+	port := getFreePort(t)
 	srv := NewServer(ServerConfig{
 		Host:        "127.0.0.1",
 		Port:        port,
@@ -45,7 +51,7 @@ func TestServer_Integration_BasicMocking(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		resp, err := http.Get(baseURL + "/")
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			ready = true
 			break
 		}
@@ -60,7 +66,7 @@ func TestServer_Integration_BasicMocking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /users failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("GET /users: expected 200, got %d: %s", resp.StatusCode, body)
@@ -76,7 +82,7 @@ func TestServer_Integration_BasicMocking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /users/42 failed: %v", err)
 	}
-	resp2.Body.Close()
+	_ = resp2.Body.Close()
 	if resp2.StatusCode != 200 {
 		t.Errorf("GET /users/42: expected 200, got %d", resp2.StatusCode)
 	}
@@ -86,7 +92,7 @@ func TestServer_Integration_BasicMocking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /unknown failed: %v", err)
 	}
-	resp3.Body.Close()
+	_ = resp3.Body.Close()
 	if resp3.StatusCode != 404 {
 		t.Errorf("GET /unknown: expected 404, got %d", resp3.StatusCode)
 	}
@@ -96,7 +102,7 @@ func TestServer_Integration_BasicMocking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET / failed: %v", err)
 	}
-	resp4.Body.Close()
+	_ = resp4.Body.Close()
 	if resp4.StatusCode != 200 {
 		t.Errorf("GET /: expected 200, got %d", resp4.StatusCode)
 	}
@@ -110,7 +116,7 @@ func TestServer_Integration_BasicMocking(t *testing.T) {
 	}
 
 	// Shutdown
-	srv.httpSrv.Close()
+	_ = srv.httpSrv.Close()
 }
 
 func TestFilterFilePaths(t *testing.T) {

@@ -38,7 +38,7 @@ func NewWatcher(files []string, onReload func()) (*Watcher, error) {
 		dir := filepath.Dir(absPath)
 		if !watchedDirs[dir] {
 			if err := fw.Add(dir); err != nil {
-				fw.Close()
+				_ = fw.Close()
 				return nil, err
 			}
 			watchedDirs[dir] = true
@@ -102,6 +102,6 @@ func NewWatcher(files []string, onReload func()) (*Watcher, error) {
 // Close stops the watcher.
 func (w *Watcher) Close() {
 	close(w.done)
-	w.watcher.Close()
+	_ = w.watcher.Close()
 	w.wg.Wait()
 }

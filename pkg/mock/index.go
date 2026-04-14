@@ -104,6 +104,6 @@ func IndexHandler(v *cvt.Validator, schemaIDs []string) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		tmpl.Execute(w, map[string]interface{}{"Schemas": schemas})
+		_ = tmpl.Execute(w, map[string]interface{}{"Schemas": schemas})
 	})
 }

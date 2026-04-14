@@ -10,7 +10,9 @@ import (
 func TestWatcher_FileChange(t *testing.T) {
 	dir := t.TempDir()
 	schemaPath := filepath.Join(dir, "test.json")
-	os.WriteFile(schemaPath, []byte(`{"openapi":"3.0.0","info":{"title":"Test","version":"1.0.0"},"paths":{}}`), 0644)
+	if err := os.WriteFile(schemaPath, []byte(`{"openapi":"3.0.0","info":{"title":"Test","version":"1.0.0"},"paths":{}}`), 0644); err != nil {
+		t.Fatalf("write schema: %v", err)
+	}
 
 	reloaded := make(chan struct{}, 1)
 	w, err := NewWatcher([]string{schemaPath}, func() {
@@ -25,7 +27,9 @@ func TestWatcher_FileChange(t *testing.T) {
 	defer w.Close()
 
 	time.Sleep(100 * time.Millisecond)
-	os.WriteFile(schemaPath, []byte(`{"openapi":"3.0.0","info":{"title":"Updated","version":"2.0.0"},"paths":{}}`), 0644)
+	if err := os.WriteFile(schemaPath, []byte(`{"openapi":"3.0.0","info":{"title":"Updated","version":"2.0.0"},"paths":{}}`), 0644); err != nil {
+		t.Fatalf("write updated schema: %v", err)
+	}
 
 	select {
 	case <-reloaded:
@@ -40,7 +44,9 @@ func TestWatcher_IgnoresUnrelatedFiles(t *testing.T) {
 	schemaPath := filepath.Join(dir, "watched.json")
 	otherPath := filepath.Join(dir, "other.json")
 
-	os.WriteFile(schemaPath, []byte(`{}`), 0644)
+	if err := os.WriteFile(schemaPath, []byte(`{}`), 0644); err != nil {
+		t.Fatalf("write schema: %v", err)
+	}
 
 	reloaded := make(chan struct{}, 1)
 	w, err := NewWatcher([]string{schemaPath}, func() {
@@ -55,7 +61,9 @@ func TestWatcher_IgnoresUnrelatedFiles(t *testing.T) {
 	defer w.Close()
 
 	time.Sleep(100 * time.Millisecond)
-	os.WriteFile(otherPath, []byte(`{"other": true}`), 0644)
+	if err := os.WriteFile(otherPath, []byte(`{"other": true}`), 0644); err != nil {
+		t.Fatalf("write other file: %v", err)
+	}
 
 	select {
 	case <-reloaded:
