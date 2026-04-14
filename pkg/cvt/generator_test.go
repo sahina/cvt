@@ -554,6 +554,128 @@ func TestGenerateResponse_RouteNotFound(t *testing.T) {
 	}
 }
 
+func TestGenerateObject_AdditionalProperties(t *testing.T) {
+	// Regression test: schemas with additionalProperties but no named properties
+	// (like Petstore's GET /store/inventory) should generate sample entries,
+	// not an empty object.
+	schema := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/store/inventory": {
+	      "get": {
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {
+	                  "type": "object",
+	                  "additionalProperties": {
+	                    "type": "integer",
+	                    "format": "int32"
+	                  }
+	                }
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("inventory", []byte(schema))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	resp, err := v.GenerateResponse("inventory", "GET", "/store/inventory", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+
+	body, ok := resp.Body.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected object body, got %T", resp.Body)
+	}
+
+	if len(body) == 0 {
+		t.Fatal("expected non-empty object for schema with additionalProperties, got {}")
+	}
+
+	// Each value should be an integer
+	for k, val := range body {
+		switch val.(type) {
+		case int64, float64, int:
+			// ok
+		default:
+			t.Errorf("key %q: expected integer value, got %T (%v)", k, val, val)
+		}
+	}
+}
+
+func TestGenerateObject_AdditionalPropertiesWithNamedProperties(t *testing.T) {
+	// When there ARE named properties, additionalProperties should NOT add synthetic keys
+	schema := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {
+	                  "type": "object",
+	                  "properties": {
+	                    "name": {"type": "string"}
+	                  },
+	                  "additionalProperties": {
+	                    "type": "string"
+	                  }
+	                }
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("mixed", []byte(schema))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	resp, err := v.GenerateResponse("mixed", "GET", "/test", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+
+	body, ok := resp.Body.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected object body, got %T", resp.Body)
+	}
+
+	// Should only have the named property, not synthetic keys
+	if _, ok := body["name"]; !ok {
+		t.Error("expected 'name' field")
+	}
+	if _, ok := body["key1"]; ok {
+		t.Error("should not generate synthetic keys when named properties exist")
+	}
+}
+
 func TestGenerateValue_TypelessSchemaWithProperties(t *testing.T) {
 	schema := `{
 	  "openapi": "3.0.0",

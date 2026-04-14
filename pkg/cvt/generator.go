@@ -503,6 +503,15 @@ func (v *Validator) generateObject(doc *openapi3.T, schema *openapi3.Schema, use
 		result[propName] = v.generateValue(doc, propRef, useExamples, depth+1)
 	}
 
+	// When there are no named properties but additionalProperties has a schema,
+	// generate sample entries so the response isn't an empty object.
+	if len(result) == 0 && schema.AdditionalProperties.Schema != nil {
+		sampleKeys := []string{"key1", "key2", "key3"}
+		for _, k := range sampleKeys {
+			result[k] = v.generateValue(doc, schema.AdditionalProperties.Schema, useExamples, depth+1)
+		}
+	}
+
 	return result
 }
 
