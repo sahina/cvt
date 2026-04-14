@@ -1,4 +1,4 @@
-.PHONY: all build build-cli install-cli test test-docker test-server test-cli test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability clean generate generate-python generate-go-sdk generate-java-sdk help
+.PHONY: all build build-cli install-cli test test-docker test-server test-cli test-e2e test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability clean generate generate-python generate-go-sdk generate-java-sdk help
 .PHONY: up down restart logs status
 .PHONY: install-health-probe health check-health watch-health
 .PHONY: run-server run-example
@@ -39,6 +39,7 @@ help:
 	@echo "  make test-coverage      - Run tests with coverage report (HTML + summary)"
 	@echo "  make test-integration   - Run Go server integration tests (requires Docker)"
 	@echo "  make test-cli           - Run CLI unit tests"
+	@echo "  make test-e2e           - Run CLI e2e tests (cvt mock)"
 	@echo "  make test-cache         - Run cache behavior tests"
 	@echo ""
 	@echo "Lint commands:"
@@ -249,6 +250,11 @@ test-integration:
 	@echo "🧪 Running integration tests (requires Docker)..."
 	go test -v -tags=integration ./server/...
 	@echo "✅ Integration tests passed!"
+
+test-e2e:
+	@echo "🧪 Running CLI e2e tests (cvt mock)..."
+	go test -v -tags=integration -timeout 120s ./cmd/cvt/...
+	@echo "✅ CLI e2e tests passed!"
 
 test-cache:
 	@echo "🧪 Running cache behavior tests..."
