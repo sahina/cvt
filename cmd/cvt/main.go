@@ -44,6 +44,7 @@ Examples:
 	rootCmd.AddCommand(compareCmd())
 	rootCmd.AddCommand(serveCmd())
 	rootCmd.AddCommand(generateCmd())
+	rootCmd.AddCommand(mockCmd())
 	rootCmd.AddCommand(canIDeployCmd())
 	rootCmd.AddCommand(waitCmd())
 	rootCmd.AddCommand(registerSchemaCmd())
