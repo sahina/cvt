@@ -8,6 +8,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+const debounceInterval = 500 * time.Millisecond
+
 // Watcher watches schema files for changes and triggers a reload callback.
 type Watcher struct {
 	watcher *fsnotify.Watcher
@@ -80,7 +82,7 @@ func NewWatcher(files []string, onReload func()) (*Watcher, error) {
 				if debounceTimer != nil {
 					debounceTimer.Stop()
 				}
-				debounceTimer = time.AfterFunc(500*time.Millisecond, onReload)
+				debounceTimer = time.AfterFunc(debounceInterval, onReload)
 				mu.Unlock()
 
 			case _, ok := <-fw.Errors:

@@ -100,7 +100,15 @@ func (h *MockHandler) handleMatchedRoute(w http.ResponseWriter, r *http.Request,
 		}
 
 		result, err := h.validator.ValidateRequest(schemaID, r.Method, r.URL.Path, headers, bodyStr)
-		if err == nil && !result.Valid {
+		if err != nil {
+			h.writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
+				"error":   "request validation error",
+				"details": err.Error(),
+			})
+			h.logRequest(r, http.StatusInternalServerError, start)
+			return
+		}
+		if !result.Valid {
 			h.writeJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"error":      "request validation failed",
 				"violations": result.Errors,

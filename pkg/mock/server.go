@@ -172,7 +172,7 @@ func (s *Server) buildHandler(v *cvt.Validator, schemaIDs []string) http.Handler
 		mockHandler.ServeHTTP(w, r)
 	}))
 
-	return CORSMiddleware(mux)
+	return CORSMiddleware(mockHandler.RecoverMiddleware(mux))
 }
 
 func (s *Server) printBanner(v *cvt.Validator, schemaIDs []string) {
