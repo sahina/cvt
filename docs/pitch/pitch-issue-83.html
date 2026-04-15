@@ -1517,13 +1517,13 @@
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>can-i-deploy, Serverless <span class="badge badge-phase1a">phase 1a</span></h2>
-        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Today, <code>can-i-deploy</code> requires a running CVT server with all schemas and consumers pre-registered. Offline mode reads consumer contract files directly from disk and runs the same compatibility engine locally. Same safety gate, same exit codes, same output &mdash; but no server, no database, no network. Fails-closed by default: if no contracts are found, the command errors instead of silently passing.</p>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Consumers never need a CVT server &mdash; they validate interactions against schemas locally and declare their dependencies in contract files. Producers are the ones who need <code>can-i-deploy</code>, and today that requires a running server with all consumers pre-registered. Offline mode removes that requirement: producers read consumer contract files directly from disk and run the same compatibility engine locally. Same safety gate, same exit codes, same output &mdash; no server, no database, no network. Fails-closed by default: if no contracts are found, the command errors instead of silently passing.</p>
       </div>
 
       <div class="split-terminal reveal d2">
 
         <div>
-          <p class="term-label" style="color:var(--error);">Today — server required</p>
+          <p class="term-label" style="color:var(--error);">Today — producer needs server</p>
           <div class="mockup">
             <div class="mockup-header">
               <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
@@ -1590,7 +1590,7 @@
       </div>
 
       <p class="speaker-note reveal d4">
-        Offline mode mirrors server logic exactly — same compatibility check, same output format, same exit codes. Fails-closed by default: a misconfigured path or missing <code>.cvt/</code> directory errors instead of silently passing.
+        Consumers validate locally and write contract files &mdash; no server involvement. The server was only ever needed by producers running <code>can-i-deploy</code>. Offline mode removes that last dependency. Same compatibility check, same output, same exit codes. Fails-closed by default.
       </p>
     </div>
     <span class="slide-number">8 / 13</span>
@@ -1603,7 +1603,7 @@
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>Static Check <span class="badge badge-phase1a">phase 1a</span></h2>
-        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Before a producer deploys a new schema version, the static check loads every consumer's contract file and runs the CompatibilityEngine against the candidate schema. It detects removed endpoints, type changes, new required fields, and removed enum values &mdash; filtering to only the endpoints each consumer actually uses. If any consumer would break, the command exits non-zero and blocks the deploy.</p>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">This is the producer's safety gate. Before deploying a new schema version, the static check loads every consumer's contract file and runs the CompatibilityEngine against the candidate schema. It detects removed endpoints, type changes, new required fields, and removed enum values &mdash; filtering to only the endpoints each consumer actually uses. If any consumer would break, the command exits non-zero and blocks the deploy. Consumers are not involved &mdash; their contract files speak for them.</p>
       </div>
 
       <div class="split-terminal reveal d2">
