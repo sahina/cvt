@@ -17,6 +17,8 @@ func mockCmd() *cobra.Command {
 		noExamples       bool
 		latency          int
 		quiet            bool
+		seed             uint64
+		seedSet          bool
 	)
 
 	cmd := &cobra.Command{
@@ -56,7 +58,7 @@ Examples:
 				return fmt.Errorf("--latency must be >= 0")
 			}
 
-			srv := mock.NewServer(mock.ServerConfig{
+			cfg := mock.ServerConfig{
 				Host:             host,
 				Port:             port,
 				SchemaFiles:      schemas,
@@ -65,7 +67,12 @@ Examples:
 				UseExamples:      !noExamples,
 				LatencyMs:        latency,
 				Quiet:            quiet,
-			})
+			}
+			if seedSet {
+				cfg.Seed = &seed
+			}
+
+			srv := mock.NewServer(cfg)
 
 			return srv.Start()
 		},
@@ -79,6 +86,11 @@ Examples:
 	cmd.Flags().BoolVar(&noExamples, "no-examples", false, "Use generated values instead of schema examples")
 	cmd.Flags().IntVar(&latency, "latency", 0, "Artificial response delay in milliseconds")
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress request logging")
+	cmd.Flags().Uint64Var(&seed, "seed", 0, "Random seed for deterministic responses")
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		seedSet = cmd.Flags().Changed("seed")
+		return nil
+	}
 
 	return cmd
 }

@@ -26,6 +26,7 @@ type ServerConfig struct {
 	UseExamples      bool
 	LatencyMs        int
 	Quiet            bool
+	Seed             *uint64 // Random seed for deterministic responses (nil = random)
 }
 
 // Server is a mock HTTP server that generates responses from OpenAPI schemas.
@@ -138,7 +139,12 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) loadSchemas(paths []string) (*cvt.Validator, []string, error) {
-	v := cvt.NewValidator()
+	var v *cvt.Validator
+	if s.config.Seed != nil {
+		v = cvt.NewValidatorWithSeed(*s.config.Seed)
+	} else {
+		v = cvt.NewValidator()
+	}
 	var schemaIDs []string
 	usedIDs := make(map[string]int) // track count per base ID for disambiguation
 

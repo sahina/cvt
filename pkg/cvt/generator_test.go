@@ -420,9 +420,9 @@ func TestGenerateValue_StringFormats(t *testing.T) {
 		contains string
 	}{
 		{"email", "@"},
-		{"date", "2024"},
+		{"date", "-"},
 		{"date-time", "T"},
-		{"uri", "https://"},
+		{"uri", "http"},
 		{"uuid", "-"},
 		{"ipv4", "."},
 	}
@@ -1405,4 +1405,245 @@ func TestGenerateValue_TypelessSchemaNoProperties(t *testing.T) {
 		t.Fatalf("GenerateResponse failed: %v", err)
 	}
 	_ = resp
+}
+
+func TestNewValidatorWithSeed(t *testing.T) {
+	v := NewValidatorWithSeed(42)
+	if v == nil {
+		t.Fatal("expected non-nil validator")
+	}
+	err := v.RegisterSchema("test", []byte(testSchemaWithExamples))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+}
+
+func TestSeededDeterminism(t *testing.T) {
+	schema := []byte(testSchemaWithExamples)
+
+	// Generate with seed 42 twice — should produce identical output
+	v1 := NewValidatorWithSeed(42)
+	if err := v1.RegisterSchema("test", schema); err != nil {
+		t.Fatal(err)
+	}
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	json1, err := v1.GenerateFixtureJSON("test", "GET", "/users/1", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v2 := NewValidatorWithSeed(42)
+	if err := v2.RegisterSchema("test", schema); err != nil {
+		t.Fatal(err)
+	}
+	json2, err := v2.GenerateFixtureJSON("test", "GET", "/users/1", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if json1 != json2 {
+		t.Errorf("seeded output not deterministic:\n  run1: %s\n  run2: %s", json1, json2)
+	}
+
+	// Different seed should produce different output
+	v3 := NewValidatorWithSeed(99)
+	if err := v3.RegisterSchema("test", schema); err != nil {
+		t.Fatal(err)
+	}
+	json3, err := v3.GenerateFixtureJSON("test", "GET", "/users/1", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if json1 == json3 {
+		t.Error("different seeds produced identical output")
+	}
+}
+
+func TestGenerateString_DefaultWord(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{} // no format, no enum, no pattern
+	schema.Type = &openapi3.Types{"string"}
+
+	result := v.generateString(schema)
+	if result == "" {
+		t.Error("expected non-empty default string from faker.Word()")
+	}
+	if result == "string" {
+		t.Error("expected faker-generated word, not hardcoded 'string'")
+	}
+}
+
+func TestGenerateString_Pattern(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{Pattern: "^[a-z]+$"}
+	schema.Type = &openapi3.Types{"string"}
+
+	result := v.generateString(schema)
+	if result != "pattern-value" {
+		t.Errorf("expected 'pattern-value' for pattern schema, got %q", result)
+	}
+}
+
+func TestGenerateString_AdditionalFormats(t *testing.T) {
+	v := NewValidator()
+
+	tests := []struct {
+		format   string
+		contains string
+	}{
+		{"hostname", "."},
+		{"ipv6", ":"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.format, func(t *testing.T) {
+			schema := &openapi3.Schema{Format: tt.format}
+			schema.Type = &openapi3.Types{"string"}
+			result := v.generateString(schema)
+			if !strings.Contains(result, tt.contains) {
+				t.Errorf("expected %q format to contain %q, got %q", tt.format, tt.contains, result)
+			}
+		})
+	}
+
+	// byte format should be base64
+	t.Run("byte", func(t *testing.T) {
+		schema := &openapi3.Schema{Format: "byte"}
+		schema.Type = &openapi3.Types{"string"}
+		result := v.generateString(schema)
+		if result == "" {
+			t.Error("expected non-empty base64 string")
+		}
+	})
+}
+
+func TestGenerateInteger_Bounds(t *testing.T) {
+	v := NewValidatorWithSeed(42)
+
+	minVal := float64(10)
+	maxVal := float64(20)
+
+	tests := []struct {
+		name    string
+		min     *float64
+		max     *float64
+		wantMin int64
+		wantMax int64
+	}{
+		{"min only", &minVal, nil, 10, 1010},
+		{"max only", nil, &maxVal, 1, 20},
+		{"both", &minVal, &maxVal, 10, 20},
+		{"neither", nil, nil, 1, 1000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema := &openapi3.Schema{Min: tt.min, Max: tt.max}
+			schema.Type = &openapi3.Types{"integer"}
+			result := v.generateInteger(schema)
+			if result < tt.wantMin || result > tt.wantMax {
+				t.Errorf("expected integer in [%d, %d], got %d", tt.wantMin, tt.wantMax, result)
+			}
+		})
+	}
+}
+
+func TestGenerateNumber_Bounds(t *testing.T) {
+	v := NewValidatorWithSeed(42)
+
+	minVal := float64(1.5)
+	maxVal := float64(9.9)
+
+	tests := []struct {
+		name    string
+		min     *float64
+		max     *float64
+		wantMin float64
+		wantMax float64
+	}{
+		{"min only", &minVal, nil, 1.5, 1001.5},
+		{"max only", nil, &maxVal, 0.01, 9.9},
+		{"both", &minVal, &maxVal, 1.5, 9.9},
+		{"neither", nil, nil, 0.01, 999.99},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema := &openapi3.Schema{Min: tt.min, Max: tt.max}
+			schema.Type = &openapi3.Types{"number"}
+			result := v.generateNumber(schema)
+			if result < tt.wantMin || result > tt.wantMax {
+				t.Errorf("expected number in [%f, %f], got %f", tt.wantMin, tt.wantMax, result)
+			}
+		})
+	}
+}
+
+func TestGenerateBoolean_Varies(t *testing.T) {
+	v := NewValidator() // unseeded = random
+	schema := &openapi3.Schema{}
+	schema.Type = &openapi3.Types{"boolean"}
+
+	seenTrue := false
+	seenFalse := false
+	for i := 0; i < 100; i++ {
+		if v.generateBoolean(schema) {
+			seenTrue = true
+		} else {
+			seenFalse = true
+		}
+		if seenTrue && seenFalse {
+			break
+		}
+	}
+
+	if !seenTrue || !seenFalse {
+		t.Error("expected both true and false to appear in 100 boolean generations")
+	}
+}
+
+func TestGenerateRoundtrip(t *testing.T) {
+	// Generate a fixture and validate it against the same schema
+	v := NewValidatorWithSeed(42)
+	err := v.RegisterSchema("test", []byte(testSchemaWithExamples))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	fixture, err := v.GenerateFixture("test", "POST", "/users", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The generated fixture should have valid structure
+	if fixture.Request.Method != "POST" {
+		t.Errorf("expected POST, got %s", fixture.Request.Method)
+	}
+	if fixture.Response.StatusCode != 201 {
+		t.Errorf("expected 201, got %d", fixture.Response.StatusCode)
+	}
+
+	// Body should be a valid object with expected fields
+	body, ok := fixture.Response.Body.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected response body to be object, got %T", fixture.Response.Body)
+	}
+
+	// Validate response body has schema-required fields
+	for _, field := range []string{"id", "name", "email"} {
+		if body[field] == nil {
+			t.Errorf("expected response body to have %q field", field)
+		}
+	}
+
+	// Email should contain @
+	if email, ok := body["email"].(string); ok {
+		if !strings.Contains(email, "@") {
+			t.Errorf("expected email to contain @, got %q", email)
+		}
+	}
 }
