@@ -1,4 +1,4 @@
-.PHONY: all build build-cli install-cli test test-docker test-server test-cli test-e2e test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability clean generate generate-python generate-go-sdk generate-java-sdk help
+.PHONY: all build build-cli install-cli test test-docker test-server test-cli test-e2e test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability test-cover clean generate generate-python generate-go-sdk generate-java-sdk help
 .PHONY: up down restart logs status
 .PHONY: install-health-probe health check-health watch-health
 .PHONY: run-server run-example
@@ -37,6 +37,7 @@ help:
 	@echo "  make test-go-sdk        - Run Go SDK tests with coverage"
 	@echo "  make test-java-sdk      - Run Java SDK tests with coverage"
 	@echo "  make test-coverage      - Run tests with coverage report (HTML + summary)"
+	@echo "  make test-cover        - Run pkg/cvt tests with 80%% coverage gate"
 	@echo "  make test-integration   - Run Go server integration tests (requires Docker)"
 	@echo "  make test-cli           - Run CLI unit tests"
 	@echo "  make test-e2e           - Run CLI e2e tests (cvt mock)"
@@ -245,6 +246,32 @@ test-coverage:
 	go tool cover -html=coverage.filtered.out -o coverage.html
 	@echo "📄 Detailed HTML coverage report generated: coverage.html"
 	@echo "✅ Run 'open coverage.html' to view the detailed coverage report"
+
+test-cover:
+	@echo "🧪 Running tests with coverage..."
+	@go test -coverprofile=coverage-pkg.out -covermode=atomic \
+		./pkg/cvt/... ./server/cvtservice/... ./server/storage/... 2>&1 | \
+		grep -v 'server/storage/postgres' | \
+		awk '/^ok/ && /coverage:/ {for(i=1;i<=NF;i++) if($$i=="coverage:") cov=$$(i+1); printf "  %-55s %s\n", $$2, cov} \
+		     /^[^o]/ && /coverage:/ {for(i=1;i<=NF;i++) if($$i=="coverage:") cov=$$(i+1); pkg=$$1; printf "  %-55s %s\n", pkg, cov} \
+		     /^FAIL/ {printf "  %-55s FAIL\n", $$2} \
+		     /^\?/ {printf "  %-55s no tests\n", $$2}'
+	@echo "  (postgres excluded — tested via make test-docker)"
+	@echo ""
+	@grep -v 'server/storage/postgres/' coverage-pkg.out > coverage-pkg-filtered.out
+	@TOTAL_COV=$$(go tool cover -func=coverage-pkg-filtered.out | grep '^total:' | awk '{print $$NF}' | tr -d '%'); \
+	echo "📊 Total coverage: $${TOTAL_COV}%"; \
+	echo ""; \
+	if [ $$(echo "$${TOTAL_COV} < 80.0" | bc -l) -eq 1 ]; then \
+		echo "❌ Coverage $${TOTAL_COV}% is below 80% threshold"; \
+		echo ""; \
+		echo "Functions below 80%:"; \
+		go tool cover -func=coverage-pkg-filtered.out | grep -v '^total:' | awk '$$NF+0 < 80 {print}'; \
+		exit 1; \
+	else \
+		echo "✅ Coverage gate passed ($${TOTAL_COV}% >= 80%)"; \
+	fi
+	@rm -f coverage-pkg-filtered.out
 
 test-integration:
 	@echo "🧪 Running integration tests (requires Docker)..."

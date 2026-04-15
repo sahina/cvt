@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/getkin/kin-openapi/openapi3"
 )
 
 const testSchemaWithExamples = `{
@@ -722,6 +724,649 @@ func TestGenerateValue_TypelessSchemaWithProperties(t *testing.T) {
 	}
 	if body["name"] == nil {
 		t.Error("expected 'name' field in generated object")
+	}
+}
+
+func TestGenerateNumber_Default(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{}
+	schema.Type = &openapi3.Types{"number"}
+	result := v.generateNumber(schema)
+	if result != 123.45 {
+		t.Errorf("expected 123.45, got %v", result)
+	}
+}
+
+func TestGenerateNumber_WithEnum(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{}
+	schema.Type = &openapi3.Types{"number"}
+	schema.Enum = []interface{}{42.5}
+	result := v.generateNumber(schema)
+	if result != 42.5 {
+		t.Errorf("expected 42.5, got %v", result)
+	}
+}
+
+func TestGenerateNumber_WithMin(t *testing.T) {
+	v := NewValidator()
+	min := 10.0
+	schema := &openapi3.Schema{}
+	schema.Type = &openapi3.Types{"number"}
+	schema.Min = &min
+	result := v.generateNumber(schema)
+	if result != 10.0 {
+		t.Errorf("expected 10.0, got %v", result)
+	}
+}
+
+func TestGenerateBoolean_Default(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{}
+	schema.Type = &openapi3.Types{"boolean"}
+	// Just verify it returns a boolean (random)
+	result := v.generateBoolean(schema)
+	_ = result // bool is always valid
+}
+
+func TestGenerateBoolean_WithEnum(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{}
+	schema.Type = &openapi3.Types{"boolean"}
+	schema.Enum = []interface{}{true}
+	result := v.generateBoolean(schema)
+	if !result {
+		t.Error("expected true from enum")
+	}
+}
+
+func TestGenerateAllOf(t *testing.T) {
+	schemaJSON := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {
+	                  "allOf": [
+	                    {"type": "object", "properties": {"id": {"type": "integer"}}},
+	                    {"type": "object", "properties": {"name": {"type": "string"}}}
+	                  ]
+	                }
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("allof-test", []byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	resp, err := v.GenerateResponse("allof-test", "GET", "/test", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+
+	body, ok := resp.Body.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected object, got %T", resp.Body)
+	}
+	if body["id"] == nil {
+		t.Error("expected 'id' from first allOf schema")
+	}
+	if body["name"] == nil {
+		t.Error("expected 'name' from second allOf schema")
+	}
+}
+
+func TestGetResponseForStatus_Exact(t *testing.T) {
+	v := NewValidator()
+	err := v.RegisterSchema("test", []byte(testSchemaWithExamples))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	doc, _ := v.GetSchema("test")
+	operation, err := v.findOperation(doc, "POST", "/users")
+	if err != nil {
+		t.Fatalf("findOperation failed: %v", err)
+	}
+
+	resp, err := v.getResponseForStatus(operation, 201)
+	if err != nil {
+		t.Fatalf("getResponseForStatus failed: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected non-nil response for status 201")
+	}
+}
+
+func TestGetResponseForStatus_Default(t *testing.T) {
+	schemaJSON := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "default": {
+	            "description": "Default response",
+	            "content": {"application/json": {"schema": {"type": "object"}}}
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("default-test", []byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	doc, _ := v.GetSchema("default-test")
+	operation, err := v.findOperation(doc, "GET", "/test")
+	if err != nil {
+		t.Fatalf("findOperation failed: %v", err)
+	}
+
+	resp, err := v.getResponseForStatus(operation, 200)
+	if err != nil {
+		t.Fatalf("getResponseForStatus with default should not fail: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected default response")
+	}
+}
+
+func TestGetResponseForStatus_Wildcard(t *testing.T) {
+	schemaJSON := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "2XX": {
+	            "description": "Success",
+	            "content": {"application/json": {"schema": {"type": "object"}}}
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("wildcard-test", []byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	doc, _ := v.GetSchema("wildcard-test")
+	operation, err := v.findOperation(doc, "GET", "/test")
+	if err != nil {
+		t.Fatalf("findOperation failed: %v", err)
+	}
+
+	resp, err := v.getResponseForStatus(operation, 200)
+	if err != nil {
+		t.Fatalf("getResponseForStatus with wildcard should not fail: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected wildcard response")
+	}
+}
+
+func TestGetResponseForStatus_NotFound(t *testing.T) {
+	v := NewValidator()
+	err := v.RegisterSchema("test", []byte(testSchemaWithExamples))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	doc, _ := v.GetSchema("test")
+	operation, err := v.findOperation(doc, "GET", "/users/{id}")
+	if err != nil {
+		t.Fatalf("findOperation failed: %v", err)
+	}
+
+	// Status 500 doesn't exist and no default
+	_, err = v.getResponseForStatus(operation, 500)
+	if err == nil {
+		t.Error("expected error for non-existent status")
+	}
+}
+
+func TestGetResponseForStatus_NilResponses(t *testing.T) {
+	v := NewValidator()
+	operation := &openapi3.Operation{}
+	_, err := v.getResponseForStatus(operation, 200)
+	if err == nil {
+		t.Error("expected error for nil responses")
+	}
+}
+
+func TestSelectSuccessStatus_Preferred(t *testing.T) {
+	v := NewValidator()
+	err := v.RegisterSchema("test", []byte(testSchemaWithExamples))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	doc, _ := v.GetSchema("test")
+
+	// GET /users has 200 → should select 200
+	getOp, _ := v.findOperation(doc, "GET", "/users")
+	status := v.selectSuccessStatus(getOp)
+	if status != 200 {
+		t.Errorf("expected 200 for GET /users, got %d", status)
+	}
+
+	// POST /users has 201 → should select 201
+	postOp, _ := v.findOperation(doc, "POST", "/users")
+	status = v.selectSuccessStatus(postOp)
+	if status != 201 {
+		t.Errorf("expected 201 for POST /users, got %d", status)
+	}
+}
+
+func TestSelectSuccessStatus_NilResponses(t *testing.T) {
+	v := NewValidator()
+	operation := &openapi3.Operation{}
+	status := v.selectSuccessStatus(operation)
+	if status != 200 {
+		t.Errorf("expected 200 for nil responses, got %d", status)
+	}
+}
+
+func TestSelectSuccessStatus_NonPreferred2XX(t *testing.T) {
+	schemaJSON := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "203": {"description": "Non-Authoritative Info"}
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("non-preferred", []byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	doc, _ := v.GetSchema("non-preferred")
+	op, _ := v.findOperation(doc, "GET", "/test")
+	status := v.selectSuccessStatus(op)
+	if status != 203 {
+		t.Errorf("expected 203 for non-preferred 2XX, got %d", status)
+	}
+}
+
+func TestSelectSuccessStatus_OnlyNon2XX(t *testing.T) {
+	schemaJSON := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "301": {"description": "Moved"},
+	          "default": {"description": "Default"}
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("non-2xx", []byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	doc, _ := v.GetSchema("non-2xx")
+	op, _ := v.findOperation(doc, "GET", "/test")
+	status := v.selectSuccessStatus(op)
+	// Should fall back to first available non-default code
+	if status != 301 {
+		t.Errorf("expected 301 as fallback, got %d", status)
+	}
+}
+
+func TestGenerateFixture_WithPathParams(t *testing.T) {
+	v := NewValidator()
+	err := v.RegisterSchema("test", []byte(testSchemaWithExamples))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	fixture, err := v.GenerateFixture("test", "GET", "/users/{id}", opts)
+	if err != nil {
+		t.Fatalf("GenerateFixture failed: %v", err)
+	}
+
+	// Path should have {id} resolved
+	if strings.Contains(fixture.Request.Path, "{id}") {
+		t.Errorf("expected path param to be resolved, got %s", fixture.Request.Path)
+	}
+}
+
+func TestGenerateFixture_SchemaNotFound(t *testing.T) {
+	v := NewValidator()
+	opts := DefaultGenerateOptions()
+	_, err := v.GenerateFixture("nonexistent", "GET", "/test", opts)
+	if err == nil {
+		t.Error("expected error for non-existent schema")
+	}
+}
+
+func TestGenerateValue_OneOf(t *testing.T) {
+	schemaJSON := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {
+	                  "oneOf": [
+	                    {"type": "string"},
+	                    {"type": "integer"}
+	                  ]
+	                }
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("oneof-test", []byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	resp, err := v.GenerateResponse("oneof-test", "GET", "/test", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+
+	// Should pick first oneOf (string)
+	if _, ok := resp.Body.(string); !ok {
+		t.Errorf("expected string from oneOf[0], got %T", resp.Body)
+	}
+}
+
+func TestGenerateValue_AnyOf(t *testing.T) {
+	schemaJSON := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {
+	                  "anyOf": [
+	                    {"type": "integer"},
+	                    {"type": "string"}
+	                  ]
+	                }
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("anyof-test", []byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	resp, err := v.GenerateResponse("anyof-test", "GET", "/test", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+
+	// Should pick first anyOf (integer)
+	if resp.Body == nil {
+		t.Fatal("expected non-nil body from anyOf")
+	}
+}
+
+func TestGenerateValue_DepthLimit(t *testing.T) {
+	v := NewValidator()
+	doc := &openapi3.T{}
+	schemaRef := &openapi3.SchemaRef{
+		Value: &openapi3.Schema{},
+	}
+	schemaRef.Value.Type = &openapi3.Types{"object"}
+	schemaRef.Value.Properties = openapi3.Schemas{
+		"self": schemaRef, // self-referencing
+	}
+
+	result := v.generateValue(doc, schemaRef, false, 11)
+	if result != nil {
+		t.Errorf("expected nil at depth > 10, got %v", result)
+	}
+}
+
+func TestGenerateValue_NilSchemaRef(t *testing.T) {
+	v := NewValidator()
+	doc := &openapi3.T{}
+	result := v.generateValue(doc, nil, false, 0)
+	if result != nil {
+		t.Errorf("expected nil for nil schemaRef, got %v", result)
+	}
+}
+
+func TestGenerateString_MoreFormats(t *testing.T) {
+	v := NewValidator()
+
+	tests := []struct {
+		format   string
+		expected string
+	}{
+		{"hostname", "example.com"},
+		{"ipv6", "::1"},
+		{"byte", "c3RyaW5n"},
+		{"binary", "binary-data"},
+		{"password", "********"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.format, func(t *testing.T) {
+			schema := &openapi3.Schema{Format: tt.format}
+			schema.Type = &openapi3.Types{"string"}
+			result := v.generateString(schema)
+			if result != tt.expected {
+				t.Errorf("generateString(%q) = %q, want %q", tt.format, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGenerateString_Pattern(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{Pattern: `^\d{3}-\d{4}$`}
+	schema.Type = &openapi3.Types{"string"}
+	result := v.generateString(schema)
+	if result != "pattern-value" {
+		t.Errorf("expected 'pattern-value', got %q", result)
+	}
+}
+
+func TestGenerateInteger_WithEnum(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{}
+	schema.Type = &openapi3.Types{"integer"}
+	schema.Enum = []interface{}{float64(42)}
+	result := v.generateInteger(schema)
+	if result != 42 {
+		t.Errorf("expected 42, got %d", result)
+	}
+}
+
+func TestGenerateInteger_Int64Format(t *testing.T) {
+	v := NewValidator()
+	schema := &openapi3.Schema{Format: "int64"}
+	schema.Type = &openapi3.Types{"integer"}
+	result := v.generateInteger(schema)
+	if result != 1234567890 {
+		t.Errorf("expected 1234567890, got %d", result)
+	}
+}
+
+func TestGenerateInteger_WithMin(t *testing.T) {
+	v := NewValidator()
+	min := 5.0
+	schema := &openapi3.Schema{}
+	schema.Type = &openapi3.Types{"integer"}
+	schema.Min = &min
+	result := v.generateInteger(schema)
+	if result != 5 {
+		t.Errorf("expected 5, got %d", result)
+	}
+}
+
+func TestGenerateArray_MinItems(t *testing.T) {
+	schemaJSON := `{
+	  "openapi": "3.0.0",
+	  "info": {"title": "Test", "version": "1.0.0"},
+	  "paths": {
+	    "/test": {
+	      "get": {
+	        "responses": {
+	          "200": {
+	            "description": "OK",
+	            "content": {
+	              "application/json": {
+	                "schema": {
+	                  "type": "array",
+	                  "minItems": 3,
+	                  "items": {"type": "string"}
+	                }
+	              }
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	v := NewValidator()
+	err := v.RegisterSchema("minitems-test", []byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.UseExamples = false
+	resp, err := v.GenerateResponse("minitems-test", "GET", "/test", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+
+	arr, ok := resp.Body.([]interface{})
+	if !ok {
+		t.Fatalf("expected array, got %T", resp.Body)
+	}
+	if len(arr) < 3 {
+		t.Errorf("expected at least 3 items (minItems), got %d", len(arr))
+	}
+}
+
+func TestGenerateRequestBody_SchemaNotFound(t *testing.T) {
+	v := NewValidator()
+	opts := DefaultGenerateOptions()
+	_, err := v.GenerateRequestBody("nonexistent", "POST", "/test", opts)
+	if err == nil {
+		t.Error("expected error for non-existent schema")
+	}
+}
+
+func TestGenerateFixtureJSON_SchemaNotFound(t *testing.T) {
+	v := NewValidator()
+	opts := DefaultGenerateOptions()
+	_, err := v.GenerateFixtureJSON("nonexistent", "POST", "/test", opts)
+	if err == nil {
+		t.Error("expected error for non-existent schema")
+	}
+}
+
+func TestListEndpoints_SchemaNotFound(t *testing.T) {
+	v := NewValidator()
+	_, err := v.ListEndpoints("nonexistent")
+	if err == nil {
+		t.Error("expected error for non-existent schema")
+	}
+}
+
+func TestGetResponseExample_SchemaNotFound(t *testing.T) {
+	v := NewValidator()
+	_, err := v.GetResponseExample("nonexistent", "GET", "/test", 200)
+	if err == nil {
+		t.Error("expected error for non-existent schema")
+	}
+}
+
+func TestGenerateResponse_NoContent(t *testing.T) {
+	// 404 response without content — should generate response with no body
+	v := NewValidator()
+	err := v.RegisterSchema("test", []byte(testSchemaWithExamples))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	opts := DefaultGenerateOptions()
+	opts.StatusCode = 404
+	resp, err := v.GenerateResponse("test", "GET", "/users/{id}", opts)
+	if err != nil {
+		t.Fatalf("GenerateResponse failed: %v", err)
+	}
+	if resp.StatusCode != 404 {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
