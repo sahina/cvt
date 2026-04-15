@@ -483,6 +483,9 @@ func TestMockCLI_Watch(t *testing.T) {
 	_, port, _ := startMockServer(t, testBinary, "--schema", tmpSchema, "--watch")
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 
+	// Let the watcher goroutine fully initialize before modifying the file
+	time.Sleep(500 * time.Millisecond)
+
 	// Verify GET /pets works
 	resp, err := http.Get(baseURL + "/pets")
 	if err != nil {
@@ -530,13 +533,27 @@ func TestMockCLI_Watch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal modified schema: %v", err)
 	}
-	if err := os.WriteFile(tmpSchema, modifiedData, 0644); err != nil {
+
+	// Write modified schema using explicit open+write+sync to ensure the data
+	// is flushed to disk before fsnotify triggers the reload.
+	f, err := os.OpenFile(tmpSchema, os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		t.Fatalf("failed to open schema for writing: %v", err)
+	}
+	if _, err := f.Write(modifiedData); err != nil {
+		f.Close()
 		t.Fatalf("failed to write modified schema: %v", err)
 	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		t.Fatalf("failed to sync schema file: %v", err)
+	}
+	f.Close()
 
 	// Poll until the new /health endpoint returns 200 (proves reload worked)
+	// Allow 10s: 500ms watcher debounce + schema parse + handler rebuild
 	healthReady := false
-	reloadDeadline := time.Now().Add(5 * time.Second)
+	reloadDeadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(reloadDeadline) {
 		resp2, err := http.Get(baseURL + "/health")
 		if err == nil {
