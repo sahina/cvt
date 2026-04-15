@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/dgraph-io/ristretto v0.2.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/getkin/kin-openapi v0.134.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.1

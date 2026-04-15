@@ -114,12 +114,12 @@
 
 **What:** Cache gorillamux routers at schema registration time in `pkg/cvt/validator.go`, matching the server pattern in `validator_service.go:199-211`.
 
-**Why:** Currently creates a new router on every Validate call (O(P) per call where P = number of paths). Server caches at registration time. Accepted in eng review but not blocking Phase 1a since offline can-i-deploy doesn't use routers.
+**Why:** Currently creates a new router on every Validate call (O(P) per call where P = number of paths). Server caches at registration time. Accepted in eng review but not blocking Phase 1a since offline can-i-deploy doesn't use routers. Also impacts `cvt mock` performance: `findOperation()` in `generator.go` creates a new router per GenerateResponse call, meaning every mock request builds a router.
 
 **Effort:** S (human: ~2 hours) → with CC: S (~10 min)
 **Priority:** P3
 **Depends on:** None (can be done anytime)
-**Source:** Eng Review 2026-04-09
+**Source:** Eng Review 2026-04-09, CEO Review 2026-04-14 (mock server outside voice)
 
 ## P3: Ristretto cache cost model fix
 

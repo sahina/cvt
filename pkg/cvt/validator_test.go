@@ -263,3 +263,64 @@ func TestGetSchema(t *testing.T) {
 		t.Fatal("expected not to find nonexistent schema")
 	}
 }
+
+func TestValidateRequest_Valid(t *testing.T) {
+	v := NewValidator()
+	err := v.RegisterSchema("test", []byte(testSchema))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	result, err := v.ValidateRequest("test", "GET", "/pets", nil, "")
+	if err != nil {
+		t.Fatalf("ValidateRequest failed: %v", err)
+	}
+	if !result.Valid {
+		t.Errorf("expected valid request, got errors: %v", result.Errors)
+	}
+}
+
+func TestValidateRequest_InvalidBody(t *testing.T) {
+	v := NewValidator()
+	err := v.RegisterSchema("test", []byte(testSchema))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	headers := map[string]string{"Content-Type": "application/json"}
+	// POST /pets requires name field
+	result, err := v.ValidateRequest("test", "POST", "/pets", headers, `{"invalid": true}`)
+	if err != nil {
+		t.Fatalf("ValidateRequest failed: %v", err)
+	}
+	if result.Valid {
+		t.Error("expected invalid request for missing required fields")
+	}
+	if len(result.Errors) == 0 {
+		t.Error("expected validation errors")
+	}
+}
+
+func TestValidateRequest_RouteNotFound(t *testing.T) {
+	v := NewValidator()
+	err := v.RegisterSchema("test", []byte(testSchema))
+	if err != nil {
+		t.Fatalf("RegisterSchema failed: %v", err)
+	}
+
+	result, err := v.ValidateRequest("test", "GET", "/nonexistent", nil, "")
+	if err != nil {
+		t.Fatalf("ValidateRequest failed: %v", err)
+	}
+	if result.Valid {
+		t.Error("expected invalid result for non-existent route")
+	}
+}
+
+func TestValidateRequest_SchemaNotFound(t *testing.T) {
+	v := NewValidator()
+	_, err := v.ValidateRequest("nonexistent", "GET", "/test", nil, "")
+	if err == nil {
+		t.Error("expected error for non-existent schema")
+	}
+}

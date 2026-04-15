@@ -33,6 +33,7 @@ Listen to an [AI-generated podcast](https://github.com/sahina/cvt/raw/main/asset
 - **Consumer Validation** - Validate outgoing API calls match the contract (client-side)
 - **Producer Validation** - Validate incoming requests match the contract (server-side middleware)
 - **Consumer Registry** - Track which consumers depend on which schemas
+- **Mock Server** - Generate a running HTTP mock server from any OpenAPI schema with `cvt mock`
 - **Deployment Safety** - `can-i-deploy` checks prevent breaking changes from reaching production
 - **High Performance** - gRPC-based server with schema caching (1000 schemas, 24h TTL)
 - **Multiple SDKs** - Node.js, Python, Go, and Java client libraries
@@ -182,6 +183,9 @@ cvt validate --schema ./openapi.json --request req.json --response resp.json
 
 # Detect breaking changes between schema versions
 cvt compare --old ./v1/openapi.json --new ./v2/openapi.json
+
+# Start a mock HTTP server from a schema
+cvt mock --schema ./openapi.json
 
 # Check deployment safety
 cvt can-i-deploy --schema my-api --version 2.0.0 --env prod

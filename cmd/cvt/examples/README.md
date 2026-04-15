@@ -58,6 +58,27 @@ cvt compare \
   --new ./sdks/shared/openapi-v2-breaking.json
 ```
 
+### Start a mock server
+
+```bash
+# Basic mock server on port 8080
+cvt mock --schema ./cmd/cvt/examples/schema.json
+
+# With request validation and hot-reload
+cvt mock \
+  --schema ./cmd/cvt/examples/schema.json \
+  --validate-requests --watch
+
+# Multiple schemas on a custom port
+cvt mock \
+  --schema ./cmd/cvt/examples/schema.json \
+  --schema ./sdks/shared/openapi.json \
+  --port 3000
+
+# Then test it (port 3000 from above)
+curl http://localhost:3000/users/1
+```
+
 ## Expected Output
 
 ### Valid interaction

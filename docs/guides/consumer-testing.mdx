@@ -479,6 +479,15 @@ validator.close();
 
 Use the mock adapter for tests without a real API:
 
+:::tip Standalone Mock Server
+Need a running HTTP server instead of an in-process mock? Use [`cvt mock`](../reference/cli.mdx#mock) to start a standalone mock server from any OpenAPI schema — great for frontend development, manual testing, or non-SDK languages:
+
+```bash
+cvt mock --schema ./openapi.json --validate-requests --watch
+```
+
+:::
+
 <Tabs groupId="sdk-language">
 <TabItem value="nodejs" label="Node.js">
 
