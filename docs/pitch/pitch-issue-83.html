@@ -609,6 +609,9 @@
     .badge-phase1a  { background: rgba(16, 185, 129, 0.14); color: var(--brand-light); border: 1px solid rgba(16, 185, 129, 0.25); }
     .badge-prereq   { background: rgba(245, 158, 11, 0.14); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.25); }
     .badge-stub     { background: rgba(88, 82, 72, 0.4);    color: var(--text-muted); border: 1px solid rgba(255,255,255,0.06); }
+    .badge-phase1b  { background: rgba(6, 182, 212, 0.14);  color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.25); }
+    .badge-phase2   { background: rgba(245, 158, 11, 0.14); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-phase3   { background: rgba(88, 82, 72, 0.4);    color: var(--text-muted); border: 1px solid rgba(255,255,255,0.06); }
 
     /* =====================================================================
        PHASE TIMELINE (Slide 9)
@@ -1050,15 +1053,61 @@
       </div>
       <h1>Enterprise Deployment<br/>Models</h1>
       <p class="tagline">Contract Validator Toolkit</p>
-      <p class="subtitle">Phase 1a Design Alignment &mdash; 2026-04-10</p>
+      <p class="subtitle">Phase 1a Design Alignment &mdash; 2026-04-15</p>
     </div>
     <span class="slide-number">1 / 13</span>
   </section>
 
   <!-- ==================================================================
-       SLIDE 2: THE CONSTRAINT
+       SLIDE 2: VISION (moved from closing)
        ================================================================== -->
-  <section class="slide" data-slide="1">
+  <section class="slide slide-title" data-slide="1">
+    <div class="slide-inner" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:1.75rem;">
+
+      <h1 class="closing-headline">No database required.<br/>Teams choose.</h1>
+
+      <p class="closing-text">
+        When contracts live in git and schemas are pulled by URI, deployment safety gates work without shared infrastructure. Teams opt into the model that fits their workflow &mdash; and nothing that works today changes.
+      </p>
+
+      <div style="width:100%;max-width:560px;text-align:left;">
+        <p style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.75rem;">Key design decisions</p>
+        <div class="decisions-list">
+          <div class="decision-item">
+            <span class="num">01</span>
+            <span><code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">SchemaProvider</code> interface is the contract — all schema sources implement it, no special cases</span>
+          </div>
+          <div class="decision-item">
+            <span class="num">02</span>
+            <span><code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">Store</code> interface is top-level — <code style="color:var(--brand-light);">file</code>, <code style="color:var(--brand-light);">sqlite</code>, <code style="color:var(--brand-light);">postgres</code>, <code style="color:var(--brand-light);">memory</code> are peers</span>
+          </div>
+          <div class="decision-item">
+            <span class="num">03</span>
+            <span>Offline <code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">can-i-deploy</code> mirrors server logic exactly — same exit codes, same output</span>
+          </div>
+          <div class="decision-item">
+            <span class="num">04</span>
+            <span>Offline mode <strong style="color:var(--text);">fails-closed</strong> by default — <code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">--allow-no-contracts</code> for explicit opt-in</span>
+          </div>
+          <div class="decision-item">
+            <span class="num">05</span>
+            <span>Centralized contract repo <strong style="color:var(--text);">recommended</strong> over distributed — works on any git host</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:0.75rem 1.5rem;font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:0.01em;margin-top:0.25rem;">
+        <span style="color:var(--brand);">$</span> <span style="color:var(--text);">go build -o cvt ./cmd/cvt</span><br/>
+        <span style="color:var(--brand);">$</span> <span style="color:var(--text);">cvt init --mode consumer --ci generic</span>
+      </div>
+    </div>
+    <span class="slide-number">2 / 13</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 3: THE CONSTRAINT
+       ================================================================== -->
+  <section class="slide" data-slide="2">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>Today's Limitation</h2>
@@ -1124,13 +1173,13 @@
         The current architecture is the right design for a single team or small org. These new models extend it for enterprise scale without replacing anything.
       </p>
     </div>
-    <span class="slide-number">2 / 13</span>
+    <span class="slide-number">3 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 3: THREE TOPOLOGIES
        ================================================================== -->
-  <section class="slide" data-slide="2">
+  <section class="slide" data-slide="3">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>Three Deployment Models</h2>
@@ -1138,38 +1187,38 @@
 
       <div class="domain-cards">
         <div class="domain-card card-model-srv reveal d2">
-          <div class="card-label">Existing Model</div>
+          <div class="card-label">Existing Model <span class="badge badge-existing">existing</span></div>
           <h3>Server (Unchanged)</h3>
           <p>Teams using <code>cvt serve</code> with PostgreSQL or SQLite continue exactly as before. New models add options &mdash; they do not change or replace this model.</p>
           <div class="best-for"><strong>Best for:</strong> Teams already running <code>cvt serve</code> who want a shared registry with consumer management.</div>
         </div>
         <div class="domain-card card-model-a reveal d3">
-          <div class="card-label">Model A</div>
+          <div class="card-label">Model A <span class="badge badge-existing">existing</span></div>
           <h3>CLI-Only</h3>
           <p>Teams run <code>cvt validate</code>, <code>cvt compare</code>, <code>cvt generate</code> in CI pipelines. Schemas pulled from any URL or file. No server, no database, no shared state.</p>
           <div class="best-for"><strong>Best for:</strong> Teams that want schema validation and breaking change detection with zero infrastructure.</div>
         </div>
         <div class="domain-card card-model-b reveal d4">
-          <div class="card-label">Model B</div>
-          <h3>Git-Native</h3>
-          <p>Contracts and schemas live as files in git repos. Teams choose where contracts are stored &mdash; centralized repo, consumer repos, or a mix. CVT reads from wherever they are.</p>
-          <div class="best-for"><strong>Best for:</strong> Cross-team contract validation with minimal infrastructure, using git as the source of truth.</div>
+          <div class="card-label">Model B <span class="badge badge-phase1a">phase 1a</span></div>
+          <h3>Git-Native (Centralized Recommended)</h3>
+          <p>Contracts and schemas live in a centralized git contract repo &mdash; auditable in one place, works on any git host. Distributed discovery across consumer repos is <span class="badge badge-phase2">phase 2</span> GitHub-only.</p>
+          <div class="best-for"><strong>Best for:</strong> Cross-team contract validation using a centralized contract repo, git as the source of truth.</div>
         </div>
       </div>
 
       <p class="pivot-line reveal d5">New deployment models &mdash; the server evolves alongside them.</p>
 
       <p class="speaker-note reveal d6">
-        The key design principle: new deployment topologies extend CVT's reach. The server model evolves as needed to support them. Teams choose the model that fits their workflow.
+        Centralized contract repo is the recommended topology &mdash; it works on any git host (GitHub, GitLab, Bitbucket, Azure DevOps), is auditable in one place, and avoids the fragility of cross-repo discovery. Distributed mode (<code>discover://</code>) is Phase 2, GitHub-only.
       </p>
     </div>
-    <span class="slide-number">3 / 13</span>
+    <span class="slide-number">4 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 4: ARCHITECTURE
        ================================================================== -->
-  <section class="slide" data-slide="3">
+  <section class="slide" data-slide="4">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>New Package Boundary</h2>
@@ -1290,16 +1339,17 @@
         <code>pkg/contracts</code> is a new package that imports <code>pkg/cvt</code> — not the other way around. This keeps the dependency direction clean. The file backend is a new peer of sqlite/postgres/memory, not a special case.
       </p>
     </div>
-    <span class="slide-number">4 / 13</span>
+    <span class="slide-number">5 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 5: SCHEMA PROVIDERS
        ================================================================== -->
-  <section class="slide" data-slide="4">
+  <section class="slide" data-slide="5">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>Pluggable Schema Sources</h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Today, schemas must be registered via gRPC or passed as local files. Enterprise teams already store schemas in GitHub repos, internal registries, or behind custom APIs. Schema providers let CVT pull from any source using a single URI &mdash; no registration step, no server, just point and validate.</p>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1.1fr;gap:2.5rem;margin-top:2rem;align-items:start;">
@@ -1356,12 +1406,12 @@
               <tr>
                 <td class="scheme">github://</td>
                 <td>github://org/repo/<br/>openapi.yaml@main</td>
-                <td class="phase"><span class="badge badge-new">new</span></td>
+                <td class="phase"><span class="badge badge-phase1b">phase 1b</span></td>
               </tr>
               <tr>
                 <td class="scheme">registry://</td>
                 <td>registry://payments-api<br/>@1.0.0</td>
-                <td class="phase"><span class="badge badge-new">new</span></td>
+                <td class="phase"><span class="badge badge-phase1b">phase 1b</span></td>
               </tr>
             </tbody>
           </table>
@@ -1378,17 +1428,96 @@
         The interface is minimal by design: three methods, no configuration in the interface itself. Config for things like auth tokens lives in <code>.cvt/config.yaml</code> and is picked up by the provider at initialization time.
       </p>
     </div>
-    <span class="slide-number">5 / 13</span>
+    <span class="slide-number">6 / 13</span>
   </section>
 
   <!-- ==================================================================
-       SLIDE 6: OFFLINE CAN-I-DEPLOY
+       SLIDE 6: CONTRACT FILE (moved up from old slide 10)
        ================================================================== -->
-  <section class="slide" data-slide="5">
+  <section class="slide" data-slide="6">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
-        <h2>can-i-deploy, Serverless</h2>
-        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Same safety gate. No server required.</p>
+        <h2>The Contract File <span class="badge badge-phase1a">phase 1a</span></h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">The consumer's declaration of which endpoints they call and what shapes they expect — named after the producer, owned by the consumer.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:2.5rem;margin-top:2rem;align-items:start;">
+
+        <div class="reveal d2">
+          <p style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.6rem;">checkout-service repo &nbsp;·&nbsp; <span style="color:var(--brand-light);">owned by the consumer</span></p>
+          <div class="mockup">
+            <div class="mockup-header">
+              <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+              <span class="title">.cvt/payments-api.yaml</span>
+            </div>
+<pre class="code-body"><span class="ky">consumer_id</span>: <span class="vl">checkout-service</span>
+<span class="ky">consumer_version</span>: <span class="vl">3.1.0</span>
+<span class="ky">schema_id</span>: <span class="vl">payments-api</span>
+<span class="ky">schema_version</span>: <span class="vl">"1.2.0"</span>    <span class="cm"># pinned, no ranges</span>
+<span class="ky">environment</span>: <span class="vl">prod</span>
+
+<span class="ky">used_endpoints</span>:
+  - <span class="ky">method</span>: <span class="vl">GET</span>
+    <span class="ky">path</span>: <span class="vl">/payments/{id}</span>
+    <span class="ky">response_fields</span>: [<span class="vl">id</span>, <span class="vl">amount</span>, <span class="vl">currency</span>, <span class="vl">status</span>]  <span class="cm"># optional</span>
+
+  - <span class="ky">method</span>: <span class="vl">POST</span>
+    <span class="ky">path</span>: <span class="vl">/payments</span>
+    <span class="ky">request_fields</span>: [<span class="vl">amount</span>, <span class="vl">currency</span>]  <span class="cm"># optional</span></pre>
+          </div>
+        </div>
+
+        <div class="reveal d3">
+          <p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.75rem;">Validation Rules</p>
+          <div class="rules-list">
+            <div class="rule-item">
+              <span class="rule-icon">✓</span>
+              <span class="rule-text"><code>consumer_id</code>, <code>schema_id</code>, <code>schema_version</code> are required</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">✓</span>
+              <span class="rule-text"><code>schema_version</code> must be valid semver — pinned only, no ranges like <code>^1.0.0</code> or <code>&gt;=1.0.0</code></span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">✓</span>
+              <span class="rule-text">Each endpoint must have <code>method</code> and <code>path</code>. Method must be a valid HTTP verb. <span class="badge badge-phase1a">phase 1a</span></span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">⚠</span>
+              <span class="rule-text"><code>response_fields</code> and <code>request_fields</code> are <strong style="color:var(--text);">optional</strong> — endpoint-level check (method + path) is the Phase 1 safety gate. Field-level checking activates with auto-generation. <span class="badge badge-phase3">phase 3</span></span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">⚠</span>
+              <span class="rule-text"><code>format</code> field is optional — absence implies v1</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">⚠</span>
+              <span class="rule-text"><code>consumer_version</code> and <code>environment</code> are optional but warn if missing</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-icon">⚠</span>
+              <span class="rule-text">Concrete paths like <code>/payments/123</code> warn — use template <code>/payments/{id}</code></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="speaker-note reveal d4">
+        Pinned versions are a deliberate design choice. Ranges like <code>^1.0.0</code> require semver range parsing and create ambiguity about what's actually being validated. Pinned versions are mechanically verifiable.
+      </p>
+    </div>
+    <span class="slide-number">7 / 13</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 7: OFFLINE CAN-I-DEPLOY (moved from old slide 6)
+       ================================================================== -->
+  <section class="slide" data-slide="7">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>can-i-deploy, Serverless <span class="badge badge-phase1a">phase 1a</span></h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Today, <code>can-i-deploy</code> requires a running CVT server with all schemas and consumers pre-registered. Offline mode reads consumer contract files directly from disk and runs the same compatibility engine locally. Same safety gate, same exit codes, same output &mdash; but no server, no database, no network. Fails-closed by default: if no contracts are found, the command errors instead of silently passing.</p>
       </div>
 
       <div class="split-terminal reveal d2">
@@ -1416,7 +1545,7 @@
         </div>
 
         <div>
-          <p class="term-label" style="color:var(--brand);">Phase 1a — offline</p>
+          <p class="term-label" style="color:var(--brand);">Phase 1a — offline <span class="badge badge-phase1a">phase 1a</span></p>
           <div class="mockup">
             <div class="mockup-header">
               <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
@@ -1443,16 +1572,16 @@
 
       <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1.5rem;" class="reveal d3">
         <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
-          <span style="color:var(--brand-light);">--contracts-dir</span> <span style="color:var(--text-muted);">&lt;path&gt;</span>
-          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Reads YAML contract files from a local directory</div>
+          <span style="color:var(--brand-light);">--contracts-dir</span> <span style="color:var(--text-muted);">&lt;path&gt;</span> <span class="badge badge-phase1a">phase 1a</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Reads YAML contract files from a local directory. <strong style="color:var(--text-secondary);">Fails if no contracts found</strong> (fail-closed).</div>
         </div>
         <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
-          <span style="color:var(--brand-light);">--offline</span>
-          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Auto-detects .cvt/consumers/ in current repo</div>
+          <span style="color:var(--brand-light);">--offline</span> <span class="badge badge-phase1a">phase 1a</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Searches .cvt/config.yaml → .cvt/consumers/ → walks up to repo root</div>
         </div>
         <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
-          <span style="color:var(--brand-light);">--require-contracts</span>
-          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Fails if no contract files found — CI safety gate</div>
+          <span style="color:var(--brand-light);">--allow-no-contracts</span> <span class="badge badge-phase1a">phase 1a</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Opt-in: allows pass when no contracts found (for teams without consumers yet)</div>
         </div>
         <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
           <span style="color:var(--brand-light);">--offline</span> <span style="color:var(--error);">+</span> <span style="color:var(--brand-light);">--server</span>
@@ -1461,20 +1590,20 @@
       </div>
 
       <p class="speaker-note reveal d4">
-        Offline mode mirrors server logic exactly — same compatibility check, same output format, same exit codes. The only difference is where it reads consumers from.
+        Offline mode mirrors server logic exactly — same compatibility check, same output format, same exit codes. Fails-closed by default: a misconfigured path or missing <code>.cvt/</code> directory errors instead of silently passing.
       </p>
     </div>
-    <span class="slide-number">6 / 13</span>
+    <span class="slide-number">8 / 13</span>
   </section>
 
   <!-- ==================================================================
-       SLIDE 7: STATIC CHECK (Phase 1a)
+       SLIDE 8: STATIC CHECK (moved from old slide 7)
        ================================================================== -->
-  <section class="slide" data-slide="6">
+  <section class="slide" data-slide="8">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
-        <h2>Static Check</h2>
-        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Compares the new schema version against every consumer's declared endpoints and field shapes.</p>
+        <h2>Static Check <span class="badge badge-phase1a">phase 1a</span></h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Before a producer deploys a new schema version, the static check loads every consumer's contract file and runs the CompatibilityEngine against the candidate schema. It detects removed endpoints, type changes, new required fields, and removed enum values &mdash; filtering to only the endpoints each consumer actually uses. If any consumer would break, the command exits non-zero and blocks the deploy.</p>
       </div>
 
       <div class="split-terminal reveal d2">
@@ -1550,19 +1679,69 @@
       </div>
 
       <p class="speaker-note reveal d4">
-        The static check reads contract files and runs the CompatibilityEngine — no network, no server, no consumer CI triggered. It answers: "does the new schema surface still cover every field each consumer declared it uses?" Exit codes are stable so this drops straight into any CI pipeline.
+        The static check reads contract files and runs the CompatibilityEngine — no network, no server, no consumer CI triggered. Exit codes are stable so this drops straight into any CI pipeline.
       </p>
     </div>
-    <span class="slide-number">7 / 13</span>
+    <span class="slide-number">9 / 13</span>
   </section>
 
   <!-- ==================================================================
-       SLIDE 8: BREAKING CHANGE ACKNOWLEDGMENT (Phase 2)
+       SLIDE 9: NEW CLI COMMANDS (moved from old slide 11)
        ================================================================== -->
-  <section class="slide" data-slide="7">
+  <section class="slide" data-slide="9">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
-        <h2>Acknowledged Breaking Changes</h2>
+        <h2>New CLI Commands <span class="badge badge-phase1a">phase 1a</span></h2>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Six new commands ship in Phase 1a.</p>
+      </div>
+
+      <div class="mockup mockup-large reveal d2" style="margin-top:2rem;">
+        <div class="mockup-header">
+          <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="title">Terminal</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="comment"># Scaffold .cvt/ directory + CI config</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt init</span> <span class="flag">--mode consumer --ci gitlab-ci</span></div>
+          <div><span class="output">&nbsp; ▶ Created .cvt/payments-api.yaml (sample contract)</span></div>
+          <div><span class="output">&nbsp; ▶ Created .cvt/config.yaml</span></div>
+          <div><span class="output">&nbsp; ▶ Created .gitlab-ci.yml (cvt-validate job)</span></div>
+          <div>&nbsp;</div>
+          <div><span class="comment"># Validate contract format + endpoints exist in schema</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt lint</span> <span class="flag">.cvt/payments-api.yaml --schema ./openapi.yaml</span></div>
+          <div><span class="ok">&nbsp; ✓ schema_version pinned: 1.2.0</span></div>
+          <div><span class="ok">&nbsp; ✓ 2 endpoints valid</span></div>
+          <div><span class="ok">&nbsp; ✓ 2 endpoints match schema</span></div>
+          <hr class="divider"/>
+          <div><span class="comment"># Export a contract from SDK test interactions</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt export-contract</span> <span class="flag">--consumer</span> <span class="cmd">checkout-service \</span></div>
+          <div>&nbsp;&nbsp;<span class="flag">--schema</span> <span class="cmd">payments-api</span> <span class="flag">--interactions</span> <span class="cmd">./test-results/</span></div>
+          <div><span class="ok">&nbsp; ✓ Exported .cvt/payments-api.yaml (8 interactions → 3 endpoints)</span></div>
+          <div>&nbsp;</div>
+          <div><span class="comment"># Show contracts + compatibility status</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt status</span></div>
+          <div><span class="ok">&nbsp; 3 contracts · all compatible with current schema versions</span></div>
+          <hr class="divider"/>
+          <div><span class="comment"># Bump schema version across contract files</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt update-contracts</span> <span class="flag">--schema</span> <span class="cmd">payments-api</span> <span class="flag">--from</span> <span class="cmd">1.2.0</span> <span class="flag">--to</span> <span class="cmd">1.3.0</span></div>
+          <div><span class="ok">&nbsp; ✓ Updated 3 contract files</span></div>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d3">
+        <code>cvt init --ci</code> supports github-actions, gitlab-ci, azure-pipelines, and generic (shell script any CI can call). <code>cvt lint --schema</code> validates endpoints exist in the schema — catches typos that would silently make <code>can-i-deploy</code> ignore endpoints. <code>cvt update-contracts</code> saves toil when a producer bumps their version.
+      </p>
+    </div>
+    <span class="slide-number">10 / 13</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 10: BREAKING CHANGE ACKNOWLEDGMENT (moved from old slide 8)
+       ================================================================== -->
+  <section class="slide" data-slide="10">
+    <div class="slide-inner">
+      <div class="slide-heading reveal d1">
+        <h2>Acknowledged Breaking Changes <span class="badge badge-phase2">phase 2</span></h2>
         <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Sometimes you need to ship a breaking change and coordinate the migration.</p>
       </div>
 
@@ -1606,18 +1785,18 @@
               <div>&nbsp;&nbsp;<span class="flag">--schema</span> <span class="cmd">payments-api \</span></div>
               <div>&nbsp;&nbsp;<span class="flag">--version</span> <span class="cmd">2.0.0 \</span></div>
               <div>&nbsp;&nbsp;<span class="flag">--contracts-dir</span> <span class="cmd">./consumers/ \</span></div>
-              <div>&nbsp;&nbsp;<span class="flag">--breaking-change-acknowledged \</span></div>
+              <div>&nbsp;&nbsp;<span class="flag">--breaking-change-acknowledged</span><span class="cmd">=JIRA-1234 \</span></div>
               <div>&nbsp;&nbsp;<span class="flag">--notify</span></div>
               <div>&nbsp;</div>
               <div><span class="warn">✗ billing-service  BREAKING (acknowledged)</span></div>
               <div><span class="warn">✗ reporting-svc    BREAKING (acknowledged)</span></div>
               <div>&nbsp;</div>
               <div><span class="output">Notifying affected consumers...</span></div>
-              <div><span class="ok">&nbsp;&nbsp;→ Issue #412 opened: org/billing-service</span></div>
-              <div><span class="ok">&nbsp;&nbsp;→ Issue #88 opened:  org/reporting-svc</span></div>
-              <div><span class="ok">&nbsp;&nbsp;→ Webhook fired:     hooks.internal/cvt</span></div>
+              <div><span class="ok">&nbsp;&nbsp;✓ sent: org/billing-service  → Issue #412</span></div>
+              <div><span class="err">&nbsp;&nbsp;✗ failed: org/reporting-svc  (timeout)</span></div>
+              <div><span class="ok">&nbsp;&nbsp;✓ sent: hooks.internal/cvt   → webhook</span></div>
               <div>&nbsp;</div>
-              <div><span class="warn">⚠ Deploying. 2 consumers notified.</span></div>
+              <div><span class="warn">⚠ Deploying. 2 consumers affected. Ref: JIRA-1234</span></div>
             </div>
           </div>
         </div>
@@ -1626,29 +1805,29 @@
 
       <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1.25rem;" class="reveal d3">
         <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
-          <span style="color:var(--brand-light);">--breaking-change-acknowledged</span>
-          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Bypasses the safety gate — allows deployment even when consumers would break</div>
+          <span style="color:var(--brand-light);">--breaking-change-acknowledged=&lt;ticket-id&gt;</span> <span class="badge badge-phase2">phase 2</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Mandatory ticket reference for audit trail — prevents permanent bypass in CI configs</div>
         </div>
         <div style="padding:0.6rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'JetBrains Mono',monospace;">
-          <span style="color:var(--brand-light);">--notify</span>
-          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Opens a GitHub issue on each affected consumer repo and fires configured webhooks</div>
+          <span style="color:var(--brand-light);">--notify</span> <span class="badge badge-phase2">phase 2</span>
+          <div style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;font-family:'IBM Plex Sans',sans-serif;">Fires webhooks + GitHub issues. Shows delivery status per-consumer (sent / failed).</div>
         </div>
       </div>
 
       <p class="speaker-note reveal d4">
-        Phase 2 recognises that breaking changes are sometimes intentional — a major version cut, a deprecation cycle. The flag pair gives teams an escape hatch that still leaves a paper trail. Consumer teams wake up to a GitHub issue, not a broken pipeline.
+        Phase 2 recognises that breaking changes are sometimes intentional — a major version cut, a deprecation cycle. The mandatory ticket reference creates an audit trail and prevents the flag from becoming permanent in CI configs.
       </p>
     </div>
-    <span class="slide-number">8 / 13</span>
+    <span class="slide-number">11 / 13</span>
   </section>
 
   <!-- ==================================================================
-       SLIDE 8: LIVE VERIFY (Phase 3)
+       SLIDE 11: LIVE VERIFY (moved from old slide 9)
        ================================================================== -->
-  <section class="slide" data-slide="8">
+  <section class="slide" data-slide="11">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
-        <h2>Live Verify</h2>
+        <h2>Live Verify <span class="badge badge-phase3">phase 3</span></h2>
         <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Triggers each consumer's real CI pipeline against the candidate schema and waits for the results — so you know the integration works, not just that the contract shapes match.</p>
       </div>
 
@@ -1683,142 +1862,21 @@
       </div>
 
       <div style="margin-top:1.5rem;padding:0.9rem 1.1rem;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.2);border-radius:10px;font-size:0.9rem;color:var(--text-secondary);line-height:1.65;font-family:'IBM Plex Sans',sans-serif;" class="reveal d3">
-        <span style="color:var(--warning);font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Open question — Phase 3</span><br/>
+        <span style="color:var(--warning);font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Open question — <span class="badge badge-phase3">phase 3</span></span><br/>
         How does CVT know when a consumer CI pipeline has finished? The callback mechanism and consumer consent model are not yet designed. This is the key design question for Phase 3.
       </div>
 
       <p class="speaker-note reveal d4">
-        This is the most important feature in the issue. A schema can be contract-compatible but still break a consumer's integration tests — because the tests encode real usage, not just the schema surface. Live verify closes that gap. The callback design is the open question we need to resolve.
+        A schema can be contract-compatible but still break a consumer's integration tests — because the tests encode real usage, not just the schema surface. Live verify closes that gap. The callback design is the open question we need to resolve.
       </p>
     </div>
-    <span class="slide-number">9 / 13</span>
-  </section>
-
-  <!-- ==================================================================
-       SLIDE 9: CONTRACT FORMAT
-       ================================================================== -->
-  <section class="slide" data-slide="9">
-    <div class="slide-inner">
-      <div class="slide-heading reveal d1">
-        <h2>The Contract File</h2>
-        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">The consumer's declaration of which endpoints they call and what shapes they expect — named after the producer, owned by the consumer.</p>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:2.5rem;margin-top:2rem;align-items:start;">
-
-        <div class="reveal d2">
-          <p style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.6rem;">checkout-service repo &nbsp;·&nbsp; <span style="color:var(--brand-light);">owned by the consumer</span></p>
-          <div class="mockup">
-            <div class="mockup-header">
-              <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
-              <span class="title">.cvt/payments-api.yaml</span>
-            </div>
-<pre class="code-body"><span class="ky">format</span>: <span class="vl">v1</span>
-<span class="ky">consumer_id</span>: <span class="vl">checkout-service</span>
-<span class="ky">consumer_version</span>: <span class="vl">3.1.0</span>
-<span class="ky">schema_id</span>: <span class="vl">payments-api</span>
-<span class="ky">schema_version</span>: <span class="vl">"1.2.0"</span>    <span class="cm"># pinned, no ranges</span>
-<span class="ky">environment</span>: <span class="vl">prod</span>
-
-<span class="ky">used_endpoints</span>:
-  - <span class="ky">method</span>: <span class="vl">GET</span>
-    <span class="ky">path</span>: <span class="vl">/payments/{id}</span>
-    <span class="ky">response_fields</span>: [<span class="vl">id</span>, <span class="vl">amount</span>, <span class="vl">currency</span>, <span class="vl">status</span>]
-
-  - <span class="ky">method</span>: <span class="vl">POST</span>
-    <span class="ky">path</span>: <span class="vl">/payments</span>
-    <span class="ky">request_fields</span>: [<span class="vl">amount</span>, <span class="vl">currency</span>]</pre>
-          </div>
-        </div>
-
-        <div class="reveal d3">
-          <p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.75rem;">Validation Rules</p>
-          <div class="rules-list">
-            <div class="rule-item">
-              <span class="rule-icon">✓</span>
-              <span class="rule-text"><code>format</code> must be <code>"v1"</code></span>
-            </div>
-            <div class="rule-item">
-              <span class="rule-icon">✓</span>
-              <span class="rule-text"><code>consumer_id</code>, <code>schema_id</code>, <code>schema_version</code> are required</span>
-            </div>
-            <div class="rule-item">
-              <span class="rule-icon">✓</span>
-              <span class="rule-text"><code>schema_version</code> must be valid semver — pinned only, no ranges like <code>^1.0.0</code> or <code>&gt;=1.0.0</code></span>
-            </div>
-            <div class="rule-item">
-              <span class="rule-icon">✓</span>
-              <span class="rule-text">Each endpoint must have <code>method</code> and <code>path</code>. Method must be a valid HTTP verb.</span>
-            </div>
-            <div class="rule-item">
-              <span class="rule-icon">⚠</span>
-              <span class="rule-text"><code>consumer_version</code> and <code>environment</code> are optional but warn if missing</span>
-            </div>
-            <div class="rule-item">
-              <span class="rule-icon">⚠</span>
-              <span class="rule-text">Concrete paths like <code>/payments/123</code> warn — use template <code>/payments/{id}</code></span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <p class="speaker-note reveal d4">
-        Pinned versions are a deliberate design choice. Ranges like <code>^1.0.0</code> require semver range parsing and create ambiguity about what's actually being validated. Pinned versions are mechanically verifiable.
-      </p>
-    </div>
-    <span class="slide-number">10 / 13</span>
-  </section>
-
-  <!-- ==================================================================
-       SLIDE 10: NEW CLI COMMANDS
-       ================================================================== -->
-  <section class="slide" data-slide="10">
-    <div class="slide-inner">
-      <div class="slide-heading reveal d1">
-        <h2>New CLI Commands</h2>
-        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;font-style:italic;">Four new commands ship in Phase 1a.</p>
-      </div>
-
-      <div class="mockup mockup-large reveal d2" style="margin-top:2rem;">
-        <div class="mockup-header">
-          <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
-          <span class="title">Terminal</span>
-        </div>
-        <div class="terminal-body">
-          <div><span class="comment"># Scaffold .cvt/ directory structure</span></div>
-          <div><span class="prompt">$</span> <span class="cmd">cvt init</span> <span class="flag">--mode consumer</span></div>
-          <div><span class="output">&nbsp; ▶ Created .cvt/payments-api.yaml (sample contract)</span></div>
-          <div><span class="output">&nbsp; ▶ Created .cvt/config.yaml</span></div>
-          <div>&nbsp;</div>
-          <div><span class="comment"># Validate contract file format (shallow lint)</span></div>
-          <div><span class="prompt">$</span> <span class="cmd">cvt lint</span> <span class="flag">.cvt/payments-api.yaml</span></div>
-          <div><span class="ok">&nbsp; ✓ format: v1</span></div>
-          <div><span class="ok">&nbsp; ✓ schema_version pinned: 1.2.0</span></div>
-          <div><span class="ok">&nbsp; ✓ 2 endpoints valid</span></div>
-          <hr class="divider"/>
-          <div><span class="comment"># Export a contract from SDK test interactions</span></div>
-          <div><span class="prompt">$</span> <span class="cmd">cvt export-contract</span> <span class="flag">--consumer</span> <span class="cmd">checkout-service \</span></div>
-          <div>&nbsp;&nbsp;<span class="flag">--schema</span> <span class="cmd">payments-api</span> <span class="flag">--interactions</span> <span class="cmd">./test-results/</span></div>
-          <div><span class="ok">&nbsp; ✓ Exported .cvt/payments-api.yaml (8 interactions → 3 endpoints)</span></div>
-          <div>&nbsp;</div>
-          <div><span class="comment"># Show loaded contracts and versions</span></div>
-          <div><span class="prompt">$</span> <span class="cmd">cvt status</span></div>
-          <div><span class="output">&nbsp; 3 contract files · payments-api@1.2.0 · auth-api@2.0.0 · user-api@3.1.0</span></div>
-        </div>
-      </div>
-
-      <p class="speaker-note reveal d3">
-        The file is named after the producer (payments-api) but lives in the consumer's repo and is authored by the consumer. It is not a copy of the OpenAPI spec — it's a declaration of the subset the consumer actually calls. The producer never touches it; the producer only reads it when running can-i-deploy. <code>cvt lint</code> validates the file format only — schema compatibility requires the full engine.
-      </p>
-    </div>
-    <span class="slide-number">11 / 13</span>
+    <span class="slide-number">12 / 13</span>
   </section>
 
   <!-- ==================================================================
        SLIDE 11: IMPLEMENTATION PHASES
        ================================================================== -->
-  <section class="slide" data-slide="11">
+  <section class="slide" data-slide="12">
     <div class="slide-inner">
       <div class="slide-heading reveal d1">
         <h2>What We're Agreeing To</h2>
@@ -1832,43 +1890,43 @@
         </div>
         <div class="mockup-body">
 
-          <div class="phase-row">
+          <div class="phase-row blocking">
             <span class="phase-icon">⬡</span>
-            <span class="phase-name">Prerequisite</span>
+            <span class="phase-name">#99 Prerequisite</span>
             <div class="phase-items">
-              <strong>CompatibilityEngine consolidation</strong> — make <code>pkg/cvt/</code> canonical, refactor server to convert types at gRPC boundary
+              <span class="badge badge-prereq">prereq</span> <strong>CompatibilityEngine consolidation</strong> — all checks in <code>pkg/cvt/</code>, no server-only additions. Fix <code>doc.Servers</code> race condition. Blocks everything.
+            </div>
+          </div>
+
+          <div class="phase-row active">
+            <span class="phase-icon">⬡</span>
+            <span class="phase-name">#100 Phase 1a</span>
+            <div class="phase-items">
+              <span class="badge badge-phase1a">phase 1a</span> <code>FileProvider</code> + <code>HTTPProvider</code> · <code>dir://</code> contract source · offline <code>can-i-deploy</code> (fail-closed) · <code>cvt init --ci</code> · <code>cvt lint --schema</code> · <code>cvt export-contract</code> · <code>cvt status</code> · <code>cvt update-contracts</code> · <code>pkg/contracts/</code>
             </div>
           </div>
 
           <div class="phase-row">
             <span class="phase-icon">⬡</span>
-            <span class="phase-name">Phase 1a</span>
+            <span class="phase-name">#101 Phase 1b</span>
             <div class="phase-items">
-              <code>FileProvider</code> + <code>HTTPProvider</code> · <code>dir://</code> contract source · offline <code>can-i-deploy</code> · <code>cvt init</code>, <code>cvt lint</code> · <code>pkg/contracts/</code> package
+              <span class="badge badge-phase1b">phase 1b</span> <code>GitHubProvider</code> + <code>RegistryProvider</code> · provider caching with per-scheme invalidation
             </div>
           </div>
 
           <div class="phase-row">
             <span class="phase-icon">⬡</span>
-            <span class="phase-name">Phase 1b</span>
+            <span class="phase-name">#102 Phase 2</span>
             <div class="phase-items">
-              <code>GitHubProvider</code> + <code>RegistryProvider</code> · provider caching with per-scheme invalidation
+              <span class="badge badge-phase2">phase 2</span> Contract sources: <code>repo://</code>, <code>discover://</code> (behind provider interface, not GitHub-locked), multi · notifications with delivery status · <code>--breaking-change-acknowledged=&lt;ticket-id&gt;</code> — needs design doc
             </div>
           </div>
 
           <div class="phase-row">
             <span class="phase-icon">⬡</span>
-            <span class="phase-name">Phase 2</span>
+            <span class="phase-name">#103 Phase 3</span>
             <div class="phase-items">
-              Contract sources: <code>repo://</code>, <code>discover://</code>, multi · GitHub issue notifications · webhooks — needs separate design doc
-            </div>
-          </div>
-
-          <div class="phase-row">
-            <span class="phase-icon">⬡</span>
-            <span class="phase-name">Phase 3</span>
-            <div class="phase-items">
-              <code>--live-verify</code> · <code>exportContract()</code> across all SDKs · callback mechanism and consumer consent model TBD
+              <span class="badge badge-phase3">phase 3</span> <code>--live-verify</code> · SDK-native <code>exportContract()</code> (CLI bridge already in Phase 1a) · callback mechanism TBD
             </div>
           </div>
 
@@ -1876,72 +1934,20 @@
       </div>
 
       <div style="margin-top:1.5rem;" class="reveal d3">
-        <p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.6rem;">88 tests across Phase 1a</p>
+        <p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.6rem;">88 tests across Phase 1a · #85 buildable in parallel</p>
         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
-          <span class="tech-pill">1. CompatibilityEngine rewrite</span>
+          <span class="tech-pill">1. CompatibilityEngine + race fix</span>
           <span class="tech-pill">2. SchemaProvider + FetchVersion</span>
           <span class="tech-pill">3. Contract loading + validation</span>
-          <span class="tech-pill">4. Offline can-i-deploy</span>
-          <span class="tech-pill">5. CLI: init, lint, extended flags</span>
+          <span class="tech-pill">4. Offline can-i-deploy (fail-closed)</span>
+          <span class="tech-pill">5. CLI: init, lint --schema, export, update, status</span>
           <span class="tech-pill">6. E2E integration tests</span>
         </div>
       </div>
 
       <p class="speaker-note reveal d4">
-        The prerequisite is load-bearing. If we start Phase 1a before the CompatibilityEngine consolidation, we'll end up with two diverging implementations of the same logic. That's the one thing we cannot let happen.
+        The prerequisite is load-bearing. If we start Phase 1a before the CompatibilityEngine consolidation, offline mode will have weaker breaking change detection than the server — invisibly. Phase 1b, 2, and 3 can run in parallel after Phase 1a. Issue #85 (External Registry Storage Backend) has no dependency on any phase.
       </p>
-    </div>
-    <span class="slide-number">12 / 13</span>
-  </section>
-
-  <!-- ==================================================================
-       SLIDE 12: CLOSING
-       ================================================================== -->
-  <section class="slide slide-title" data-slide="12">
-    <div class="slide-inner" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:1.75rem;">
-
-      <h1 class="closing-headline">No database required.<br/>Teams choose.</h1>
-
-      <p class="closing-text">
-        When contracts live in git and schemas are pulled by URI, deployment safety gates work without shared infrastructure. Teams opt into the model that fits their workflow &mdash; and nothing that works today changes.
-      </p>
-
-      <div style="width:100%;max-width:560px;text-align:left;">
-        <p style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:0.75rem;">Decisions to align on today</p>
-        <div class="decisions-list">
-          <div class="decision-item">
-            <span class="num">01</span>
-            <span><code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">SchemaProvider</code> interface is the contract — all schema sources implement it, no special cases</span>
-          </div>
-          <div class="decision-item">
-            <span class="num">02</span>
-            <span><code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">Store</code> interface is top-level — <code style="color:var(--brand-light);">file</code>, <code style="color:var(--brand-light);">sqlite</code>, <code style="color:var(--brand-light);">postgres</code>, <code style="color:var(--brand-light);">memory</code> are peers</span>
-          </div>
-          <div class="decision-item">
-            <span class="num">03</span>
-            <span>Offline <code style="color:var(--brand-light);background:rgba(16,185,129,0.08);padding:0.1em 0.3em;border-radius:3px;">can-i-deploy</code> mirrors server logic exactly — same exit codes, same output</span>
-          </div>
-        </div>
-      </div>
-
-      <div style="background:var(--surface);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:0.75rem 1.5rem;font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:0.01em;margin-top:0.25rem;">
-        <span style="color:var(--brand);">$</span> <span style="color:var(--text);">go build -o cvt ./cmd/cvt</span><br/>
-        <span style="color:var(--brand);">$</span> <span style="color:var(--text);">cvt init --mode consumer</span>
-      </div>
-
-      <div class="logo" style="margin-top:0.75rem;">
-        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="44" height="44" aria-label="CVT logo" style="opacity:0.5;">
-          <defs>
-            <linearGradient id="bg-grad2" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#10b981"/>
-              <stop offset="100%" stop-color="#047857"/>
-            </linearGradient>
-          </defs>
-          <rect x="10" y="10" width="492" height="492" rx="64" fill="url(#bg-grad2)"/>
-          <circle cx="256" cy="256" r="66" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.45)" stroke-width="8"/>
-          <path d="M216 256 L246 288 L296 228" stroke="white" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
     </div>
     <span class="slide-number">13 / 13</span>
   </section>
