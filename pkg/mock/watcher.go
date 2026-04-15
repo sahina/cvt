@@ -35,7 +35,13 @@ func NewWatcher(files []string, onReload func()) (*Watcher, error) {
 		if err != nil {
 			absPath = f
 		}
+		// Store both the raw absolute path and the symlink-resolved path.
+		// On macOS, /var is a symlink to /private/var. fsnotify events may
+		// report either form depending on how the path was originally opened.
 		fileSet[absPath] = true
+		if resolved, err := filepath.EvalSymlinks(absPath); err == nil && resolved != absPath {
+			fileSet[resolved] = true
+		}
 
 		dir := filepath.Dir(absPath)
 		if !watchedDirs[dir] {
@@ -68,7 +74,14 @@ func NewWatcher(files []string, onReload func()) (*Watcher, error) {
 					absPath = event.Name
 				}
 
-				if !fileSet[absPath] {
+				matched := fileSet[absPath]
+				if !matched {
+					if resolved, err := filepath.EvalSymlinks(absPath); err == nil {
+						matched = fileSet[resolved]
+					}
+				}
+
+				if !matched {
 					continue
 				}
 

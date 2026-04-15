@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,6 +18,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/sahina/cvt/pkg/cvt"
 	"github.com/sahina/cvt/server/pb"
 	"github.com/sahina/cvt/server/storage"
 	"go.uber.org/zap"
@@ -32,8 +32,9 @@ import (
 // The service maintains a cache of registered schemas for efficient validation.
 type ValidatorService struct {
 	pb.UnimplementedContractValidatorServer
-	cache *SchemaCache
-	store storage.Store // Optional persistent storage (nil = cache-only)
+	cache     *SchemaCache
+	store     storage.Store  // Optional persistent storage (nil = cache-only)
+	generator *cvt.Validator // Embedded generator for fixture generation (delegates to pkg/cvt)
 }
 
 // NewValidatorService creates a new instance of ValidatorService with an initialized cache.
@@ -49,7 +50,8 @@ func NewValidatorService() (*ValidatorService, error) {
 	}
 
 	return &ValidatorService{
-		cache: cache,
+		cache:     cache,
+		generator: cvt.NewValidator(),
 	}, nil
 }
 
@@ -61,14 +63,15 @@ func NewValidatorServiceWithStore(store storage.Store) (*ValidatorService, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to create schema cache: %w", err)
 	}
-	return &ValidatorService{cache: cache, store: store}, nil
+	return &ValidatorService{cache: cache, store: store, generator: cvt.NewValidator()}, nil
 }
 
 // NewValidatorServiceWithCache creates a new ValidatorService with a shared cache.
 // This allows multiple services (gRPC and REST) to share the same schema registry.
 func NewValidatorServiceWithCache(cache *SchemaCache) *ValidatorService {
 	return &ValidatorService{
-		cache: cache,
+		cache:     cache,
+		generator: cvt.NewValidator(),
 	}
 }
 
@@ -212,6 +215,11 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 
 	// Store the validated schema in cache with 24-hour TTL
 	s.cache.Set(req.SchemaId, entry)
+
+	// Mirror schema into embedded generator for fixture generation
+	if genErr := s.generator.RegisterSchema(req.SchemaId, []byte(req.SchemaContent)); genErr != nil {
+		Warn("Failed to register schema in generator", zap.String("schemaId", req.SchemaId), zap.Error(genErr))
+	}
 
 	// Persist to storage if available (write-through)
 	var storageWarning string
@@ -636,6 +644,11 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 		s.cache.SetVersion(schemaID, record.Version, entry)
 	}
 
+	// Mirror into embedded generator for fixture generation
+	if genErr := s.generator.RegisterSchema(schemaID, []byte(record.Content)); genErr != nil {
+		Warn("Failed to register rehydrated schema in generator", zap.String("schemaId", schemaID), zap.Error(genErr))
+	}
+
 	Info("Rehydrated schema from storage into cache",
 		zap.String("schemaId", schemaID),
 		zap.String("version", record.Version))
@@ -990,9 +1003,9 @@ func (s *ValidatorService) GenerateFixture(ctx context.Context, req *pb.Generate
 		}, nil
 	}
 
-	// Get schema (cache first, then storage)
-	entry, found := s.getSchemaEntry(ctx, req.SchemaId, "")
-	if !found || entry == nil {
+	// Ensure schema is available in the embedded generator (triggers storage rehydration if needed)
+	_, found := s.getSchemaEntry(ctx, req.SchemaId, "")
+	if !found {
 		grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
 		return &pb.GenerateFixtureResponse{
 			Success: false,
@@ -1000,27 +1013,20 @@ func (s *ValidatorService) GenerateFixture(ctx context.Context, req *pb.Generate
 		}, nil
 	}
 
-	doc := entry.Document
 	method := strings.ToUpper(req.Method)
-	contentType := req.ContentType
-	if contentType == "" {
-		contentType = "application/json"
+	opts := cvt.GenerateOptions{
+		StatusCode:  int(req.StatusCode),
+		UseExamples: req.UseExamples,
+		ContentType: req.ContentType,
+	}
+	if opts.ContentType == "" {
+		opts.ContentType = "application/json"
 	}
 
-	// Find the operation
-	operation, err := s.findOperation(doc, method, req.Path, entry.Router)
-	if err != nil {
-		grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
-		return &pb.GenerateFixtureResponse{
-			Success: false,
-			Message: fmt.Sprintf("Operation not found: %v", err),
-		}, nil
-	}
-
-	// Generate based on output type
+	// Generate based on output type, delegating to pkg/cvt
 	switch req.OutputType {
 	case pb.OutputType_OUTPUT_REQUEST:
-		body, err := s.generateRequestBody(doc, operation, req.UseExamples, contentType)
+		body, err := s.generator.GenerateRequestBody(req.SchemaId, method, req.Path, opts)
 		if err != nil {
 			grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
 			return &pb.GenerateFixtureResponse{
@@ -1028,15 +1034,23 @@ func (s *ValidatorService) GenerateFixture(ctx context.Context, req *pb.Generate
 				Message: fmt.Sprintf("Failed to generate request body: %v", err),
 			}, nil
 		}
+		jsonData, err := json.MarshalIndent(body, "", "  ")
+		if err != nil {
+			grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
+			return &pb.GenerateFixtureResponse{
+				Success: false,
+				Message: fmt.Sprintf("Failed to marshal request body: %v", err),
+			}, nil
+		}
 		grpcRequestsTotal.WithLabelValues("GenerateFixture", "success").Inc()
 		return &pb.GenerateFixtureResponse{
 			Success:     true,
 			Message:     "Request body generated successfully",
-			RequestBody: body,
+			RequestBody: string(jsonData),
 		}, nil
 
 	case pb.OutputType_OUTPUT_RESPONSE:
-		resp, err := s.generateResponse(doc, operation, int(req.StatusCode), req.UseExamples, contentType)
+		resp, err := s.generator.GenerateResponse(req.SchemaId, method, req.Path, opts)
 		if err != nil {
 			grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
 			return &pb.GenerateFixtureResponse{
@@ -1048,63 +1062,61 @@ func (s *ValidatorService) GenerateFixture(ctx context.Context, req *pb.Generate
 		return &pb.GenerateFixtureResponse{
 			Success:  true,
 			Message:  "Response generated successfully",
-			Response: resp,
+			Response: convertResponse(resp),
 		}, nil
 
 	default: // OUTPUT_FIXTURE
-		// Generate request
-		reqBody, _ := s.generateRequestBody(doc, operation, req.UseExamples, contentType)
-
-		// Generate response
-		resp, err := s.generateResponse(doc, operation, int(req.StatusCode), req.UseExamples, contentType)
+		fixture, err := s.generator.GenerateFixture(req.SchemaId, method, req.Path, opts)
 		if err != nil {
 			grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
 			return &pb.GenerateFixtureResponse{
 				Success: false,
-				Message: fmt.Sprintf("Failed to generate response: %v", err),
+				Message: fmt.Sprintf("Failed to generate fixture: %v", err),
 			}, nil
 		}
 
-		// Resolve path parameters
-		resolvedPath := req.Path
-		for _, paramRef := range operation.Parameters {
-			if paramRef.Value != nil && paramRef.Value.In == "path" {
-				paramName := paramRef.Value.Name
-				placeholder := "{" + paramName + "}"
-				if strings.Contains(resolvedPath, placeholder) {
-					var paramValue string
-					if paramRef.Value.Schema != nil {
-						val := s.generateValue(doc, paramRef.Value.Schema, req.UseExamples, 0)
-						paramValue = fmt.Sprintf("%v", val)
-					} else {
-						paramValue = "value"
-					}
-					resolvedPath = strings.Replace(resolvedPath, placeholder, paramValue, 1)
-				}
-			}
-		}
-
-		fixture := &pb.GeneratedFixture{
+		pbFixture := &pb.GeneratedFixture{
 			Request: &pb.GeneratedRequest{
-				Method:  method,
-				Path:    resolvedPath,
-				Headers: make(map[string]string),
+				Method:  fixture.Request.Method,
+				Path:    fixture.Request.Path,
+				Headers: fixture.Request.Headers,
 			},
-			Response: resp,
+			Response: convertResponse(&fixture.Response),
 		}
 
-		if reqBody != "" {
-			fixture.Request.Body = reqBody
-			fixture.Request.Headers["Content-Type"] = contentType
+		if fixture.Request.Body != nil {
+			reqJSON, err := json.MarshalIndent(fixture.Request.Body, "", "  ")
+			if err == nil {
+				pbFixture.Request.Body = string(reqJSON)
+				if pbFixture.Request.Headers == nil {
+					pbFixture.Request.Headers = make(map[string]string)
+				}
+				pbFixture.Request.Headers["Content-Type"] = opts.ContentType
+			}
 		}
 
 		grpcRequestsTotal.WithLabelValues("GenerateFixture", "success").Inc()
 		return &pb.GenerateFixtureResponse{
 			Success: true,
 			Message: "Fixture generated successfully",
-			Fixture: fixture,
+			Fixture: pbFixture,
 		}, nil
 	}
+}
+
+// convertResponse converts a pkg/cvt GeneratedResponse to a protobuf GeneratedResponse.
+func convertResponse(resp *cvt.GeneratedResponse) *pb.GeneratedResponse {
+	pbResp := &pb.GeneratedResponse{
+		StatusCode: int32(resp.StatusCode),
+		Headers:    resp.Headers,
+	}
+	if resp.Body != nil {
+		jsonData, err := json.MarshalIndent(resp.Body, "", "  ")
+		if err == nil {
+			pbResp.Body = string(jsonData)
+		}
+	}
+	return pbResp
 }
 
 // ListEndpoints returns all endpoints available in a registered schema.
@@ -1148,288 +1160,6 @@ func (s *ValidatorService) ListEndpoints(ctx context.Context, req *pb.ListEndpoi
 
 	grpcRequestsTotal.WithLabelValues("ListEndpoints", "success").Inc()
 	return &pb.ListEndpointsResponse{Endpoints: endpoints}, nil
-}
-
-// findOperation finds the OpenAPI operation for a given method and path.
-// If cachedRouter is non-nil, it is used for route matching; otherwise a new router is created.
-func (s *ValidatorService) findOperation(doc *openapi3.T, method, path string, cachedRouter routers.Router) (*openapi3.Operation, error) {
-	// First try exact match
-	pathItem := doc.Paths.Find(path)
-	if pathItem != nil {
-		operation := pathItem.GetOperation(method)
-		if operation != nil {
-			return operation, nil
-		}
-	}
-
-	// Try matching with path parameters using router
-	router := cachedRouter
-	if router == nil {
-		var routerErr error
-		router, routerErr = gorillamux.NewRouter(doc)
-		if routerErr != nil {
-			return nil, fmt.Errorf("failed to create router: %w", routerErr)
-		}
-	}
-
-	req, err := http.NewRequest(method, "http://localhost"+path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	route, _, err := router.FindRoute(req)
-	if err != nil {
-		return nil, fmt.Errorf("route not found: %s %s", method, path)
-	}
-
-	return route.Operation, nil
-}
-
-// generateRequestBody generates a request body from the schema.
-func (s *ValidatorService) generateRequestBody(doc *openapi3.T, operation *openapi3.Operation, useExamples bool, contentType string) (string, error) {
-	if operation.RequestBody == nil || operation.RequestBody.Value == nil {
-		return "", nil // No request body defined
-	}
-
-	mediaType := operation.RequestBody.Value.Content.Get(contentType)
-	if mediaType == nil {
-		// Try to find any JSON content type
-		for ct, mt := range operation.RequestBody.Value.Content {
-			if strings.Contains(ct, "json") {
-				mediaType = mt
-				break
-			}
-		}
-	}
-
-	if mediaType == nil || mediaType.Schema == nil {
-		return "", nil
-	}
-
-	value := s.generateValue(doc, mediaType.Schema, useExamples, 0)
-	jsonData, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonData), nil
-}
-
-// generateResponse generates a response from the schema.
-func (s *ValidatorService) generateResponse(doc *openapi3.T, operation *openapi3.Operation, statusCode int, useExamples bool, contentType string) (*pb.GeneratedResponse, error) {
-	if operation.Responses == nil {
-		return nil, fmt.Errorf("no responses defined")
-	}
-
-	// Determine status code
-	if statusCode == 0 {
-		statusCode = s.selectSuccessStatus(operation)
-	}
-
-	response := operation.Responses.Status(statusCode)
-	if response == nil {
-		// Try default
-		response = operation.Responses.Default()
-	}
-	if response == nil {
-		return nil, fmt.Errorf("no response found for status %d", statusCode)
-	}
-
-	result := &pb.GeneratedResponse{
-		StatusCode: int32(statusCode),
-		Headers:    make(map[string]string),
-	}
-
-	if response.Value != nil && response.Value.Content != nil {
-		mediaType := response.Value.Content.Get(contentType)
-		if mediaType == nil {
-			for ct, mt := range response.Value.Content {
-				if strings.Contains(ct, "json") {
-					mediaType = mt
-					contentType = ct
-					break
-				}
-			}
-		}
-
-		if mediaType != nil {
-			result.Headers["Content-Type"] = contentType
-			if mediaType.Schema != nil {
-				value := s.generateValue(doc, mediaType.Schema, useExamples, 0)
-				jsonData, err := json.MarshalIndent(value, "", "  ")
-				if err != nil {
-					return nil, err
-				}
-				result.Body = string(jsonData)
-			}
-		}
-	}
-
-	return result, nil
-}
-
-// selectSuccessStatus selects the first successful status code from responses.
-func (s *ValidatorService) selectSuccessStatus(operation *openapi3.Operation) int {
-	if operation.Responses == nil {
-		return 200
-	}
-
-	// Prefer specific success codes in order
-	preferredCodes := []int{200, 201, 202, 204}
-	for _, code := range preferredCodes {
-		if operation.Responses.Status(code) != nil {
-			return code
-		}
-	}
-
-	// Check for any 2XX status
-	for code := range operation.Responses.Map() {
-		if strings.HasPrefix(code, "2") {
-			var statusCode int
-			_, _ = fmt.Sscanf(code, "%d", &statusCode)
-			if statusCode > 0 {
-				return statusCode
-			}
-		}
-	}
-
-	return 200
-}
-
-// generateValue generates a value based on a schema.
-func (s *ValidatorService) generateValue(doc *openapi3.T, schemaRef *openapi3.SchemaRef, useExamples bool, depth int) any {
-	if schemaRef == nil || depth > 10 {
-		return nil
-	}
-
-	schema := schemaRef.Value
-	if schema == nil {
-		return nil
-	}
-
-	// Check for example first if useExamples is true
-	if useExamples && schema.Example != nil {
-		return schema.Example
-	}
-
-	// Handle allOf, oneOf, anyOf
-	if len(schema.AllOf) > 0 {
-		return s.generateAllOf(doc, schema.AllOf, useExamples, depth)
-	}
-	if len(schema.OneOf) > 0 {
-		return s.generateValue(doc, schema.OneOf[0], useExamples, depth+1)
-	}
-	if len(schema.AnyOf) > 0 {
-		return s.generateValue(doc, schema.AnyOf[0], useExamples, depth+1)
-	}
-
-	// Handle by type
-	types := schema.Type.Slice()
-	if len(types) == 0 {
-		// Check if properties exist (implicit object)
-		if len(schema.Properties) > 0 {
-			return s.generateObject(doc, schema, useExamples, depth)
-		}
-		return nil
-	}
-
-	switch types[0] {
-	case "object":
-		return s.generateObject(doc, schema, useExamples, depth)
-	case "array":
-		return s.generateArray(doc, schema, useExamples, depth)
-	case "string":
-		return s.generateString(schema)
-	case "integer":
-		return s.generateInteger(schema)
-	case "number":
-		return s.generateNumber(schema)
-	case "boolean":
-		return s.generateBoolean()
-	default:
-		return nil
-	}
-}
-
-func (s *ValidatorService) generateObject(doc *openapi3.T, schema *openapi3.Schema, useExamples bool, depth int) map[string]any {
-	result := make(map[string]any)
-	for propName, propRef := range schema.Properties {
-		result[propName] = s.generateValue(doc, propRef, useExamples, depth+1)
-	}
-	return result
-}
-
-func (s *ValidatorService) generateArray(doc *openapi3.T, schema *openapi3.Schema, useExamples bool, depth int) []any {
-	if schema.Items == nil {
-		return []any{}
-	}
-	count := 1
-	if schema.MinItems > 0 && uint64(count) < schema.MinItems {
-		count = int(schema.MinItems)
-	}
-	result := make([]any, count)
-	for i := 0; i < count; i++ {
-		result[i] = s.generateValue(doc, schema.Items, useExamples, depth+1)
-	}
-	return result
-}
-
-func (s *ValidatorService) generateString(schema *openapi3.Schema) string {
-	if len(schema.Enum) > 0 {
-		return fmt.Sprintf("%v", schema.Enum[0])
-	}
-	switch schema.Format {
-	case "date":
-		return "2024-01-15"
-	case "date-time":
-		return "2024-01-15T10:30:00Z"
-	case "email":
-		return "user@example.com"
-	case "uri", "url":
-		return "https://example.com"
-	case "uuid":
-		return "550e8400-e29b-41d4-a716-446655440000"
-	}
-	return "string"
-}
-
-func (s *ValidatorService) generateInteger(schema *openapi3.Schema) int64 {
-	if len(schema.Enum) > 0 {
-		if val, ok := schema.Enum[0].(float64); ok {
-			return int64(val)
-		}
-	}
-	if schema.Min != nil {
-		return int64(*schema.Min)
-	}
-	return 123
-}
-
-func (s *ValidatorService) generateNumber(schema *openapi3.Schema) float64 {
-	if len(schema.Enum) > 0 {
-		if val, ok := schema.Enum[0].(float64); ok {
-			return val
-		}
-	}
-	if schema.Min != nil {
-		return *schema.Min
-	}
-	return 123.45
-}
-
-func (s *ValidatorService) generateBoolean() bool {
-	return true
-}
-
-func (s *ValidatorService) generateAllOf(doc *openapi3.T, allOf openapi3.SchemaRefs, useExamples bool, depth int) map[string]any {
-	result := make(map[string]any)
-	for _, schemaRef := range allOf {
-		val := s.generateValue(doc, schemaRef, useExamples, depth+1)
-		if obj, ok := val.(map[string]any); ok {
-			maps.Copy(result, obj)
-		}
-	}
-	return result
 }
 
 // ============================================================================

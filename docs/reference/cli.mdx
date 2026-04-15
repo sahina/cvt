@@ -5,6 +5,9 @@ sidebar_position: 2
 description: CVT command-line interface reference
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # CLI Reference
 
 ## What is the CVT CLI?
@@ -210,6 +213,7 @@ cvt generate --schema <path> [options]
 | `--use-examples` |       | Use schema examples when available                 | true               |
 | `--content-type` |       | Content type for request/response                  | application/json   |
 | `--output`       | `-o`  | Output file path (default: stdout)                 | stdout             |
+| `--seed`         |       | Random seed for deterministic output                |                    |
 
 ### Examples
 
@@ -231,6 +235,9 @@ cvt generate --schema ./openapi.json --method GET --path /pets --output-type res
 
 # Save output to file
 cvt generate --schema ./openapi.json --method GET --path /pets/{petId} -o fixture.json
+
+# Deterministic output with seed (same seed = same output every time)
+cvt generate --schema ./openapi.json --method GET --path /pets/{petId} --seed 42
 ```
 
 ### Output (Fixture)
@@ -293,6 +300,7 @@ cvt mock --schema <path-or-url> [options]
 | `--no-examples`       |       | Use generated values instead of schema examples       | false     |
 | `--latency`           |       | Artificial response delay in milliseconds             | 0         |
 | `--quiet`             | `-q`  | Suppress request logging                              | false     |
+| `--seed`              |       | Random seed for deterministic responses                |           |
 
 ### Examples
 
@@ -314,6 +322,9 @@ cvt mock --schema ./openapi.json --latency 200
 
 # Quiet mode (no per-request logging)
 cvt mock --schema ./openapi.json --quiet
+
+# Deterministic responses with seed
+cvt mock --schema ./openapi.json --seed 42
 ```
 
 ### How It Works
@@ -327,6 +338,108 @@ cvt mock --schema ./openapi.json --quiet
 When `--validate-requests` is enabled, the server validates incoming requests against the schema and returns `400 Bad Request` with details if validation fails.
 
 When `--watch` is enabled, the server watches schema files on disk for changes and automatically reloads them without restart.
+
+### Data Generation Modes
+
+The mock server generates response data using three modes, controlled by `--no-examples` and `--seed`. For each field in the response, the server checks: does the schema define an `example` value? If so (and examples are enabled), it uses that. Otherwise, it generates realistic fake data based on the field's type and format.
+
+<Tabs groupId="mock-data-mode">
+<TabItem value="default" label="Default (examples + faker)">
+
+```bash
+cvt mock --schema ./openapi.json
+```
+
+Fields with schema examples return the author's hand-picked values. Fields without examples get randomly generated fake data (realistic emails, names, UUIDs, dates, integers, etc.). This is a hybrid mode: curated data where the schema author provided it, realistic generated data everywhere else.
+
+Given this schema:
+
+```yaml
+properties:
+  name:
+    type: string
+    example: "Fido"       # has example
+  tag:
+    type: string          # no example
+  email:
+    type: string
+    format: email         # no example, but has format
+```
+
+The response would be:
+
+```json
+{
+  "name": "Fido",
+  "tag": "bravo",
+  "email": "jane.doe@example.com"
+}
+```
+
+- `name` returns `"Fido"` every time (schema example)
+- `tag` returns a random word each request (faker-generated, no example)
+- `email` returns a realistic email each request (faker knows the `email` format)
+
+**When to use:** Frontend development against a mock API where schema authors have provided curated example values.
+
+</TabItem>
+<TabItem value="no-examples" label="All faker (--no-examples)">
+
+```bash
+cvt mock --schema ./openapi.json --no-examples
+```
+
+Schema examples are ignored entirely. Every field gets faker-generated data. Each request produces different values.
+
+```bash
+curl http://localhost:8080/pets/1
+# { "name": "alpha", "tag": "charlie", "email": "mark.smith@test.org" }
+
+curl http://localhost:8080/pets/1
+# { "name": "water", "tag": "until", "email": "bob.jones@example.net" }
+```
+
+**When to use:** Testing that your client code handles varied data correctly. Catches parsing bugs that static example values would miss (e.g., name fields longer than expected, special characters, different email domains).
+
+</TabItem>
+<TabItem value="seeded" label="Deterministic (--seed)">
+
+```bash
+cvt mock --schema ./openapi.json --no-examples --seed 42
+```
+
+Faker data with a fixed random seed. The response sequence is deterministic: restart the server with `--seed 42` and you get the exact same sequence of responses. Each request still advances the seed state, so consecutive requests produce different values, but the sequence is always the same.
+
+```bash
+# First request (always identical with --seed 42):
+curl http://localhost:8080/pets/1
+# { "name": "such", "tag": "then" }
+
+# Restart server with same seed, first request is identical:
+curl http://localhost:8080/pets/1
+# { "name": "such", "tag": "then" }
+```
+
+You can also use `--seed` with `cvt generate` for reproducible fixture files:
+
+```bash
+cvt generate --schema ./openapi.json --method GET --path /pets/{petId} --seed 42
+# Same output every time
+```
+
+**When to use:** CI snapshot testing, reproducible bug reports, or generating golden fixture files that you check into version control.
+
+</TabItem>
+</Tabs>
+
+#### When to use which
+
+| Use case | Command | Why |
+| -------- | ------- | --- |
+| Frontend dev against mock API | `cvt mock --schema api.json` | Examples give realistic, curated data |
+| Testing varied/edge-case data | `cvt mock --schema api.json --no-examples` | Varied data catches parsing bugs |
+| CI snapshot tests | `cvt mock --schema api.json --no-examples --seed 42` | Deterministic output is diffable |
+| Generating golden fixtures | `cvt generate --seed 42` | Reproducible test data files |
 
 ### Exit Codes
 

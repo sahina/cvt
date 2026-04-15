@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/getkin/kin-openapi/openapi2"
 	"github.com/getkin/kin-openapi/openapi2conv"
 	"github.com/getkin/kin-openapi/openapi3"
@@ -25,12 +26,23 @@ import (
 type Validator struct {
 	schemas map[string]*openapi3.T
 	mu      sync.RWMutex
+	faker   *gofakeit.Faker
 }
 
-// NewValidator creates a new local validator instance.
+// NewValidator creates a new local validator instance with random faker seed.
 func NewValidator() *Validator {
 	return &Validator{
 		schemas: make(map[string]*openapi3.T),
+		faker:   gofakeit.New(0),
+	}
+}
+
+// NewValidatorWithSeed creates a new local validator instance with a deterministic faker seed.
+// Using the same seed produces identical generated values across calls.
+func NewValidatorWithSeed(seed uint64) *Validator {
+	return &Validator{
+		schemas: make(map[string]*openapi3.T),
+		faker:   gofakeit.New(seed),
 	}
 }
 

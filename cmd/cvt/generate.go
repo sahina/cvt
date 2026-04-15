@@ -21,6 +21,8 @@ func generateCmd() *cobra.Command {
 		outputFile  string
 		outputType  string
 		listOnly    bool
+		seed        uint64
+		seedSet     bool
 	)
 
 	cmd := &cobra.Command{
@@ -60,7 +62,12 @@ Examples:
 				return fmt.Errorf("--schema is required")
 			}
 
-			v := cvt.NewValidator()
+			var v *cvt.Validator
+			if seedSet {
+				v = cvt.NewValidatorWithSeed(seed)
+			} else {
+				v = cvt.NewValidator()
+			}
 			if err := v.RegisterSchemaFromPath("schema", schemaFile); err != nil {
 				return fmt.Errorf("failed to load schema: %w", err)
 			}
@@ -144,6 +151,12 @@ Examples:
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (default: stdout)")
 	cmd.Flags().StringVarP(&outputType, "output-type", "t", "fixture", "Output type: fixture, request, response")
 	cmd.Flags().BoolVarP(&listOnly, "list", "l", false, "List available endpoints and exit")
+	cmd.Flags().Uint64Var(&seed, "seed", 0, "Random seed for deterministic output")
+	// Track whether --seed was explicitly provided
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		seedSet = cmd.Flags().Changed("seed")
+		return nil
+	}
 
 	return cmd
 }

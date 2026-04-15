@@ -224,6 +224,7 @@ cvt generate --schema ./openapi.json --method POST --path /users --output-type r
 cvt generate --schema ./openapi.json --list  # List all endpoints
 cvt generate --schema https://petstore3.swagger.io/api/v3/openapi.json --list  # List from URL
 cvt generate --schema ./openapi.json --method GET --path /users --use-examples  # Use schema examples
+cvt generate --schema ./openapi.json --method GET --path /users --seed 42       # Deterministic output
 ```
 
 **mock** - Start a mock HTTP server from OpenAPI schemas:
@@ -234,6 +235,7 @@ cvt mock --schema a.json --schema b.json --port 3000            # Multiple schem
 cvt mock --schema ./openapi.json --validate-requests --watch    # Validate requests + hot-reload
 cvt mock --schema https://petstore3.swagger.io/api/v3/openapi.json  # From URL
 cvt mock --schema ./openapi.json --latency 200                  # Simulate 200ms network delay
+cvt mock --schema ./openapi.json --seed 42                      # Deterministic responses
 ```
 
 **can-i-deploy** - Check deployment safety against registered consumers (requires server):

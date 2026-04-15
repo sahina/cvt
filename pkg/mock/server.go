@@ -26,6 +26,7 @@ type ServerConfig struct {
 	UseExamples      bool
 	LatencyMs        int
 	Quiet            bool
+	Seed             *uint64 // Random seed for deterministic responses (nil = random)
 }
 
 // Server is a mock HTTP server that generates responses from OpenAPI schemas.
@@ -138,7 +139,12 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) loadSchemas(paths []string) (*cvt.Validator, []string, error) {
-	v := cvt.NewValidator()
+	var v *cvt.Validator
+	if s.config.Seed != nil {
+		v = cvt.NewValidatorWithSeed(*s.config.Seed)
+	} else {
+		v = cvt.NewValidator()
+	}
 	var schemaIDs []string
 	usedIDs := make(map[string]int) // track count per base ID for disambiguation
 
@@ -149,7 +155,18 @@ func (s *Server) loadSchemas(paths []string) (*cvt.Validator, []string, error) {
 		if usedIDs[baseID] > 1 {
 			id = fmt.Sprintf("%s-%d", baseID, usedIDs[baseID])
 		}
-		if err := v.RegisterSchemaFromPath(id, path); err != nil {
+		// For local files, read content ourselves and register via bytes.
+		// This avoids kin-openapi's LoadFromFile which can get stale content
+		// on macOS when the file is modified (symlink path resolution issue).
+		if !strings.HasPrefix(path, "http://") && !strings.HasPrefix(path, "https://") {
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return nil, nil, fmt.Errorf("failed to read schema %s: %w", path, readErr)
+			}
+			if err := v.RegisterSchema(id, data); err != nil {
+				return nil, nil, fmt.Errorf("failed to load schema %s: %w", path, err)
+			}
+		} else if err := v.RegisterSchemaFromPath(id, path); err != nil {
 			return nil, nil, fmt.Errorf("failed to load schema %s: %w", path, err)
 		}
 		schemaIDs = append(schemaIDs, id)

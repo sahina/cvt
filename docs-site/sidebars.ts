@@ -89,15 +89,6 @@ const sidebars: SidebarsConfig = {
         'development/releasing',
       ],
     },
-    {
-      type: 'category',
-      label: 'Internal',
-      collapsed: true,
-      items: [
-        'internal/prd',
-        'internal/adoption-strategy',
-      ],
-    },
   ],
 };
 

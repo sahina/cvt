@@ -483,6 +483,9 @@ func TestMockCLI_Watch(t *testing.T) {
 	_, port, _ := startMockServer(t, testBinary, "--schema", tmpSchema, "--watch")
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 
+	// Let the watcher goroutine fully initialize before modifying the file
+	time.Sleep(500 * time.Millisecond)
+
 	// Verify GET /pets works
 	resp, err := http.Get(baseURL + "/pets")
 	if err != nil {
@@ -530,13 +533,27 @@ func TestMockCLI_Watch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal modified schema: %v", err)
 	}
-	if err := os.WriteFile(tmpSchema, modifiedData, 0644); err != nil {
+
+	// Write modified schema using explicit open+write+sync to ensure the data
+	// is flushed to disk before fsnotify triggers the reload.
+	f, err := os.OpenFile(tmpSchema, os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		t.Fatalf("failed to open schema for writing: %v", err)
+	}
+	if _, err := f.Write(modifiedData); err != nil {
+		f.Close()
 		t.Fatalf("failed to write modified schema: %v", err)
 	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		t.Fatalf("failed to sync schema file: %v", err)
+	}
+	f.Close()
 
 	// Poll until the new /health endpoint returns 200 (proves reload worked)
+	// Allow 10s: 500ms watcher debounce + schema parse + handler rebuild
 	healthReady := false
-	reloadDeadline := time.Now().Add(5 * time.Second)
+	reloadDeadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(reloadDeadline) {
 		resp2, err := http.Get(baseURL + "/health")
 		if err == nil {
@@ -561,4 +578,131 @@ func TestMockCLI_Watch(t *testing.T) {
 	if resp3.StatusCode != 200 {
 		t.Errorf("GET /pets after reload: expected 200, got %d", resp3.StatusCode)
 	}
+}
+
+// --- Faker / Seed E2E Tests ---
+
+func TestMockCLI_FakerVariedOutput(t *testing.T) {
+	schema := schemaPath("server/testdata/openapi-v3/valid/simple-petstore.json")
+	_, port, _ := startMockServer(t, testBinary, "--schema", schema, "--no-examples")
+	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+
+	// Sample multiple responses and verify we see at least 2 distinct values.
+	// A single comparison can flake since faker could legitimately repeat.
+	seen := make(map[string]bool)
+	for i := 0; i < 5; i++ {
+		body := getJSONBody(t, baseURL+"/pets/1")
+		seen[body] = true
+	}
+	if len(seen) < 2 {
+		t.Errorf("expected varied responses from unseeded mock server, but all 5 were identical")
+	}
+}
+
+func TestMockCLI_SeededDeterminism(t *testing.T) {
+	schema := schemaPath("server/testdata/openapi-v3/valid/simple-petstore.json")
+
+	// Start two mock servers with the same seed
+	_, port1, _ := startMockServer(t, testBinary, "--schema", schema, "--no-examples", "--seed", "42")
+	_, port2, _ := startMockServer(t, testBinary, "--schema", schema, "--no-examples", "--seed", "42")
+	base1 := fmt.Sprintf("http://127.0.0.1:%d", port1)
+	base2 := fmt.Sprintf("http://127.0.0.1:%d", port2)
+
+	// First request from each should produce identical output
+	body1 := getJSONBody(t, base1+"/pets/1")
+	body2 := getJSONBody(t, base2+"/pets/1")
+
+	if body1 != body2 {
+		t.Errorf("seeded mock servers produced different output:\n  server1: %s\n  server2: %s", body1, body2)
+	}
+}
+
+func TestMockCLI_SeededNotStatic(t *testing.T) {
+	schema := schemaPath("server/testdata/openapi-v3/valid/simple-petstore.json")
+	_, port, _ := startMockServer(t, testBinary, "--schema", schema, "--no-examples", "--seed", "42")
+	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+
+	body := getJSONBody(t, baseURL+"/pets/1")
+
+	// Parse JSON and check that "name" is not the old hardcoded default
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &parsed); err != nil {
+		t.Fatalf("failed to parse response JSON: %v", err)
+	}
+	if name, ok := parsed["name"].(string); ok && name == "string" {
+		t.Error("seeded output still contains hardcoded 'string' default for name field")
+	}
+}
+
+func TestMockCLI_GenerateSeeded(t *testing.T) {
+	schema := schemaPath("server/testdata/openapi-v3/valid/simple-petstore.json")
+
+	// Run cvt generate twice with same seed — output should match
+	out1 := runGenerate(t, schema, "GET", "/pets/{petId}", "42")
+	out2 := runGenerate(t, schema, "GET", "/pets/{petId}", "42")
+
+	if out1 != out2 {
+		t.Errorf("seeded generate produced different output:\n  run1: %s\n  run2: %s", out1, out2)
+	}
+
+	// Run without seed — should differ from seeded run
+	out3 := runGenerate(t, schema, "GET", "/pets/{petId}", "")
+	if out1 == out3 {
+		t.Error("unseeded generate produced same output as seeded — expected different")
+	}
+}
+
+func TestMockCLI_GenerateRealisticData(t *testing.T) {
+	schema := schemaPath("sdks/shared/openapi.json")
+
+	out := runGenerate(t, schema, "GET", "/pet/{petId}", "")
+
+	// Should be valid JSON
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("generate output is not valid JSON: %v\noutput: %s", err, out)
+	}
+
+	// Check that "name" is not the old hardcoded default
+	if body, ok := result["body"].(map[string]interface{}); ok {
+		if name, ok := body["name"].(string); ok && name == "string" {
+			t.Error("generate still returns hardcoded 'string' default for name field")
+		}
+	}
+}
+
+// --- helpers ---
+
+func getJSONBody(t *testing.T, url string) string {
+	t.Helper()
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("GET %s failed: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("GET %s: expected 200, got %d: %s", url, resp.StatusCode, body)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read body from %s: %v", url, err)
+	}
+	return string(body)
+}
+
+func runGenerate(t *testing.T, schema, method, path, seed string) string {
+	t.Helper()
+	args := []string{"generate", "--schema", schema, "--method", method, "--path", path, "--use-examples=false", "--output-type", "response"}
+	if seed != "" {
+		args = append(args, "--seed", seed)
+	}
+	cmd := exec.Command(testBinary, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("cvt generate failed: %v\nstderr: %s", err, stderr.String())
+	}
+	return strings.TrimSpace(stdout.String())
 }

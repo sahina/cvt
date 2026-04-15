@@ -3,11 +3,13 @@
 package cvt
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
@@ -499,8 +501,15 @@ func (v *Validator) generateValue(doc *openapi3.T, schemaRef *openapi3.SchemaRef
 func (v *Validator) generateObject(doc *openapi3.T, schema *openapi3.Schema, useExamples bool, depth int) map[string]interface{} {
 	result := make(map[string]interface{})
 
-	for propName, propRef := range schema.Properties {
-		result[propName] = v.generateValue(doc, propRef, useExamples, depth+1)
+	// Sort property names for deterministic faker call order (seeded reproducibility)
+	propNames := make([]string, 0, len(schema.Properties))
+	for name := range schema.Properties {
+		propNames = append(propNames, name)
+	}
+	slices.Sort(propNames)
+
+	for _, propName := range propNames {
+		result[propName] = v.generateValue(doc, schema.Properties[propName], useExamples, depth+1)
 	}
 
 	// When there are no named properties but additionalProperties has a schema,
@@ -545,23 +554,23 @@ func (v *Validator) generateString(schema *openapi3.Schema) string {
 	// Check for format
 	switch schema.Format {
 	case "date":
-		return "2024-01-15"
+		return v.faker.Date().Format("2006-01-02")
 	case "date-time":
-		return "2024-01-15T10:30:00Z"
+		return v.faker.Date().Format(time.RFC3339)
 	case "email":
-		return "user@example.com"
+		return v.faker.Email()
 	case "uri", "url":
-		return "https://example.com"
+		return v.faker.URL()
 	case "uuid":
-		return "550e8400-e29b-41d4-a716-446655440000"
+		return v.faker.UUID()
 	case "hostname":
-		return "example.com"
+		return v.faker.DomainName()
 	case "ipv4":
-		return "192.168.1.1"
+		return v.faker.IPv4Address()
 	case "ipv6":
-		return "::1"
+		return v.faker.IPv6Address()
 	case "byte":
-		return "c3RyaW5n" // base64 encoded "string"
+		return base64.StdEncoding.EncodeToString([]byte(v.faker.LetterN(6)))
 	case "binary":
 		return "binary-data"
 	case "password":
@@ -574,7 +583,7 @@ func (v *Validator) generateString(schema *openapi3.Schema) string {
 	}
 
 	// Default string
-	return "string"
+	return v.faker.Word()
 }
 
 // generateInteger generates an integer value.
@@ -586,18 +595,18 @@ func (v *Validator) generateInteger(schema *openapi3.Schema) int64 {
 		}
 	}
 
-	// Check for minimum
+	min := 1
+	max := 1000
 	if schema.Min != nil {
-		return int64(*schema.Min)
+		min = int(*schema.Min)
+	}
+	if schema.Max != nil {
+		max = int(*schema.Max)
+	} else if schema.Min != nil {
+		max = min + 1000
 	}
 
-	// Default based on format
-	switch schema.Format {
-	case "int64":
-		return 1234567890
-	default:
-		return 123
-	}
+	return int64(v.faker.IntRange(min, max))
 }
 
 // generateNumber generates a number value.
@@ -609,13 +618,18 @@ func (v *Validator) generateNumber(schema *openapi3.Schema) float64 {
 		}
 	}
 
-	// Check for minimum
+	min := 0.01
+	max := 999.99
 	if schema.Min != nil {
-		return *schema.Min
+		min = *schema.Min
+	}
+	if schema.Max != nil {
+		max = *schema.Max
+	} else if schema.Min != nil {
+		max = min + 1000.0
 	}
 
-	// Default
-	return 123.45
+	return v.faker.Float64Range(min, max)
 }
 
 // generateBoolean generates a boolean value.
@@ -627,8 +641,7 @@ func (v *Validator) generateBoolean(schema *openapi3.Schema) bool {
 		}
 	}
 
-	// Random boolean for variety
-	return rand.Intn(2) == 1
+	return v.faker.Bool()
 }
 
 // generateAllOf merges all schemas in allOf.
