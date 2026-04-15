@@ -75,8 +75,8 @@ cvt mock \
   --schema ./sdks/shared/openapi.json \
   --port 3000
 
-# Then test it
-curl http://localhost:8080/users/1
+# Then test it (port 3000 from above)
+curl http://localhost:3000/users/1
 ```
 
 ## Expected Output

@@ -97,7 +97,7 @@ func (s *Server) Start() error {
 	// Listen on port
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("port %d already in use", s.config.Port)
+		return fmt.Errorf("failed to listen on %s: %w", addr, err)
 	}
 
 	if !s.config.Quiet {
@@ -140,9 +140,15 @@ func (s *Server) Start() error {
 func (s *Server) loadSchemas(paths []string) (*cvt.Validator, []string, error) {
 	v := cvt.NewValidator()
 	var schemaIDs []string
+	usedIDs := make(map[string]int) // track count per base ID for disambiguation
 
 	for _, path := range paths {
-		id := schemaIDFromPath(path)
+		baseID := schemaIDFromPath(path)
+		usedIDs[baseID]++
+		id := baseID
+		if usedIDs[baseID] > 1 {
+			id = fmt.Sprintf("%s-%d", baseID, usedIDs[baseID])
+		}
 		if err := v.RegisterSchemaFromPath(id, path); err != nil {
 			return nil, nil, fmt.Errorf("failed to load schema %s: %w", path, err)
 		}

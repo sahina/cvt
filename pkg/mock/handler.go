@@ -70,8 +70,8 @@ func (h *MockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Route matched — handle it
-		h.handleMatchedRoute(w, r, schemaID, doc, route.Operation, start)
+		// Route matched — handle it (use route.Path for the template path)
+		h.handleMatchedRoute(w, r, schemaID, route.Operation, route.Path, start)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (h *MockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleMatchedRoute processes a request that matched a route in a schema.
-func (h *MockHandler) handleMatchedRoute(w http.ResponseWriter, r *http.Request, schemaID string, doc *openapi3.T, op *openapi3.Operation, start time.Time) {
+func (h *MockHandler) handleMatchedRoute(w http.ResponseWriter, r *http.Request, schemaID string, op *openapi3.Operation, templatePath string, start time.Time) {
 	// Validate request if configured
 	if h.config.ValidateRequests {
 		// Read and restore the body so it can be read again downstream
@@ -103,7 +103,13 @@ func (h *MockHandler) handleMatchedRoute(w http.ResponseWriter, r *http.Request,
 			headers[k] = r.Header.Get(k)
 		}
 
-		result, err := h.validator.ValidateRequest(schemaID, r.Method, r.URL.Path, headers, bodyStr)
+		// Include query string so required query params are validated
+		requestURI := r.URL.Path
+		if r.URL.RawQuery != "" {
+			requestURI = r.URL.Path + "?" + r.URL.RawQuery
+		}
+
+		result, err := h.validator.ValidateRequest(schemaID, r.Method, requestURI, headers, bodyStr)
 		if err != nil {
 			h.writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
 				"error":   "request validation error",
@@ -125,8 +131,8 @@ func (h *MockHandler) handleMatchedRoute(w http.ResponseWriter, r *http.Request,
 	// Determine success status code
 	statusCode := selectSuccessStatus(op)
 
-	// Check if operation has JSON response content
-	if !hasJSONResponse(op, statusCode) {
+	// Allow 204 No Content and other bodyless responses through without JSON check
+	if statusCode != http.StatusNoContent && !hasJSONResponse(op, statusCode) {
 		contentType := getFirstContentType(op, statusCode)
 		h.writeJSON(w, http.StatusNotAcceptable, map[string]interface{}{
 			"error":       "mock server only supports application/json responses",
@@ -138,8 +144,12 @@ func (h *MockHandler) handleMatchedRoute(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	// Resolve the template path from the operation back to the OpenAPI path pattern
-	templatePath := h.findTemplatePath(doc, r.Method, op)
+	// For 204 No Content, return empty response
+	if statusCode == http.StatusNoContent {
+		w.WriteHeader(statusCode)
+		h.logRequest(r, statusCode, start)
+		return
+	}
 
 	// Generate the response
 	opts := cvt.GenerateOptions{
@@ -176,19 +186,6 @@ func (h *MockHandler) handleMatchedRoute(w http.ResponseWriter, r *http.Request,
 	}
 
 	h.logRequest(r, resp.StatusCode, start)
-}
-
-// findTemplatePath finds the OpenAPI template path (e.g. /users/{id}) for an operation.
-func (h *MockHandler) findTemplatePath(doc *openapi3.T, method string, op *openapi3.Operation) string {
-	if doc.Paths == nil {
-		return ""
-	}
-	for path, pathItem := range doc.Paths.Map() {
-		if pathItem.GetOperation(method) == op {
-			return path
-		}
-	}
-	return ""
 }
 
 // RecoverMiddleware wraps an http.Handler with panic recovery that returns 500 JSON.

@@ -15,6 +15,8 @@ type Watcher struct {
 	watcher *fsnotify.Watcher
 	done    chan struct{}
 	wg      sync.WaitGroup
+	mu      sync.Mutex
+	timer   *time.Timer
 }
 
 // NewWatcher creates a file watcher that calls onReload when any watched file changes.
@@ -54,9 +56,6 @@ func NewWatcher(files []string, onReload func()) (*Watcher, error) {
 	go func() {
 		defer w.wg.Done()
 
-		var debounceTimer *time.Timer
-		var mu sync.Mutex
-
 		for {
 			select {
 			case event, ok := <-fw.Events:
@@ -78,12 +77,19 @@ func NewWatcher(files []string, onReload func()) (*Watcher, error) {
 					continue
 				}
 
-				mu.Lock()
-				if debounceTimer != nil {
-					debounceTimer.Stop()
+				w.mu.Lock()
+				if w.timer != nil {
+					w.timer.Stop()
 				}
-				debounceTimer = time.AfterFunc(debounceInterval, onReload)
-				mu.Unlock()
+				w.timer = time.AfterFunc(debounceInterval, func() {
+					select {
+					case <-w.done:
+						return
+					default:
+						onReload()
+					}
+				})
+				w.mu.Unlock()
 
 			case _, ok := <-fw.Errors:
 				if !ok {
@@ -102,6 +108,11 @@ func NewWatcher(files []string, onReload func()) (*Watcher, error) {
 // Close stops the watcher.
 func (w *Watcher) Close() {
 	close(w.done)
+	w.mu.Lock()
+	if w.timer != nil {
+		w.timer.Stop()
+	}
+	w.mu.Unlock()
 	_ = w.watcher.Close()
 	w.wg.Wait()
 }

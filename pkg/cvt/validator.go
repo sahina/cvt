@@ -192,7 +192,8 @@ func (v *Validator) prepareAndFindRoute(doc *openapi3.T, method, path string, he
 	// Derive base URL from server definitions
 	baseURL := "http://localhost"
 	if len(doc.Servers) > 0 {
-		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil {
+		if serverURL, err := url.Parse(doc.Servers[0].URL); err == nil &&
+			serverURL.Scheme != "" && serverURL.Host != "" {
 			baseURL = fmt.Sprintf("%s://%s", serverURL.Scheme, serverURL.Host)
 		}
 	}

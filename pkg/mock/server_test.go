@@ -14,6 +14,8 @@ import (
 	"github.com/sahina/cvt/pkg/cvt"
 )
 
+// getFreePort binds port 0 to get an available port, then closes the listener.
+// There is a small TOCTOU window, but it's acceptable for tests.
 func getFreePort(t *testing.T) int {
 	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")

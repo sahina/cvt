@@ -67,6 +67,6 @@ The combination is powerful: mock adapters give consumers fast, offline feedback
 
 For some workflows, yes:
 
-- **CLI offline commands** (**server not needed**) — [`cvt validate`](../reference/cli.mdx#validate), [`cvt compare`](../reference/cli.mdx#compare), [`cvt generate`](../reference/cli.mdx#generate), and [`cvt mock`](../reference/cli.mdx#mock) work entirely offline against local schema files or URLs.
+- **CLI offline commands** (**server not needed**) — [`cvt validate`](../reference/cli.mdx#validate), [`cvt compare`](../reference/cli.mdx#compare), [`cvt generate`](../reference/cli.mdx#generate), and [`cvt mock`](../reference/cli.mdx#mock) work without a CVT server. They operate on local schema files directly (or fetch from a URL if one is provided).
 - **Embedded Go library** (**server not needed**) — [`pkg/cvt`](https://pkg.go.dev/github.com/sahina/cvt/pkg/cvt) can be imported directly into Go code for in-process validation without any network calls.
 - **SDK-based workflow** (**server needed**) — [`registerSchema`](../reference/sdk/index.mdx#initialization), [`validate`](../reference/sdk/index.mdx#validation), [consumer registration](../guides/consumer-testing.mdx), and [`can-i-deploy`](../reference/cli.mdx#can-i-deploy) require a running server since SDKs communicate over [gRPC](../reference/api.mdx#service-methods).

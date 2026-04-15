@@ -26,8 +26,6 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "failed to create temp dir: %v\n", err)
 		os.Exit(1)
 	}
-	defer os.RemoveAll(tmp)
-
 	bin := filepath.Join(tmp, "cvt")
 	cmd := exec.Command("go", "build", "-o", bin, "./")
 	cmd.Dir = filepath.Join(repoRoot())
@@ -40,7 +38,9 @@ func TestMain(m *testing.M) {
 	}
 
 	testBinary = bin
-	os.Exit(m.Run())
+	code := m.Run()
+	_ = os.RemoveAll(tmp)
+	os.Exit(code)
 }
 
 // repoRoot returns the absolute path to the repository root.
@@ -101,8 +101,9 @@ func startMockServer(t *testing.T, binary string, args ...string) (*exec.Cmd, in
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	ready := false
 	deadline := time.Now().Add(5 * time.Second)
+	pollClient := &http.Client{Timeout: 250 * time.Millisecond}
 	for time.Now().Before(deadline) {
-		resp, err := http.Get(baseURL + "/")
+		resp, err := pollClient.Get(baseURL + "/")
 		if err == nil {
 			resp.Body.Close()
 			ready = true
@@ -533,28 +534,31 @@ func TestMockCLI_Watch(t *testing.T) {
 		t.Fatalf("failed to write modified schema: %v", err)
 	}
 
-	// Wait for the watcher to detect changes and reload (up to 3 seconds)
-	time.Sleep(2 * time.Second)
+	// Poll until the new /health endpoint returns 200 (proves reload worked)
+	healthReady := false
+	reloadDeadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(reloadDeadline) {
+		resp2, err := http.Get(baseURL + "/health")
+		if err == nil {
+			resp2.Body.Close()
+			if resp2.StatusCode == 200 {
+				healthReady = true
+				break
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if !healthReady {
+		t.Fatal("GET /health: expected 200 after schema reload, watcher may not have reloaded")
+	}
 
-	// Verify old endpoints still work (server did not crash on reload)
-	resp2, err := http.Get(baseURL + "/pets")
+	// Verify old endpoints still work after reload
+	resp3, err := http.Get(baseURL + "/pets")
 	if err != nil {
 		t.Fatalf("GET /pets after reload failed: %v", err)
 	}
-	resp2.Body.Close()
-	if resp2.StatusCode != 200 {
-		t.Errorf("GET /pets after reload: expected 200, got %d", resp2.StatusCode)
-	}
-
-	// Try the new endpoint - the watcher should have reloaded
-	resp3, err := http.Get(baseURL + "/health")
-	if err != nil {
-		t.Fatalf("GET /health failed: %v", err)
-	}
 	resp3.Body.Close()
-	// If watcher reload worked, this will be 200; if not, it will be 404
-	// Either outcome is acceptable - the important thing is the server did not crash
-	if resp3.StatusCode != 200 && resp3.StatusCode != 404 {
-		t.Errorf("GET /health: expected 200 or 404, got %d", resp3.StatusCode)
+	if resp3.StatusCode != 200 {
+		t.Errorf("GET /pets after reload: expected 200, got %d", resp3.StatusCode)
 	}
 }
