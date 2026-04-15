@@ -217,7 +217,9 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 	s.cache.Set(req.SchemaId, entry)
 
 	// Mirror schema into embedded generator for fixture generation
-	_ = s.generator.RegisterSchema(req.SchemaId, []byte(req.SchemaContent))
+	if genErr := s.generator.RegisterSchema(req.SchemaId, []byte(req.SchemaContent)); genErr != nil {
+		Warn("Failed to register schema in generator", zap.String("schemaId", req.SchemaId), zap.Error(genErr))
+	}
 
 	// Persist to storage if available (write-through)
 	var storageWarning string
@@ -643,7 +645,9 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 	}
 
 	// Mirror into embedded generator for fixture generation
-	_ = s.generator.RegisterSchema(schemaID, []byte(record.Content))
+	if genErr := s.generator.RegisterSchema(schemaID, []byte(record.Content)); genErr != nil {
+		Warn("Failed to register rehydrated schema in generator", zap.String("schemaId", schemaID), zap.Error(genErr))
+	}
 
 	Info("Rehydrated schema from storage into cache",
 		zap.String("schemaId", schemaID),

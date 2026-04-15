@@ -587,12 +587,15 @@ func TestMockCLI_FakerVariedOutput(t *testing.T) {
 	_, port, _ := startMockServer(t, testBinary, "--schema", schema, "--no-examples")
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 
-	// Make two requests to the same endpoint — responses should differ (random faker)
-	resp1Body := getJSONBody(t, baseURL+"/pets/1")
-	resp2Body := getJSONBody(t, baseURL+"/pets/1")
-
-	if resp1Body == resp2Body {
-		t.Error("expected different responses from unseeded mock server, got identical output")
+	// Sample multiple responses and verify we see at least 2 distinct values.
+	// A single comparison can flake since faker could legitimately repeat.
+	seen := make(map[string]bool)
+	for i := 0; i < 5; i++ {
+		body := getJSONBody(t, baseURL+"/pets/1")
+		seen[body] = true
+	}
+	if len(seen) < 2 {
+		t.Errorf("expected varied responses from unseeded mock server, but all 5 were identical")
 	}
 }
 
@@ -621,9 +624,13 @@ func TestMockCLI_SeededNotStatic(t *testing.T) {
 
 	body := getJSONBody(t, baseURL+"/pets/1")
 
-	// Should NOT contain the old hardcoded defaults
-	if strings.Contains(body, `"name": "string"`) {
-		t.Error("seeded output still contains hardcoded 'string' default")
+	// Parse JSON and check that "name" is not the old hardcoded default
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &parsed); err != nil {
+		t.Fatalf("failed to parse response JSON: %v", err)
+	}
+	if name, ok := parsed["name"].(string); ok && name == "string" {
+		t.Error("seeded output still contains hardcoded 'string' default for name field")
 	}
 }
 
@@ -650,15 +657,17 @@ func TestMockCLI_GenerateRealisticData(t *testing.T) {
 
 	out := runGenerate(t, schema, "GET", "/pet/{petId}", "")
 
-	// Should NOT contain old hardcoded defaults
-	if strings.Contains(out, `"name": "string"`) {
-		t.Error("generate still returns hardcoded 'string' default")
-	}
-
 	// Should be valid JSON
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(out), &result); err != nil {
 		t.Fatalf("generate output is not valid JSON: %v\noutput: %s", err, out)
+	}
+
+	// Check that "name" is not the old hardcoded default
+	if body, ok := result["body"].(map[string]interface{}); ok {
+		if name, ok := body["name"].(string); ok && name == "string" {
+			t.Error("generate still returns hardcoded 'string' default for name field")
+		}
 	}
 }
 
