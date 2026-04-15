@@ -71,13 +71,13 @@ else
   echo ">>> Starting CVT server directly (no Docker)..."
   # Build and start server in background on port 9550 to match Docker config
   echo ">>> Building server..."
-  (cd server && go build -o /tmp/cvt-server-test .) || {
+  go build -o /tmp/cvt-server-test ./cmd/cvt || {
     echo "❌ Failed to build server"
     exit 1
   }
 
   # Start server in background
-  CVT_PORT=9550 /tmp/cvt-server-test &
+  CVT_PORT=9550 /tmp/cvt-server-test serve &
   SERVER_PID=$!
 
   # Wait for server to be ready
