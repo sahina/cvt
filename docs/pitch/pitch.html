@@ -1,0 +1,2288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CVT — Consumer-Driven Contract Testing, schema-first.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* =====================================================================
+       CUSTOM PROPERTIES
+       ===================================================================== */
+    :root {
+      /* CVT brand — emerald */
+      --brand:          #10b981;
+      --brand-dark:     #059669;
+      --brand-darker:   #047857;
+      --brand-light:    #34d399;
+      --brand-glow:     rgba(16, 185, 129, 0.15);
+
+      /* Model / concept colors */
+      --model-a:   #06b6d4;   /* CLI-only — cyan */
+      --model-b:   #10b981;   /* Git-native — emerald */
+      --model-srv: #6366f1;   /* Server — indigo */
+      --phase-pre: #f59e0b;   /* Prerequisite — amber */
+
+      /* Status colors */
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error:   #ef4444;
+
+      /* Refined dark palette */
+      --bg:             #08080b;
+      --surface:        #101014;
+      --surface-raised: #0b0b0f;
+      --border:         #1a1a24;
+      --border-subtle:  rgba(255, 255, 255, 0.04);
+      --text:           #eae5dc;
+      --text-secondary: #9e968c;
+      --text-muted:     #585248;
+
+      /* Animation */
+      --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    /* =====================================================================
+       RESET & BASE
+       ===================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-snap-type: y proximity;
+      overflow-y: scroll;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background: var(--bg);
+      position: relative;
+    }
+
+    ::selection {
+      background: rgba(16, 185, 129, 0.3);
+      color: var(--text);
+    }
+
+    /* =====================================================================
+       GRAIN TEXTURE
+       ===================================================================== */
+    .grain {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      pointer-events: none;
+      opacity: 0.035;
+      mix-blend-mode: overlay;
+    }
+
+    /* =====================================================================
+       TYPOGRAPHY
+       ===================================================================== */
+    h1 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(2.4rem, 5.5vw, 4.2rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    h2 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+    }
+
+    h3 {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: clamp(0.95rem, 1.8vw, 1.2rem);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    p {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+      color: var(--text-secondary);
+      line-height: 1.75;
+      font-weight: 400;
+    }
+
+    code, .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85em;
+    }
+
+    /* =====================================================================
+       SLIDE CONTAINER
+       ===================================================================== */
+    .slide {
+      scroll-snap-align: start;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 4rem 6vw;
+      padding-left: max(6vw, 5rem);
+      position: relative;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .slide-inner {
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    /* =====================================================================
+       SCROLL REVEAL ANIMATIONS
+       ===================================================================== */
+    .slide .slide-inner {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.9s var(--ease-out-expo),
+                  transform 0.9s var(--ease-out-expo);
+    }
+
+    .slide.visible .slide-inner {
+      opacity: 1;
+      transform: none;
+    }
+
+    .slide .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s var(--ease-out-expo),
+                  transform 0.7s var(--ease-out-expo);
+    }
+
+    .slide.visible .reveal {
+      opacity: 1;
+      transform: none;
+    }
+
+    .slide.visible .reveal.d1 { transition-delay: 0.1s; }
+    .slide.visible .reveal.d2 { transition-delay: 0.2s; }
+    .slide.visible .reveal.d3 { transition-delay: 0.3s; }
+    .slide.visible .reveal.d4 { transition-delay: 0.4s; }
+    .slide.visible .reveal.d5 { transition-delay: 0.5s; }
+    .slide.visible .reveal.d6 { transition-delay: 0.6s; }
+    .slide.visible .reveal.d7 { transition-delay: 0.7s; }
+    .slide.visible .reveal.d8 { transition-delay: 0.8s; }
+
+    /* =====================================================================
+       PROGRESS TIMELINE (Fixed Left)
+       ===================================================================== */
+    .progress-nav {
+      position: fixed;
+      left: 1.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .progress-dot {
+      appearance: none;
+      padding: 0;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--border);
+      border: 1.5px solid transparent;
+      transition: all 0.5s var(--ease-out-expo);
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
+    }
+
+    .progress-dot:hover {
+      background: var(--text-muted);
+    }
+
+    .progress-dot.active {
+      background: var(--brand);
+      border-color: var(--brand);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
+      transform: scale(1.5);
+    }
+
+    .progress-line {
+      width: 1px;
+      height: 14px;
+      background: var(--border);
+    }
+
+    /* =====================================================================
+       SLIDE NUMBER
+       ===================================================================== */
+    .slide-number {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 2rem;
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      opacity: 0.6;
+    }
+
+    /* =====================================================================
+       SPEAKER NOTE
+       ===================================================================== */
+    .speaker-note {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      border-left: 2px solid var(--border);
+      padding-left: 0.85rem;
+      margin-top: 2.5rem;
+      font-style: italic;
+      line-height: 1.55;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    /* =====================================================================
+       MOCKUP (terminal / code chrome)
+       ===================================================================== */
+    .mockup {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      width: 100%;
+      box-shadow:
+        0 4px 24px -4px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.03),
+        0 0 80px -20px var(--brand-glow);
+      transition: box-shadow 0.4s ease;
+    }
+
+    .mockup:hover {
+      box-shadow:
+        0 8px 40px -8px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 0 100px -20px rgba(16, 185, 129, 0.2);
+    }
+
+    .mockup-large {
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    .mockup-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      background: var(--surface-raised);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mockup-header .dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .mockup-header .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-red    { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green  { background: #22c55e; }
+
+    .mockup-header .title {
+      flex: 1;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+    }
+
+    .mockup-body {
+      padding: 0.5rem 0;
+    }
+
+    /* =====================================================================
+       TERMINAL BODY
+       ===================================================================== */
+    .terminal-body {
+      padding: 20px 22px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13.5px;
+      line-height: 1.9;
+    }
+
+    .terminal-body .prompt   { color: var(--brand); }
+    .terminal-body .cmd      { color: var(--text); }
+    .terminal-body .flag     { color: var(--brand-light); }
+    .terminal-body .output   { color: var(--text-muted); }
+    .terminal-body .ok       { color: var(--success); }
+    .terminal-body .warn     { color: var(--warning); }
+    .terminal-body .err      { color: var(--error); }
+    .terminal-body .divider  { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+    .terminal-body .hint     { color: var(--text-muted); font-size: 12px; font-style: italic; font-family: 'IBM Plex Sans', sans-serif; }
+    .terminal-body .comment  { color: var(--text-muted); font-size: 12px; }
+
+    /* =====================================================================
+       CODE BODY
+       ===================================================================== */
+    .code-body {
+      padding: 1rem 1.1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      white-space: pre;
+      overflow-x: hidden;
+      margin: 0;
+    }
+
+    .code-body .kw  { color: #c4b5fd; }   /* keyword */
+    .code-body .tp  { color: var(--brand-light); } /* type */
+    .code-body .fn  { color: #93c5fd; }   /* function */
+    .code-body .st  { color: #86efac; }   /* string */
+    .code-body .nm  { color: #fbbf24; }   /* number/field */
+    .code-body .cm  { color: var(--text-muted); font-style: italic; } /* comment */
+    .code-body .ky  { color: var(--brand-light); } /* yaml key */
+    .code-body .vl  { color: #86efac; }   /* yaml value */
+
+    /* =====================================================================
+       SPLIT DIAGRAM
+       ===================================================================== */
+    .split-diagram {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 2rem;
+      align-items: start;
+      margin: 2.5rem 0;
+    }
+
+    .split-left, .split-right {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .split-left h3, .split-right h3 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+    }
+
+    .split-divider {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding-top: 2rem;
+    }
+
+    .split-divider .line {
+      width: 1px;
+      height: 60px;
+      background: linear-gradient(180deg, transparent, var(--border), transparent);
+    }
+
+    .split-divider .label {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 500;
+    }
+
+    .db-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1.1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .db-row:hover { border-color: rgba(16, 185, 129, 0.2); }
+
+    .db-row .db-label {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+    }
+
+    .db-row .db-field {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.2rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .db-row .db-field:last-child { border-bottom: none; }
+    .db-row .field-key { color: var(--text-muted); }
+    .db-row .field-val { color: var(--text); }
+    .db-row .field-val.red { color: var(--error); }
+    .db-row .field-val.green { color: var(--success); }
+
+    .system-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      transition: border-color 0.3s ease, transform 0.3s var(--ease-out-expo);
+    }
+
+    .system-box:hover {
+      border-color: rgba(16, 185, 129, 0.2);
+      transform: translateX(4px);
+    }
+
+    .system-box .sys-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .system-box .sys-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* =====================================================================
+       BOTTOM NOTE
+       ===================================================================== */
+    .bottom-note {
+      margin-top: 1.75rem;
+      padding: 0.95rem 1.2rem;
+      background: rgba(16, 185, 129, 0.04);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .bottom-note code {
+      color: var(--brand-light);
+      background: rgba(16, 185, 129, 0.08);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+    }
+
+    /* =====================================================================
+       DOMAIN CARDS
+       ===================================================================== */
+    .domain-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      margin: 2.5rem 0;
+    }
+
+    .domain-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem;
+      transition: border-color 0.3s ease, transform 0.4s var(--ease-out-expo);
+    }
+
+    .domain-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .domain-card.card-model-a { border-top: 2px solid var(--model-a); }
+    .domain-card.card-model-a:hover { border-color: rgba(6, 182, 212, 0.3); }
+
+    .domain-card.card-model-b { border-top: 2px solid var(--model-b); }
+    .domain-card.card-model-b:hover { border-color: rgba(16, 185, 129, 0.3); }
+
+    .domain-card.card-model-srv { border-top: 2px solid var(--model-srv); }
+    .domain-card.card-model-srv:hover { border-color: rgba(99, 102, 241, 0.3); }
+
+    .domain-card .card-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', sans-serif;
+    }
+
+    .domain-card.card-model-a .card-label   { color: var(--model-a); }
+    .domain-card.card-model-b .card-label   { color: var(--model-b); }
+    .domain-card.card-model-srv .card-label { color: var(--model-srv); }
+
+    .domain-card h3 {
+      font-size: 1rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .domain-card p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    .domain-card .best-for {
+      margin-top: 0.85rem;
+      padding: 0.6rem 0.75rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 6px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .domain-card .best-for strong {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* =====================================================================
+       PIVOT LINE
+       ===================================================================== */
+    .pivot-line {
+      text-align: center;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-style: italic;
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      margin-top: 1.25rem;
+    }
+
+    /* =====================================================================
+       BADGE
+       ===================================================================== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.18rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .badge-new      { background: rgba(16, 185, 129, 0.14); color: var(--brand-light); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .badge-existing { background: rgba(99, 102, 241, 0.14);  color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.25); }
+    .badge-phase1a  { background: rgba(16, 185, 129, 0.14); color: var(--brand-light); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .badge-prereq   { background: rgba(245, 158, 11, 0.14); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-stub     { background: rgba(88, 82, 72, 0.4);    color: var(--text-muted); border: 1px solid rgba(255,255,255,0.06); }
+    .badge-phase1b  { background: rgba(6, 182, 212, 0.14);  color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.25); }
+    .badge-phase2   { background: rgba(245, 158, 11, 0.14); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-phase3   { background: rgba(88, 82, 72, 0.4);    color: var(--text-muted); border: 1px solid rgba(255,255,255,0.06); }
+
+    /* =====================================================================
+       PHASE TIMELINE (Slide 9)
+       ===================================================================== */
+    .phase-row {
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      font-size: 14px;
+      transition: background 0.2s ease;
+    }
+
+    .phase-row:last-child { border-bottom: none; }
+    .phase-row:hover { background: rgba(255, 255, 255, 0.015); }
+
+    .phase-row .phase-icon { font-size: 15px; line-height: 1; margin-top: 2px; flex-shrink: 0; width: 20px; text-align: center; }
+    .phase-row .phase-name { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-secondary); min-width: 120px; flex-shrink: 0; margin-top: 2px; }
+    .phase-row .phase-items { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+    .phase-row .phase-items strong { color: var(--text-secondary); font-weight: 500; }
+
+    .phase-row.active {
+      background: rgba(16, 185, 129, 0.04);
+      border-left: 2px solid var(--brand);
+    }
+
+    .phase-row.active .phase-name { color: var(--text); font-weight: 600; }
+
+    .phase-row.blocking {
+      background: rgba(245, 158, 11, 0.04);
+      border-left: 2px solid var(--phase-pre);
+    }
+
+    .phase-row.blocking .phase-name { color: #fcd34d; }
+
+    /* =====================================================================
+       SPLIT TERMINAL (Slide 6)
+       ===================================================================== */
+    .split-terminal {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-top: 2rem;
+    }
+
+    .split-terminal .term-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 0.6rem;
+    }
+
+    /* =====================================================================
+       VALIDATION RULES
+       ===================================================================== */
+    .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .rule-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      transition: border-color 0.2s ease;
+    }
+
+    .rule-item:hover { border-color: rgba(16, 185, 129, 0.2); }
+
+    .rule-item .rule-icon { color: var(--brand); font-size: 13px; margin-top: 2px; flex-shrink: 0; }
+    .rule-item .rule-text { color: var(--text-secondary); line-height: 1.5; font-family: 'IBM Plex Sans', sans-serif; }
+    .rule-item .rule-text code { color: var(--brand-light); background: rgba(16,185,129,0.08); padding: 0.1em 0.3em; border-radius: 3px; }
+
+    /* =====================================================================
+       ARCHITECTURE LAYOUT (Slide 4)
+       ===================================================================== */
+    .arch-layout {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 3rem;
+      align-items: start;
+      margin-top: 2rem;
+    }
+
+    .arch-desc p {
+      font-size: 0.98rem;
+      line-height: 1.8;
+      margin-bottom: 1rem;
+    }
+
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .tech-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.28rem 0.7rem;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 20px;
+      font-size: 0.76rem;
+      color: var(--brand-light);
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      transition: background 0.3s ease;
+    }
+
+    .tech-pill:hover {
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .tech-pill.muted {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--border);
+      color: var(--text-muted);
+    }
+
+    /* =====================================================================
+       PROVIDER TABLE (Slide 5)
+       ===================================================================== */
+    .provider-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin-top: 1.5rem;
+    }
+
+    .provider-table th {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .provider-table td {
+      padding: 0.7rem 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      vertical-align: top;
+    }
+
+    .provider-table tr:last-child td { border-bottom: none; }
+    .provider-table tr:hover td { background: rgba(255,255,255,0.015); }
+
+    .provider-table td.scheme { color: var(--brand-light); white-space: nowrap; }
+    .provider-table td.phase  { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.78rem; }
+
+    /* =====================================================================
+       TITLE SLIDE
+       ===================================================================== */
+    .slide-title {
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .slide-title::before {
+      content: '';
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      width: 700px;
+      height: 500px;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(ellipse, var(--brand-glow) 0%, transparent 65%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+
+    .slide-title.visible::before { opacity: 1; }
+
+    .slide-title .logo { margin-bottom: 2.5rem; }
+
+    /* Logo path entrance animation */
+    .slide-title .logo-path {
+      stroke-dashoffset: 500;
+      stroke-dasharray: 500;
+      transition: stroke-dashoffset 1s var(--ease-out-expo);
+    }
+
+    .slide-title.visible .logo-path {
+      stroke-dashoffset: 0;
+    }
+
+    .slide-title.visible .logo-path:nth-child(1) { transition-delay: 0.1s; }
+    .slide-title.visible .logo-path:nth-child(2) { transition-delay: 0.25s; }
+    .slide-title.visible .logo-path:nth-child(3) { transition-delay: 0.4s; }
+
+    .slide-title h1 {
+      margin-bottom: 0.85rem;
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+      transition-delay: 0.55s;
+    }
+
+    .slide-title.visible h1 { opacity: 1; transform: none; }
+
+    .slide-title .tagline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(0.75rem, 1.5vw, 0.95rem);
+      font-weight: 500;
+      color: var(--brand);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+      transition-delay: 0.65s;
+    }
+
+    .slide-title.visible .tagline { opacity: 1; transform: none; }
+
+    .slide-title .subtitle {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-style: italic;
+      font-size: clamp(0.95rem, 1.8vw, 1.2rem);
+      color: var(--text-muted);
+      letter-spacing: 0.01em;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+      transition-delay: 0.85s;
+    }
+
+    .slide-title.visible .subtitle { opacity: 1; transform: none; }
+
+    /* =====================================================================
+       SLIDE HEADING AREA
+       ===================================================================== */
+    .slide-heading { margin-bottom: 0.75rem; }
+
+    .slide-heading h2 { color: var(--text); }
+
+    .slide-heading h2::after {
+      content: '';
+      display: block;
+      width: 40px;
+      height: 2px;
+      background: var(--brand);
+      margin-top: 0.65rem;
+      opacity: 0.6;
+      border-radius: 1px;
+    }
+
+    /* =====================================================================
+       CLOSING SLIDE
+       ===================================================================== */
+    .closing-headline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.6rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+    }
+
+    .closing-text {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-style: italic;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--text-secondary);
+      max-width: 640px;
+      line-height: 1.8;
+    }
+
+    .decisions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-top: 0.5rem;
+      max-width: 600px;
+    }
+
+    .decision-item {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-family: 'IBM Plex Sans', sans-serif;
+      line-height: 1.5;
+    }
+
+    .decision-item .num {
+      color: var(--brand);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* =====================================================================
+       KEYBOARD HINT
+       ===================================================================== */
+    .keyboard-hint {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      opacity: 0.4;
+      letter-spacing: 0.05em;
+      transition: opacity 0.4s ease;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .keyboard-hint.hidden { opacity: 0; }
+
+    /* =====================================================================
+       RESPONSIVE
+       ===================================================================== */
+    @media (max-width: 768px) {
+      .slide {
+        padding: 3rem 1.25rem;
+        padding-left: 1.25rem;
+        justify-content: flex-start;
+        padding-top: 4rem;
+      }
+
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.5rem; }
+
+      .progress-nav  { display: none; }
+      .keyboard-hint { display: none; }
+
+      .split-diagram {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .split-divider {
+        flex-direction: row;
+        padding-top: 0;
+        justify-content: center;
+      }
+
+      .split-divider .line  { width: 40px; height: 1px; }
+      .split-divider .label { writing-mode: horizontal-tb; }
+
+      .domain-cards  { grid-template-columns: 1fr; }
+      .arch-layout   { grid-template-columns: 1fr; }
+      .split-terminal { grid-template-columns: 1fr; }
+    }
+
+    /* =====================================================================
+       Q/A LABEL SYSTEM
+       ===================================================================== */
+    .qa-block {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1.75rem;
+      align-items: start;
+      margin: 1rem 0 1.5rem;
+    }
+
+    .qa-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--brand);
+      line-height: 1;
+      padding-top: 0.15rem;
+      position: relative;
+    }
+
+    .qa-label::after {
+      content: '';
+      display: block;
+      width: 26px;
+      height: 2px;
+      background: var(--brand);
+      margin-top: 0.55rem;
+      opacity: 0.45;
+    }
+
+    .qa-label.answer { color: var(--brand-light); }
+    .qa-label.answer::after { background: var(--brand-light); opacity: 0.3; }
+
+    .qa-question {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.4rem, 3vw, 2.2rem);
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .qa-answer {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      color: var(--text-secondary);
+      line-height: 1.55;
+      font-weight: 400;
+    }
+
+    .qa-answer strong { color: var(--text); font-weight: 600; }
+    .qa-answer code {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--brand-light);
+      background: rgba(16, 185, 129, 0.08);
+      padding: 0.08em 0.32em;
+      border-radius: 3px;
+      font-size: 0.88em;
+    }
+
+    /* =====================================================================
+       FLOW DIAGRAM
+       ===================================================================== */
+    .flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 2.25rem 0 1rem;
+      flex-wrap: wrap;
+    }
+
+    .flow-node {
+      padding: 0.9rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--text);
+      font-weight: 600;
+      transition: border-color 0.3s ease, transform 0.3s var(--ease-out-expo);
+      min-width: 130px;
+      text-align: center;
+    }
+
+    .flow-node:hover { transform: translateY(-2px); }
+
+    .flow-node .fn-label {
+      display: block;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .flow-node.brand {
+      border-color: rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .flow-node.brand .fn-label { color: var(--brand); }
+
+    .flow-node.err {
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.04);
+      color: var(--error);
+    }
+
+    .flow-node.err .fn-label { color: var(--error); }
+
+    .flow-arrow {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      padding: 0 0.35rem;
+      letter-spacing: -0.05em;
+    }
+
+    .flow-arrow.err { color: var(--error); }
+    .flow-arrow.brand { color: var(--brand); }
+
+    .flow-caption {
+      text-align: center;
+      margin-top: 0.75rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-style: italic;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    /* =====================================================================
+       FAILURE MODE CARDS
+       ===================================================================== */
+    .fail-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.1rem;
+      margin: 2rem 0 1rem;
+    }
+
+    .fail-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem;
+      transition: transform 0.4s var(--ease-out-expo), border-color 0.3s ease;
+      border-top: 2px solid var(--error);
+    }
+
+    .fail-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .fail-card .fc-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--error);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.55rem;
+    }
+
+    .fail-card h3 {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+      font-size: 1.02rem;
+      font-weight: 700;
+      margin-bottom: 0.55rem;
+      letter-spacing: -0.01em;
+    }
+
+    .fail-card p {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    /* =====================================================================
+       2x2 MATRIX
+       ===================================================================== */
+    .matrix-2x2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 2rem 0 1rem;
+    }
+
+    .matrix-cell {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.35rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .matrix-cell:hover { border-color: rgba(16, 185, 129, 0.2); }
+
+    .matrix-cell .mc-axis {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--brand);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+
+    .matrix-cell .mc-text {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    .matrix-cell .mc-text strong { color: var(--text); }
+
+    /* =====================================================================
+       VS CARDS (PACT philosophy)
+       ===================================================================== */
+    .vs-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin: 2rem 0 1rem;
+    }
+
+    .vs-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.6rem;
+      transition: transform 0.4s var(--ease-out-expo), border-color 0.3s ease;
+    }
+
+    .vs-card:hover { transform: translateY(-3px); }
+
+    .vs-card.pact { border-top: 2px solid #6366f1; }
+    .vs-card.pact:hover { border-color: rgba(99, 102, 241, 0.3); }
+
+    .vs-card.cvt { border-top: 2px solid var(--brand); }
+    .vs-card.cvt:hover { border-color: rgba(16, 185, 129, 0.3); }
+
+    .vs-card .vs-brand {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    .vs-card.pact .vs-brand { color: #a5b4fc; }
+    .vs-card.cvt .vs-brand { color: var(--brand); }
+
+    .vs-card .vs-tagline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.98rem;
+      color: var(--text);
+      margin-bottom: 0.85rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    .vs-card .vs-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+
+    /* =====================================================================
+       VS TABLE (feature matrix)
+       ===================================================================== */
+    .vs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    .vs-table thead th {
+      text-align: left;
+      padding: 0.7rem 1rem;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .vs-table thead th.col-cvt { color: var(--brand); }
+    .vs-table thead th.col-pact { color: #a5b4fc; }
+
+    .vs-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      vertical-align: top;
+    }
+
+    .vs-table td.dim {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      width: 24%;
+      font-weight: 500;
+    }
+
+    .vs-table td.win-cvt { color: var(--brand-light); font-weight: 500; }
+    .vs-table td.win-pact { color: #c4b5fd; font-weight: 500; }
+    .vs-table tr:last-child td { border-bottom: none; }
+
+    .vs-table tr.section-break td {
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+    }
+
+    .vs-table tr.section-break td.dim {
+      color: #fcd34d;
+      font-style: italic;
+    }
+
+    /* =====================================================================
+       DECISION TREE
+       ===================================================================== */
+    .tree {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      max-width: 760px;
+      margin: 2rem auto 0.5rem;
+    }
+
+    .tree-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 1.25rem;
+      align-items: center;
+      padding: 0.95rem 1.15rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: border-color 0.3s ease, transform 0.3s var(--ease-out-expo);
+    }
+
+    .tree-row:hover {
+      transform: translateX(3px);
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+
+    .tree-row.pact-row:hover { border-color: rgba(99, 102, 241, 0.25); }
+
+    .tree-q {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.94rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .tree-q strong { color: var(--text); font-weight: 600; }
+
+    .tree-arrow {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+    }
+
+    .tree-answer {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .tree-answer.cvt { color: var(--brand); }
+    .tree-answer.pact { color: #a5b4fc; }
+
+    /* =====================================================================
+       DIFF CARD (breaking changes)
+       ===================================================================== */
+    .diff-card {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 2rem 0 1rem;
+    }
+
+    .diff-side {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .diff-side.old { border-left: 2px solid #f59e0b; }
+    .diff-side.new { border-left: 2px solid var(--brand); }
+
+    .diff-head {
+      padding: 0.55rem 1rem;
+      background: var(--surface-raised);
+      border-bottom: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .diff-side.old .diff-head { color: #fcd34d; }
+    .diff-side.new .diff-head { color: var(--brand-light); }
+
+    .diff-body {
+      padding: 1rem 1.1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.85;
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .diff-body .del {
+      color: var(--error);
+      background: rgba(239, 68, 68, 0.1);
+      display: inline-block;
+      width: 100%;
+    }
+
+    .diff-body .add {
+      color: var(--success);
+      background: rgba(34, 197, 94, 0.1);
+      display: inline-block;
+      width: 100%;
+    }
+
+    .diff-body .k { color: var(--brand-light); }
+    .diff-body .s { color: #86efac; }
+    .diff-body .cm { color: var(--text-muted); font-style: italic; }
+
+    .diff-verdict {
+      text-align: center;
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background: rgba(239, 68, 68, 0.06);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.86rem;
+      color: var(--error);
+    }
+
+    /* =====================================================================
+       CTA (closing slide)
+       ===================================================================== */
+    .cta-install {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.9rem 1.35rem;
+      background: var(--surface);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.98rem;
+      color: var(--text);
+      margin-top: 2rem;
+      box-shadow: 0 0 40px -10px var(--brand-glow);
+    }
+
+    .cta-install .prompt { color: var(--brand); }
+
+    .cta-links {
+      margin-top: 1.5rem;
+      display: flex;
+      gap: 1.75rem;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .cta-links a {
+      color: var(--brand-light);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .cta-links a:hover { color: var(--brand); }
+
+    /* =====================================================================
+       BIG TYPE (slide 6)
+       ===================================================================== */
+    .big-statement {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.8rem, 4.5vw, 3.2rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      color: var(--text);
+      margin: 1.5rem 0;
+    }
+
+    .big-statement .accent { color: var(--brand); }
+
+    .bullets-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1.75rem;
+    }
+
+    .bullets-inline .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.4rem 0.85rem;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.22);
+      border-radius: 20px;
+      font-size: 0.82rem;
+      color: var(--brand-light);
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      transition: background 0.3s ease;
+    }
+
+    .bullets-inline .pill:hover { background: rgba(16, 185, 129, 0.15); }
+
+    /* =====================================================================
+       RESPONSIVE (deck-specific)
+       ===================================================================== */
+    @media (max-width: 768px) {
+      .qa-block { grid-template-columns: 1fr; gap: 0.75rem; }
+      .qa-label::after { margin-bottom: 0.5rem; }
+      .fail-cards { grid-template-columns: 1fr; }
+      .matrix-2x2 { grid-template-columns: 1fr; }
+      .vs-cards { grid-template-columns: 1fr; }
+      .diff-card { grid-template-columns: 1fr; }
+      .tree-row { grid-template-columns: 1fr; gap: 0.35rem; }
+      .tree-arrow { display: none; }
+      .tree-answer { text-align: left; }
+      .flow { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); }
+    }
+
+    /* =====================================================================
+       PRINT
+       ===================================================================== */
+    @media print {
+      html { scroll-snap-type: none; overflow: visible; }
+
+      .slide {
+        scroll-snap-align: none;
+        min-height: auto;
+        page-break-after: always;
+        padding: 2rem;
+      }
+
+      .slide .slide-inner,
+      .slide .reveal {
+        opacity: 1 !important;
+        transform: none !important;
+      }
+
+      .slide-number { position: static; margin-top: 1rem; text-align: right; }
+      .progress-nav, .grain, .keyboard-hint { display: none; }
+      .slide-title::before { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Grain texture overlay -->
+  <svg class="grain" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <filter id="grain-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <rect width="100%" height="100%" filter="url(#grain-filter)"/>
+  </svg>
+
+  <!-- Progress timeline nav -->
+  <nav class="progress-nav" aria-label="Slide progress"></nav>
+
+  <!-- Keyboard navigation hint -->
+  <div class="keyboard-hint">&#8593; &#8595; Navigate slides</div>
+
+  <!-- ==================================================================
+       SLIDE 1: TITLE
+       ================================================================== -->
+  <section class="slide slide-title" data-slide="0" data-orig="0">
+    <div class="slide-inner">
+      <div class="logo">
+        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" width="80" height="80" aria-label="CVT logo">
+          <defs>
+            <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#10b981"/>
+              <stop offset="40%" stop-color="#059669"/>
+              <stop offset="100%" stop-color="#047857"/>
+            </linearGradient>
+          </defs>
+          <rect x="10" y="10" width="492" height="492" rx="64" fill="url(#bg-grad)"/>
+          <rect x="10" y="10" width="492" height="492" rx="64" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4"/>
+          <path class="logo-path" d="M72 112 L215 112" stroke="rgba(255,255,255,0.75)" stroke-width="34" fill="none" stroke-linecap="round"/>
+          <path class="logo-path" d="M179 58 L231 112 L179 166" stroke="white" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path class="logo-path" d="M440 400 L297 400 M333 346 L281 400 L333 454" stroke="rgba(255,255,255,0.55)" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="256" cy="256" r="66" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.45)" stroke-width="8"/>
+          <path d="M216 256 L246 288 L296 228" stroke="white" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1>CVT</h1>
+      <p class="tagline">Contract Validator Toolkit</p>
+      <p class="subtitle">Consumer-Driven Contract Testing, schema-first.<br/><span style="font-size:0.82em;color:var(--text-muted);font-style:normal;letter-spacing:0.04em;">for the API teams tired of integration roulette</span></p>
+    </div>
+    <span class="slide-number">01 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 2: WHY DO APIs BREAK IN PROD?
+       ================================================================== -->
+  <section class="slide" data-slide="1">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">Why do APIs break in prod?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Producer shipped. <strong>Consumer didn't know.</strong></p>
+      </div>
+
+      <div class="flow reveal d3">
+        <div class="flow-node brand">
+          <span class="fn-label">producer</span>
+          ships v2.0
+        </div>
+        <span class="flow-arrow err">───✗───&gt;</span>
+        <div class="flow-node err">
+          <span class="fn-label">consumer</span>
+          500s in prod
+        </div>
+      </div>
+      <p class="flow-caption reveal d4">No shared contract. No safety net. Ship, pray, page.</p>
+
+      <p class="speaker-note reveal d5">
+        Open with the hook. Everyone in the room has lived this. Land the pause after "didn't know."
+      </p>
+    </div>
+    <span class="slide-number">02 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 3: WHAT IS CONTRACT TESTING? (frames both halves)
+       ================================================================== -->
+  <section class="slide" data-slide="2">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">First — what <em>is</em> contract testing?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Two halves. Both needed. <strong>We zoom into one today.</strong></p>
+      </div>
+
+      <div class="vs-cards">
+        <div class="vs-card cvt reveal d3">
+          <div class="vs-brand">
+            Consumer-Driven
+            <span class="badge badge-phase1a" style="margin-left:0.6rem;">★ this talk</span>
+          </div>
+          <div class="vs-tagline">Consumer declares.<br/>Producer honors.</div>
+          <p class="vs-desc">The consumer pins the shape it needs. The producer is on the hook to keep delivering it — every request, every deploy.</p>
+        </div>
+        <div class="vs-card reveal d4" style="border-top:2px solid var(--phase-pre);opacity:0.9;">
+          <div class="vs-brand" style="color:#fcd34d;">
+            Producer-Driven
+            <span class="badge badge-phase2" style="margin-left:0.6rem;">next talk</span>
+          </div>
+          <div class="vs-tagline">Producer publishes.<br/>Consumers verify.</div>
+          <p class="vs-desc">The producer declares the contract upfront. Consumers validate their own usage against it. Completes the picture — deferred today for focus.</p>
+        </div>
+      </div>
+
+      <p class="flow-caption reveal d5">
+        Same OpenAPI schema · opposite directions · both halves together = <strong style="color:var(--text);">complete contract testing</strong>
+      </p>
+
+      <p class="speaker-note reveal d6">
+        Name both halves out loud. Don't drill into producer-driven — it's a follow-up talk. Next slide narrows to the consumer-driven half.
+      </p>
+    </div>
+    <span class="slide-number">03 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 4: WHAT IS CONSUMER-DRIVEN CONTRACT TESTING?
+       ================================================================== -->
+  <section class="slide" data-slide="3">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">What is consumer-driven contract testing?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">The consumer pins a contract. The <strong>producer</strong> proves it still holds.</p>
+      </div>
+
+      <div class="flow reveal d3">
+        <div class="flow-node">
+          <span class="fn-label">consumer</span>
+          expects
+        </div>
+        <span class="flow-arrow brand">──&gt;</span>
+        <div class="flow-node brand">
+          <span class="fn-label">contract</span>
+          schema
+        </div>
+        <span class="flow-arrow brand">&lt;──</span>
+        <div class="flow-node">
+          <span class="fn-label">producer</span>
+          honors
+        </div>
+      </div>
+      <p class="flow-caption reveal d4">Both sides validate against the same truth. No guesswork.</p>
+
+      <p class="speaker-note reveal d5">
+        Key beat: "consumer-<em>driven</em>" means the consumer defines what it needs, not the producer.
+      </p>
+    </div>
+    <span class="slide-number">04 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 4: WHAT GOES WRONG WITHOUT IT?
+       ================================================================== -->
+  <section class="slide" data-slide="4">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">What happens without it?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Three flavors of pain.</p>
+      </div>
+
+      <div class="fail-cards">
+        <div class="fail-card reveal d3">
+          <div class="fc-num">01 — INTEGRATION HELL</div>
+          <h3>Hope &amp; pray</h3>
+          <p>Consumer wires up against stale Postman docs. Discovers the real shape in staging, a week late.</p>
+        </div>
+        <div class="fail-card reveal d4">
+          <div class="fc-num">02 — LATE DETECTION</div>
+          <h3>500s in prod</h3>
+          <p>Producer removes a field. Tests pass (they mocked it). Pager fires when real traffic hits.</p>
+        </div>
+        <div class="fail-card reveal d5">
+          <div class="fc-num">03 — ROLLBACK ROULETTE</div>
+          <h3>Who broke?</h3>
+          <p>Seven consumers, one producer, one deploy. Something died. Bisect the blast radius by hand.</p>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d6">
+        These are the three patterns every senior engineer recognizes. Pick the one your audience lived through last.
+      </p>
+    </div>
+    <span class="slide-number">05 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 5: WHO TESTS WHAT?
+       ================================================================== -->
+  <section class="slide" data-slide="5">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">Who tests what?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Both sides. Different moments.</p>
+      </div>
+
+      <div class="matrix-2x2">
+        <div class="matrix-cell reveal d3">
+          <div class="mc-axis">PRODUCER · REQUEST</div>
+          <div class="mc-text">"My server <strong>accepts</strong> what the schema promises consumers will send."</div>
+        </div>
+        <div class="matrix-cell reveal d3">
+          <div class="mc-axis">PRODUCER · RESPONSE</div>
+          <div class="mc-text">"My server <strong>returns</strong> shapes the schema promised."</div>
+        </div>
+        <div class="matrix-cell reveal d4">
+          <div class="mc-axis">CONSUMER · REQUEST</div>
+          <div class="mc-text">"I build requests the schema <strong>expects</strong>."</div>
+        </div>
+        <div class="matrix-cell reveal d4">
+          <div class="mc-axis">CONSUMER · RESPONSE</div>
+          <div class="mc-text">"I parse responses that <strong>match</strong> the schema."</div>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d5">
+        Emphasize: one schema covers all four quadrants. That's the whole point.
+      </p>
+    </div>
+    <span class="slide-number">06 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 6: SO WHAT IS CVT?
+       ================================================================== -->
+  <section class="slide" data-slide="6">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">So what is CVT?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">A schema-first contract validator. Uses the OpenAPI you already have.</p>
+      </div>
+
+      <h3 class="big-statement reveal d3">
+        No new DSL.<br/>
+        No per-language SDK lock-in.<br/>
+        <span class="accent">Just your spec.</span>
+      </h3>
+
+      <div class="bullets-inline reveal d4">
+        <span class="pill">OpenAPI v2 + v3</span>
+        <span class="pill">gRPC server</span>
+        <span class="pill">Node · Python · Go · Java</span>
+        <span class="pill">CLI · local mode</span>
+        <span class="pill">Mock server included</span>
+      </div>
+
+      <p class="speaker-note reveal d5">
+        Kill the PACT-adjacent fear: no new test framework to learn. If you've got a spec, you're done.
+      </p>
+    </div>
+    <span class="slide-number">07 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 7: HOW DOES CVT VALIDATE?
+       ================================================================== -->
+  <section class="slide" data-slide="7">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">How does it actually validate?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Register schema. Send interaction. Get verdict.</p>
+      </div>
+
+      <div class="flow reveal d3">
+        <div class="flow-node">
+          <span class="fn-label">01</span>
+          openapi.yaml
+        </div>
+        <span class="flow-arrow brand">──&gt;</span>
+        <div class="flow-node brand">
+          <span class="fn-label">02</span>
+          RegisterSchema
+        </div>
+        <span class="flow-arrow brand">──&gt;</span>
+        <div class="flow-node">
+          <span class="fn-label">03</span>
+          ValidateInteraction
+        </div>
+        <span class="flow-arrow brand">──&gt;</span>
+        <div class="flow-node brand">
+          <span class="fn-label">04</span>
+          PASS / FAIL
+        </div>
+      </div>
+
+      <div class="mockup reveal d4" style="margin-top:2rem;max-width:720px;margin-left:auto;margin-right:auto;">
+        <div class="mockup-header">
+          <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="title">validation result</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="prompt">$</span> <span class="cmd">cvt validate --schema pet-api --interaction req-resp.json</span></div>
+          <div>&nbsp;</div>
+          <div><span class="ok">✓</span> <span class="output">request  · GET /pets/42</span>        <span class="ok">valid</span></div>
+          <div><span class="ok">✓</span> <span class="output">response · 200 application/json</span>  <span class="ok">valid</span></div>
+          <div>&nbsp;</div>
+          <div><span class="hint">validated in 1.3ms · schema cached</span></div>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d5">
+        Emphasize sub-millisecond validation path — ristretto cache, kin-openapi under the hood. Not a toy.
+      </p>
+    </div>
+    <span class="slide-number">08 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 8: CAN I DEPLOY SAFELY?
+       ================================================================== -->
+  <section class="slide" data-slide="8">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">Can I deploy this safely?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Ask the server.</p>
+      </div>
+
+      <div class="mockup reveal d3" style="max-width:820px;margin:2rem auto 0;">
+        <div class="mockup-header">
+          <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="title">pre-deploy gate</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="prompt">$</span> <span class="cmd">cvt can-i-deploy --schema pet-api --version 2.0.0 --env prod</span></div>
+          <div>&nbsp;</div>
+          <div><span class="ok">✓</span> <span class="output">4 consumers verified against 2.0.0</span></div>
+          <div><span class="ok">✓</span> <span class="output">  order-service · checkout-svc · inventory-api · web-bff</span></div>
+          <div>&nbsp;</div>
+          <div><span class="ok">PASS — ship it</span></div>
+          <hr class="divider"/>
+          <div><span class="prompt">$</span> <span class="cmd">cvt can-i-deploy --schema pet-api --version 3.0.0 --env prod</span></div>
+          <div>&nbsp;</div>
+          <div><span class="err">✗</span> <span class="output">checkout-svc depends on GET /pets/{id}</span>  <span class="err">removed in 3.0.0</span></div>
+          <div>&nbsp;</div>
+          <div><span class="err">BLOCK — would break 1 consumer</span></div>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d4">
+        This is the money slide for principal engineers — deployment safety gate, not just a linter.
+      </p>
+    </div>
+    <span class="slide-number">09 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 9: WHAT ABOUT BREAKING CHANGES?
+       ================================================================== -->
+  <section class="slide" data-slide="9">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">What about breaking changes?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Caught before merge. Semantically, not textually.</p>
+      </div>
+
+      <div class="diff-card reveal d3">
+        <div class="diff-side old">
+          <div class="diff-head">v1.yaml — current prod</div>
+<pre class="diff-body">  <span class="k">Pet</span>:
+    <span class="k">required</span>:
+      - <span class="s">id</span>
+      - <span class="s">name</span>
+    <span class="k">properties</span>:
+      <span class="k">id</span>:     <span class="cm">integer</span>
+      <span class="k">name</span>:   <span class="cm">string</span>
+      <span class="k">status</span>: <span class="cm">string</span></pre>
+        </div>
+        <div class="diff-side new">
+          <div class="diff-head">v2.yaml — proposed</div>
+<pre class="diff-body">  <span class="k">Pet</span>:
+    <span class="k">required</span>:
+      - <span class="s">id</span>
+<span class="del">-     - <span class="s">name</span></span>
+<span class="add">+     - <span class="s">species</span></span>
+    <span class="k">properties</span>:
+      <span class="k">id</span>:      <span class="cm">integer</span>
+<span class="del">-      <span class="k">name</span>:    <span class="cm">string</span></span>
+<span class="add">+      <span class="k">species</span>: <span class="cm">string</span></span></pre>
+        </div>
+      </div>
+
+      <div class="diff-verdict reveal d4">
+        <span style="color:var(--error);font-weight:700;">⊘ 2 breaking changes</span> · required field <code>name</code> removed · new required field <code>species</code> added
+      </div>
+
+      <p class="speaker-note reveal d5">
+        Semantic = understands OpenAPI. Textual diff tools would show 4 lines changed; the compatibility engine shows which ones actually break clients.
+      </p>
+    </div>
+    <span class="slide-number">10 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 10: CVT vs PACT — PHILOSOPHY
+       ================================================================== -->
+  <section class="slide" data-slide="10">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">Isn't PACT the same thing?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Same goal. Opposite direction.</p>
+      </div>
+
+      <div class="vs-cards">
+        <div class="vs-card pact reveal d3">
+          <div class="vs-brand">PACT</div>
+          <div class="vs-tagline">Test-first.<br/>Mock-recorded.</div>
+          <p class="vs-desc">Consumer writes tests against a PACT mock DSL. Interactions get recorded into a pact file. Producer replays those recordings and must match every one.</p>
+        </div>
+        <div class="vs-card cvt reveal d4">
+          <div class="vs-brand">CVT</div>
+          <div class="vs-tagline">Schema-first.<br/>Spec-pinned.</div>
+          <p class="vs-desc">Producer publishes OpenAPI. Consumer pins a version. Both sides validate real traffic against the schema. No mocks to drift, no recordings to regenerate.</p>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d5">
+        Key framing: PACT is bottom-up (from consumer code). CVT is top-down (from the spec). Same outcome — opposite mental model.
+      </p>
+    </div>
+    <span class="slide-number">11 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 11: CVT vs PACT — FEATURE MATRIX
+       ================================================================== -->
+  <section class="slide" data-slide="11">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">Feature by feature?</h2>
+      </div>
+
+      <table class="vs-table reveal d2">
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th class="col-pact">PACT</th>
+            <th class="col-cvt">CVT</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="dim">Contract source</td>
+            <td>Recorded from consumer tests</td>
+            <td class="win-cvt">OpenAPI spec you already ship</td>
+          </tr>
+          <tr>
+            <td class="dim">Language coupling</td>
+            <td>Per-language client libs</td>
+            <td class="win-cvt">Any language → gRPC</td>
+          </tr>
+          <tr>
+            <td class="dim">Verification model</td>
+            <td>Producer replays consumer mocks</td>
+            <td class="win-cvt">Both sides validate real traffic</td>
+          </tr>
+          <tr>
+            <td class="dim">Breaking-change detection</td>
+            <td>Re-verify provider against stored pacts</td>
+            <td class="win-cvt">Semantic compatibility engine on the schema</td>
+          </tr>
+          <tr>
+            <td class="dim">Mock server</td>
+            <td>In-process mock inside the test framework</td>
+            <td class="win-cvt">Standalone CLI — <code style="font-size:0.95em;">cvt mock</code></td>
+          </tr>
+          <tr>
+            <td class="dim">Deploy gate</td>
+            <td><code style="font-size:0.95em;">can-i-deploy</code> via broker</td>
+            <td><code style="font-size:0.95em;">can-i-deploy</code> via gRPC</td>
+          </tr>
+          <tr class="section-break">
+            <td class="dim">⚑ Ecosystem maturity</td>
+            <td class="win-pact">Massive. A decade of adoption.</td>
+            <td>Early. Growing.</td>
+          </tr>
+          <tr>
+            <td class="dim">⚑ Language-idiomatic DSL</td>
+            <td class="win-pact">Strong. Feels native in every language.</td>
+            <td>None — spec is the contract</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="speaker-note reveal d3">
+        Bottom two rows are where PACT wins clean. Say so out loud — credibility matters with this audience.
+      </p>
+    </div>
+    <span class="slide-number">12 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 13: HOW DO I START?
+       ================================================================== -->
+  <section class="slide" data-slide="12">
+    <div class="slide-inner">
+      <div class="qa-block reveal d1">
+        <span class="qa-label">Q</span>
+        <h2 class="qa-question">How do I start?</h2>
+      </div>
+
+      <div class="qa-block reveal d2">
+        <span class="qa-label answer">A</span>
+        <p class="qa-answer">Three commands.</p>
+      </div>
+
+      <div class="mockup reveal d3" style="max-width:820px;margin:2rem auto 0;">
+        <div class="mockup-header">
+          <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+          <span class="title">getting started</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="comment"># 1. install</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">brew install sahina/tap/cvt</span></div>
+          <div><span class="hint">or: curl -L github.com/sahina/cvt/releases/latest/download/cvt-darwin-arm64 -o cvt</span></div>
+          <div>&nbsp;</div>
+          <div><span class="comment"># 2. register your spec</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt register-schema my-api ./openapi.yaml</span></div>
+          <div><span class="output">  → registered my-api@1.0.0</span></div>
+          <div>&nbsp;</div>
+          <div><span class="comment"># 3. gate your deploys</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">cvt can-i-deploy --schema my-api --version 2.0.0 --env prod</span></div>
+          <div><span class="ok">  PASS — ship it</span></div>
+        </div>
+      </div>
+
+      <p class="speaker-note reveal d4">
+        Point out: no Docker required for step 1. Local mode is first-class. Server is opt-in for teams that want central registry + deploy gates.
+      </p>
+    </div>
+    <span class="slide-number">13 / 14</span>
+  </section>
+
+  <!-- ==================================================================
+       SLIDE 14: CLOSE
+       ================================================================== -->
+  <section class="slide slide-title" data-slide="13">
+    <div class="slide-inner" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:0.75rem;">
+
+      <h1 class="closing-headline">Ship APIs<br/>without fear.</h1>
+
+      <p class="closing-text">
+        Your OpenAPI spec becomes the contract. CVT makes it enforceable — on every request, every deploy, every breaking change.
+      </p>
+
+      <div class="cta-install">
+        <span class="prompt">$</span> <span>brew install sahina/tap/cvt</span>
+      </div>
+
+      <div class="cta-links">
+        <a href="https://sahina.github.io/cvt/">sahina.github.io/cvt</a>
+        <span>·</span>
+        <a href="https://github.com/sahina/cvt">github.com/sahina/cvt</a>
+      </div>
+
+      <p class="speaker-note" style="margin-top:2.5rem;max-width:500px;text-align:left;">
+        Close on the tagline. Pause. Then name the URL. Let the room take a photo.
+      </p>
+    </div>
+    <span class="slide-number">14 / 14</span>
+  </section>
+
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const slides = document.querySelectorAll('.slide');
+      const progressNav = document.querySelector('.progress-nav');
+      const keyboardHint = document.querySelector('.keyboard-hint');
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let isNavigating = false;
+
+      function navigateTo(index) {
+        if (isNavigating) return;
+        isNavigating = true;
+        document.documentElement.style.scrollSnapType = 'none';
+        window.scrollTo({ top: slides[index].offsetTop, behavior: prefersReducedMotion ? 'instant' : 'smooth' });
+        setTimeout(() => {
+          document.documentElement.style.scrollSnapType = '';
+          isNavigating = false;
+        }, 700);
+      }
+
+      /* Build progress nav */
+      slides.forEach((_, i) => {
+        if (i > 0) {
+          const line = document.createElement('div');
+          line.className = 'progress-line';
+          progressNav.appendChild(line);
+        }
+        const dot = document.createElement('button');
+        dot.className = 'progress-dot';
+        dot.dataset.index = i;
+        dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+        dot.setAttribute('aria-current', 'false');
+        dot.addEventListener('click', () => navigateTo(i));
+        progressNav.appendChild(dot);
+      });
+
+      const dots = progressNav.querySelectorAll('.progress-dot');
+
+      /* Scroll-triggered reveal */
+      const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) entry.target.classList.add('visible');
+        });
+      }, { threshold: 0.12 });
+
+      slides.forEach(slide => revealObserver.observe(slide));
+
+      /* Progress tracking */
+      const progressObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const idx = parseInt(entry.target.dataset.slide);
+            dots.forEach((d, i) => {
+              d.classList.toggle('active', i === idx);
+              d.setAttribute('aria-current', i === idx ? 'true' : 'false');
+            });
+          }
+        });
+      }, { threshold: 0.5 });
+
+      slides.forEach(slide => progressObserver.observe(slide));
+
+      /* Keyboard navigation */
+      function findCurrentSlide() {
+        const scrollY = window.scrollY;
+        let current = 0;
+        for (let i = 0; i < slides.length; i++) {
+          if (slides[i].offsetTop <= scrollY + window.innerHeight * 0.4) current = i;
+        }
+        return current;
+      }
+
+      document.addEventListener('keydown', (e) => {
+        if (isNavigating) return;
+        if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowRight' &&
+            e.key !== 'ArrowUp'  && e.key !== 'ArrowLeft') return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const current = findCurrentSlide();
+        const target = (e.key === 'ArrowDown' || e.key === 'ArrowRight')
+          ? Math.min(current + 1, slides.length - 1)
+          : Math.max(current - 1, 0);
+
+        if (target === current) return;
+        navigateTo(target);
+      });
+
+      /* Hide keyboard hint after first scroll */
+      let hintHidden = false;
+      window.addEventListener('scroll', () => {
+        if (!hintHidden && window.scrollY > 100) {
+          hintHidden = true;
+          keyboardHint.classList.add('hidden');
+        }
+      }, { passive: true });
+    });
+  </script>
+
+</body>
+</html>
