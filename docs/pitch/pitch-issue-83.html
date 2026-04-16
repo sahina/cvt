@@ -1196,10 +1196,10 @@
           <div class="card-label">Phase 2 <span class="badge badge-phase2">future</span></div>
           <h3>Producer Testing + Full Results</h3>
           <p style="margin:0;padding:0;">
-            <span style="display:block;padding:0.2rem 0;border-bottom:1px solid var(--border-subtle);">Producers check compatibility via registry</span>
+            <span style="display:block;padding:0.2rem 0;border-bottom:1px solid var(--border-subtle);">Producer testing via CVT server + registry data</span>
             <span style="display:block;padding:0.2rem 0;border-bottom:1px solid var(--border-subtle);">Full test results stored per consumer</span>
-            <span style="display:block;padding:0.2rem 0;border-bottom:1px solid var(--border-subtle);"><code>can-i-deploy</code> queries consumer dependencies</span>
-            <span style="display:block;padding:0.2rem 0;">Registry becomes the source of truth</span>
+            <span style="display:block;padding:0.2rem 0;border-bottom:1px solid var(--border-subtle);"><code>can-i-deploy</code> via server against registered consumers</span>
+            <span style="display:block;padding:0.2rem 0;">Registry + server become the source of truth</span>
           </p>
           <div class="best-for"><strong>Best for:</strong> Organizations needing deployment safety gates and full visibility.</div>
         </div>
@@ -1279,8 +1279,8 @@
             <tbody>
               <tr>
                 <td class="scheme">info.title</td>
-                <td>Schema ID</td>
-                <td><code>Pet Store API</code></td>
+                <td>Schema ID (slug)</td>
+                <td><code>pet-api</code></td>
               </tr>
               <tr>
                 <td class="scheme">info.version</td>
@@ -1339,7 +1339,8 @@
           <rect x="44" y="54" width="22" height="22" rx="11" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.4)" stroke-width="1"/>
           <text x="55" y="70" text-anchor="middle" fill="#34d399" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="700">1</text>
           <text x="76" y="70" fill="#9e968c" font-size="11" font-family="'IBM Plex Sans', sans-serif">FetchSchema("pet-api", "2.1.0")</text>
-          <line x1="160" y1="76" x2="570" y2="76" stroke="rgba(16,185,129,0.4)" stroke-width="1.5" marker-end="url(#arrowhead-green)"/>
+          <line x1="160" y1="76" x2="570" y2="76" stroke="rgba(16,185,129,0.4)" stroke-width="1.5"/>
+          <polygon points="566,72 574,76 566,80" fill="rgba(16,185,129,0.5)"/>
 
           <!-- Step 2: Return spec -->
           <rect x="44" y="100" width="22" height="22" rx="11" fill="rgba(99,102,241,0.15)" stroke="rgba(99,102,241,0.4)" stroke-width="1"/>
@@ -1455,7 +1456,7 @@
       </div>
 
       <p class="speaker-note reveal d4">
-        The left terminal is what exists today. The right adds two flags. Nothing breaks, nothing changes for teams that don't use the registry. Environment variables avoid repetition in pipelines with multiple validate calls. Flag precedence: flag > env var > error.
+        The left terminal is what exists today. The right adds two flags. Nothing breaks, nothing changes for teams that don't use the registry. Environment variables avoid repetition in pipelines with multiple validate calls. Flag precedence: flag &gt; env var &gt; error.
       </p>
     </div>
     <span class="slide-number">7 / 9</span>
