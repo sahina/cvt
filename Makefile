@@ -117,6 +117,7 @@ generate:
 
 generate-plugin-protos:
 	@echo "🔄 Generating plugin system protobuf code..."
+	@mkdir -p pkg/cvtplugin/pb/handshake/v1 pkg/cvtplugin/pb/registry/v1 pkg/cvtplugin/pb/events/v1
 	protoc \
 		--go_out=. --go_opt=module=github.com/sahina/cvt \
 		--go-grpc_out=. --go-grpc_opt=module=github.com/sahina/cvt \
@@ -124,6 +125,19 @@ generate-plugin-protos:
 		api/protos/plugin/registry/v1/registry.proto \
 		api/protos/plugin/events/v1/events.proto
 	@echo "✅ Plugin protobuf code generated in pkg/cvtplugin/pb/"
+
+# Shortcuts for running the plugin-system test surface. Useful when
+# iterating on internal/pluginmgr or pkg/cvtplugin without re-running
+# the full go-test target.
+test-pluginmgr:
+	@echo "🧪 Running plugin manager tests..."
+	go test -v ./internal/pluginmgr/... ./internal/pluginclient/...
+	@echo "🧪 Running plugin manager integration tests..."
+	go test -tags=integration -timeout 120s -v ./internal/pluginmgr/...
+
+test-cvtplugin:
+	@echo "🧪 Running plugin SDK tests..."
+	go test -v ./pkg/cvtplugin/...
 
 generate-python:
 	@echo "🔄 Generating protobuf code for Python SDK..."

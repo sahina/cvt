@@ -146,8 +146,13 @@ func (m *Manager) Start(ctx context.Context) error {
 	}
 	if firstErr != nil {
 		// Tear down whatever did start so we don't leak subprocesses.
-		for _, h := range started {
+		// Reset metrics for rolled-back plugins so Prometheus doesn't
+		// keep reporting Up=1 for a plugin that never made it into
+		// m.handles.
+		for name, h := range started {
 			h.client.Kill()
+			m.metrics.Up.WithLabelValues(name).Set(0)
+			m.metrics.Info.DeletePartialMatch(prometheus.Labels{"plugin": name})
 		}
 		return firstErr
 	}
@@ -160,6 +165,13 @@ func (m *Manager) Start(ctx context.Context) error {
 
 // Stop gracefully shuts down every running plugin. Safe to call multiple
 // times; subsequent calls are no-ops.
+//
+// go-plugin's Client.Kill() already implements graceful shutdown: it
+// closes the gRPC connection (plugin receives EOF, runs its deferred
+// shutdown path), then waits up to ClientConfig.SyncStdout/Stderr flush
+// + the go-plugin-internal kill timeout before escalating to SIGKILL.
+// We inherit that behavior; no separate SIGTERM-first dance needed on
+// top of it.
 func (m *Manager) Stop() {
 	m.mu.Lock()
 	handles := m.handles

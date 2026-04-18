@@ -49,11 +49,39 @@ func isUnimplemented(err error) bool {
 	return ok && st.Code() == codes.Unimplemented
 }
 
+// recordPluginUnavailable emits a synthetic audit entry for the case
+// where a hook is configured against a plugin that isn't currently
+// running (startup failure, crashed and awaiting restart, etc.). The
+// call never reached the plugin, so there's no duration or real gRPC
+// status — we record `Unavailable` so operators can grep audit for
+// "plugin configured but not serving" without digging through app logs.
+func recordPluginUnavailable(mgr *pluginmgr.Manager, plugin, service, method, requestID string, kind pluginmgr.AuditKind) {
+	info, _ := mgr.Handle(plugin)
+	mgr.Metrics().CallErrors.WithLabelValues(plugin, service, method, codes.Unavailable.String()).Inc()
+	mgr.Audit().Record(pluginmgr.AuditRecord{
+		Kind:            kind,
+		Plugin:          plugin,
+		ReportedVersion: info.ReportedVersion,
+		SHA256:          info.SHA256,
+		PID:             info.PID,
+		RequestID:       requestID,
+		Service:         service,
+		Method:          method,
+		Outcome:         pluginmgr.OutcomeError,
+		ErrorCode:       codes.Unavailable.String(),
+		Timestamp:       time.Now().UTC(),
+	})
+}
+
 // FetchSchema invokes the plugin bound to the fetch_schema hook, if any.
 // Returns (nil, nil) when no plugin is bound — the caller falls back to
 // direct resolution.
 func (a *HooksAdapter) FetchSchema(ctx context.Context, req *registrypb.FetchSchemaRequest) (*registrypb.FetchSchemaResponse, error) {
-	if a == nil || a.mgr == nil {
+	if a == nil {
+		var noop cvt.NoopHooks
+		return noop.FetchSchema(ctx, req)
+	}
+	if a.mgr == nil {
 		return a.noop.FetchSchema(ctx, req)
 	}
 	name := a.mgr.Cfg().Hooks.FetchSchema
@@ -62,8 +90,10 @@ func (a *HooksAdapter) FetchSchema(ctx context.Context, req *registrypb.FetchSch
 	}
 	client := a.mgr.Registry(name)
 	if client == nil {
-		// Plugin bound in config but not running (startup failure). Policy
-		// applies as if the call errored.
+		// Plugin bound in config but not running (startup failure). Emit
+		// an audit + metric so operators see "configured hook + missing
+		// plugin" without greping app logs, then apply on_error policy.
+		recordPluginUnavailable(a.mgr, name, "registry.v1", "FetchSchema", req.GetRequestId(), pluginmgr.AuditKindRead)
 		return nil, applyOnError(a.mgr, name, errors.New("plugin not running"))
 	}
 	resp, err := timedCall(ctx, a.mgr, name, pluginmgr.AuditKindRead, "registry.v1", "FetchSchema", req.GetRequestId(), func(c context.Context) (interface{}, error) {
@@ -88,7 +118,11 @@ func (a *HooksAdapter) FetchSchema(ctx context.Context, req *registrypb.FetchSch
 // RegisterConsumerUsage invokes the plugin bound to the
 // register_consumer_usage hook, if any.
 func (a *HooksAdapter) RegisterConsumerUsage(ctx context.Context, req *registrypb.RegisterConsumerUsageRequest) (*registrypb.RegisterConsumerUsageResponse, error) {
-	if a == nil || a.mgr == nil {
+	if a == nil {
+		var noop cvt.NoopHooks
+		return noop.RegisterConsumerUsage(ctx, req)
+	}
+	if a.mgr == nil {
 		return a.noop.RegisterConsumerUsage(ctx, req)
 	}
 	name := a.mgr.Cfg().Hooks.RegisterConsumerUsage
@@ -97,6 +131,7 @@ func (a *HooksAdapter) RegisterConsumerUsage(ctx context.Context, req *registryp
 	}
 	client := a.mgr.Registry(name)
 	if client == nil {
+		recordPluginUnavailable(a.mgr, name, "registry.v1", "RegisterConsumerUsage", req.GetRequestId(), pluginmgr.AuditKindWrite)
 		return nil, applyOnError(a.mgr, name, errors.New("plugin not running"))
 	}
 	resp, err := timedCall(ctx, a.mgr, name, pluginmgr.AuditKindWrite, "registry.v1", "RegisterConsumerUsage", req.GetRequestId(), func(c context.Context) (interface{}, error) {
@@ -122,7 +157,11 @@ func (a *HooksAdapter) RegisterConsumerUsage(ctx context.Context, req *registryp
 // OnBreakingChangeDetected invokes the plugin bound to
 // on_breaking_change_detected, if any.
 func (a *HooksAdapter) OnBreakingChangeDetected(ctx context.Context, req *eventspb.BreakingChangeDetectedRequest) (*eventspb.EventResponse, error) {
-	if a == nil || a.mgr == nil {
+	if a == nil {
+		var noop cvt.NoopHooks
+		return noop.OnBreakingChangeDetected(ctx, req)
+	}
+	if a.mgr == nil {
 		return a.noop.OnBreakingChangeDetected(ctx, req)
 	}
 	name := a.mgr.Cfg().Hooks.OnBreakingChangeDetected
@@ -131,6 +170,7 @@ func (a *HooksAdapter) OnBreakingChangeDetected(ctx context.Context, req *events
 	}
 	client := a.mgr.Events(name)
 	if client == nil {
+		recordPluginUnavailable(a.mgr, name, "events.v1", "OnBreakingChangeDetected", req.GetRequestId(), pluginmgr.AuditKindWrite)
 		if err := applyOnError(a.mgr, name, errors.New("plugin not running")); err != nil {
 			return nil, err
 		}
@@ -157,7 +197,11 @@ func (a *HooksAdapter) OnBreakingChangeDetected(ctx context.Context, req *events
 
 // OnValidationFailed invokes the plugin bound to on_validation_failed.
 func (a *HooksAdapter) OnValidationFailed(ctx context.Context, req *eventspb.ValidationFailedRequest) (*eventspb.EventResponse, error) {
-	if a == nil || a.mgr == nil {
+	if a == nil {
+		var noop cvt.NoopHooks
+		return noop.OnValidationFailed(ctx, req)
+	}
+	if a.mgr == nil {
 		return a.noop.OnValidationFailed(ctx, req)
 	}
 	name := a.mgr.Cfg().Hooks.OnValidationFailed
@@ -166,6 +210,7 @@ func (a *HooksAdapter) OnValidationFailed(ctx context.Context, req *eventspb.Val
 	}
 	client := a.mgr.Events(name)
 	if client == nil {
+		recordPluginUnavailable(a.mgr, name, "events.v1", "OnValidationFailed", req.GetRequestId(), pluginmgr.AuditKindWrite)
 		if err := applyOnError(a.mgr, name, errors.New("plugin not running")); err != nil {
 			return nil, err
 		}

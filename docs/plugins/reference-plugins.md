@@ -14,13 +14,18 @@ schema registry. It covers the design described in
 and supersedes the in-tree `HTTPProvider` that was originally planned
 under the Phase 1a Enterprise Deployment work.
 
-### What it does
+### What it implements
 
 - `FetchSchema`: HTTP `GET {base_url}/schemas/{id}/versions/{version}/spec`.
   Returns the raw OpenAPI spec bytes.
 - `RegisterConsumerUsage`: HTTP `POST {base_url}/schemas/{id}/consumers`
   with a JSON body containing consumer identity, schema version,
   environment, and endpoints tested. Idempotent upsert per spec.
+
+Note: both methods are plugin-side capabilities. Whether CVT invokes
+them from core depends on the hook's v1 call-site status (see
+`README.md` table). In v1 these are declarative-only; the call sites
+land in #107.
 
 ### Config
 
@@ -70,11 +75,12 @@ webhook. Supersedes the "P2: Notification system design document" TODO.
 ### What it does
 
 - `OnBreakingChangeDetected`: formats a Slack message summarizing the
-  breaking changes and posts to the configured webhook URL.
+  breaking changes and posts to the configured webhook URL. Plugin-side
+  capability — the core call site lands in #107.
 - `OnValidationFailed`: formats and posts a message describing the
-  failed interaction. Includes per-plugin dedup + rate limiting so
-  a broken deploy producing 10k failures/minute doesn't translate to
-  10k Slack messages.
+  failed interaction. Includes per-plugin dedup + rate limiting so a
+  broken deploy producing 10k failures/minute doesn't translate to
+  10k Slack messages. **This is the one hook CVT core invokes in v1.**
 
 ### Config
 

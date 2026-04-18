@@ -123,10 +123,17 @@ func (r *restRegistry) FetchSchema(ctx context.Context, req *registrypb.FetchSch
 	}
 
 	// The REST registry returns the resolved version in a header when the
-	// request used "latest". Falls back to the requested version.
+	// request used "latest". Fall back to the requested version, and if
+	// the caller asked for "latest" without the server echoing back a
+	// concrete version, surface "latest" rather than an empty string so
+	// callers have something non-empty to store.
 	resolved := resp.Header.Get("X-Schema-Version")
 	if resolved == "" {
-		resolved = req.GetVersion()
+		if req.GetVersion() == "" {
+			resolved = "latest"
+		} else {
+			resolved = req.GetVersion()
+		}
 	}
 	return &registrypb.FetchSchemaResponse{
 		Spec:            body,

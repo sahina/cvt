@@ -34,16 +34,24 @@ type Validator struct {
 // set, Validate fires OnValidationFailed after a non-valid result. nil
 // hooks is equivalent to NoopHooks (no-op). This indirection keeps pkg/cvt
 // free of internal/* imports.
+//
+// Safe to call concurrently with Validate: v.mu serializes the
+// assignment against the read in hooksOrNoop.
 func (v *Validator) SetHooks(h Hooks) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	v.hooks = h
 }
 
 // hooksOrNoop returns the configured hooks or a NoopHooks if none set.
 func (v *Validator) hooksOrNoop() Hooks {
-	if v.hooks == nil {
+	v.mu.RLock()
+	h := v.hooks
+	v.mu.RUnlock()
+	if h == nil {
 		return NoopHooks{}
 	}
-	return v.hooks
+	return h
 }
 
 // NewValidator creates a new local validator instance with random faker seed.

@@ -191,9 +191,16 @@ func Install(srcPath, name, pluginRoot, statePath string) (InstalledPlugin, erro
 	if err != nil {
 		return InstalledPlugin{}, fmt.Errorf("resolve source: %w", err)
 	}
-	info, err := os.Stat(absSrc)
+	// Lstat (not Stat) — symlinks inside pluginRoot pointing outside it
+	// would otherwise pass the insideRoot check but exec their target at
+	// runtime, silently defeating the path policy. Install is the
+	// documented trust boundary; reject symlinks here.
+	info, err := os.Lstat(absSrc)
 	if err != nil {
 		return InstalledPlugin{}, fmt.Errorf("stat source: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return InstalledPlugin{}, fmt.Errorf("source is a symlink: %s", absSrc)
 	}
 	if info.IsDir() {
 		return InstalledPlugin{}, fmt.Errorf("source is a directory: %s", absSrc)
@@ -201,9 +208,14 @@ func Install(srcPath, name, pluginRoot, statePath string) (InstalledPlugin, erro
 
 	root := filepath.Clean(pluginRoot)
 	// 0o700: only the CVT-invoking user should enumerate installed plugins.
-	// Plugin binaries inside use 0o700 as well.
+	// Plugin binaries inside use 0o700 as well. MkdirAll is a no-op if the
+	// directory already exists, so a pre-existing 0o755 pluginRoot stays
+	// 0o755 — explicitly Chmod so repeat installs tighten loose perms.
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		return InstalledPlugin{}, fmt.Errorf("mkdir plugin root: %w", err)
+	}
+	if err := os.Chmod(root, 0o700); err != nil {
+		return InstalledPlugin{}, fmt.Errorf("chmod plugin root: %w", err)
 	}
 
 	var destPath string
@@ -304,9 +316,18 @@ func VerifyInstalled(entry InstalledPlugin) error {
 	}
 	if sum != entry.SHA256 {
 		return fmt.Errorf("sha256 mismatch for %s: expected %s, got %s",
-			entry.BinaryPath, entry.SHA256[:12], sum[:12])
+			entry.BinaryPath, shortHash(entry.SHA256), shortHash(sum))
 	}
 	return nil
+}
+
+// shortHash returns the first 12 hex chars of a hash string, safe for
+// truncated strings (no panic on short inputs).
+func shortHash(h string) string {
+	if len(h) <= 12 {
+		return h
+	}
+	return h[:12]
 }
 
 func sha256File(path string) (string, error) {

@@ -3,6 +3,7 @@
 package pluginmgr
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -98,8 +99,12 @@ func Load(path, pluginRoot string) (*Config, error) {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 
+	// KnownFields=true rejects unknown keys at parse time, so typos like
+	// `fetch_shcema:` fail loudly instead of being silently discarded.
 	var cfg Config
-	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+	dec := yaml.NewDecoder(bytes.NewReader(raw))
+	dec.KnownFields(true)
+	if err := dec.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 

@@ -6,6 +6,22 @@ services (registry provider, event handler) and communicates with `cvt`
 over gRPC on a Unix domain socket. Plugins live in their own repositories
 on their own release schedules.
 
+## v1 call-site status
+
+v1 wires one of the four planned hook call sites today:
+
+| Hook | Plugin service | Status in v1 |
+|---|---|---|
+| `on_validation_failed` | `EventHandler` | **fires from core** after `Validate()` returns a non-valid result |
+| `fetch_schema` | `RegistryProvider` | SDK + config surface only; core call site deferred to [#107](https://github.com/sahina/cvt/issues/107) (needs schema-by-ID resolution path from issue #83) |
+| `register_consumer_usage` | `RegistryProvider` | SDK + config surface only; core call site deferred to [#107](https://github.com/sahina/cvt/issues/107) (blocked on P2 god-file split of `server/cvtservice/validator_service.go`) |
+| `on_breaking_change_detected` | `EventHandler` | SDK + config surface only; core call site deferred to [#107](https://github.com/sahina/cvt/issues/107) (blocked on same split) |
+
+Plugins can be written, installed, and configured against all four hook
+names today. The SDK, proto contracts, and config schema are frozen.
+Configured-but-not-yet-wired hooks are declarative no-ops until their
+call sites land.
+
 ## When to use a plugin
 
 Use a plugin when you want:
@@ -13,10 +29,12 @@ Use a plugin when you want:
 - **Custom schema registry.** CVT's built-in schema loading handles files
   and raw URLs. If your organization hosts schemas in a registry with its
   own API (internal Central API Registry, Backstage, Apicurio), write a
-  `RegistryProvider` plugin and point `fetch_schema` at it.
+  `RegistryProvider` plugin and point `fetch_schema` at it. The plugin
+  is ready to ship; the core call site is wired in #107.
 - **Event integrations.** CVT fires events on breaking-change detection
-  and validation failure. If you want Slack/Jira/webhook notifications,
-  write an `EventHandler` plugin that reacts to those events.
+  and validation failure. Write an `EventHandler` plugin that reacts to
+  those events. Today only `on_validation_failed` fires; the
+  `on_breaking_change_detected` call site lands in #107.
 
 Don't write a plugin when:
 
@@ -63,7 +81,9 @@ the plugin author publishes.
    ```
 
 3. **Run CVT.** The plugin forks at startup, receives its secret via
-   gRPC (not subprocess env), and handles the two hooks. See
+   gRPC (not subprocess env), and is ready for the bound hooks. In v1
+   only `on_validation_failed` invokes the plugin from core; the
+   registry hooks activate when their call sites land (#107). See
    [config.md](config.md) for the full schema.
 
 4. **Write your own plugin.** See [authoring-go.md](authoring-go.md).
