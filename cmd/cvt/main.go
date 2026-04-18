@@ -48,6 +48,7 @@ Examples:
 	rootCmd.AddCommand(canIDeployCmd())
 	rootCmd.AddCommand(waitCmd())
 	rootCmd.AddCommand(registerSchemaCmd())
+	rootCmd.AddCommand(pluginsCmd())
 	rootCmd.AddCommand(versionCmd())
 
 	if err := rootCmd.Execute(); err != nil {

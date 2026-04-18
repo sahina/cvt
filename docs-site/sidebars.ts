@@ -82,6 +82,17 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Plugins',
+      collapsed: true,
+      items: [
+        'plugins/README',
+        'plugins/config',
+        'plugins/authoring-go',
+        'plugins/reference-plugins',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Development',
       collapsed: true,
       items: [

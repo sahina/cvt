@@ -3,5 +3,7 @@ go 1.25.0
 use (
 	.
 	./examples/go/consumer
+	./reference-plugins/cvt-plugin-registry-rest
+	./reference-plugins/cvt-plugin-slack-events
 	./sdks/go
 )

@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package cvt.plugin.events.v1;
+
+option go_package = "github.com/sahina/cvt/pkg/cvtplugin/pb/events/v1;eventspb";
+
+// EventHandler is the CVT plugin contract for event sinks. Each event type
+// has its own RPC method with a typed request message. This lets the
+// proto-freeze CI catch drift that `google.protobuf.Struct` payloads would
+// have hidden.
+//
+// Plugins implementing this service MUST declare "events.v1" in their
+// PluginHandshake.Info.services response.
+//
+// New event types are added as additive RPC methods (new `On*` + new typed
+// request). Plugins that don't implement a newer event return Unimplemented;
+// core treats Unimplemented as a no-op, not an error.
+service EventHandler {
+  rpc OnBreakingChangeDetected(BreakingChangeDetectedRequest) returns (EventResponse);
+  rpc OnValidationFailed(ValidationFailedRequest) returns (EventResponse);
+}
+
+message BreakingChangeDetectedRequest {
+  string request_id = 1;
+  string schema_id = 2;
+  string old_version = 3;
+  string new_version = 4;
+  repeated BreakingChange changes = 5;
+
+  // Where the detection happened. One of: "CompareSchemas", "RegisterSchema".
+  string detected_by = 6;
+}
+
+message BreakingChange {
+  // Machine-readable category. Examples: "removed_endpoint",
+  // "required_field_added", "response_type_narrowed".
+  string kind = 1;
+
+  // Human-readable description.
+  string description = 2;
+
+  // The endpoint involved, when applicable.
+  string method = 3;
+  string path = 4;
+
+  // Structured field path when available, e.g., "responses.200.schema.properties.id".
+  string field_path = 5;
+}
+
+message ValidationFailedRequest {
+  string request_id = 1;
+  string schema_id = 2;
+  string method = 3;
+  string path = 4;
+  repeated ValidationError errors = 5;
+}
+
+message ValidationError {
+  // Machine-readable category, e.g., "request.body.missing_field",
+  // "response.status_code.unexpected".
+  string kind = 1;
+
+  // Human-readable description.
+  string description = 2;
+
+  // Structured field path when available.
+  string field_path = 3;
+}
+
+message EventResponse {
+  // Plugin acknowledges receipt. Core treats ack=false the same as ack=true;
+  // this field exists for plugin authors who want to signal a soft problem
+  // without returning a gRPC error.
+  bool acknowledged = 1;
+}

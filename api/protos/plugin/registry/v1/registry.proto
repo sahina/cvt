@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package cvt.plugin.registry.v1;
+
+option go_package = "github.com/sahina/cvt/pkg/cvtplugin/pb/registry/v1;registrypb";
+
+// RegistryProvider is the CVT plugin contract for schema registries.
+// A registry plugin fetches OpenAPI schemas by identifier (read) and
+// records consumer usage against a schema (write).
+//
+// Plugins implementing this service MUST declare "registry.v1" in their
+// PluginHandshake.Info.services response.
+service RegistryProvider {
+  // FetchSchema retrieves an OpenAPI spec from the registry. schema_id maps
+  // to info.title in the spec. version maps to info.version; empty string
+  // means "latest" and the registry chooses.
+  //
+  // Read semantics: MAY be called concurrently. Should be idempotent. Plugins
+  // that cache the registry response should honor a short TTL or the caller's
+  // explicit invalidation.
+  rpc FetchSchema(FetchSchemaRequest) returns (FetchSchemaResponse);
+
+  // RegisterConsumerUsage records that a consumer validated its interactions
+  // against a specific schema + version. Typically called once per successful
+  // `cvt validate` invocation.
+  //
+  // Write semantics: MUST be idempotent upsert. Core guarantees at-most-one
+  // plugin per hook in v1, but the plugin's own deduplication protects against
+  // retries and replays.
+  rpc RegisterConsumerUsage(RegisterConsumerUsageRequest) returns (RegisterConsumerUsageResponse);
+}
+
+message FetchSchemaRequest {
+  string schema_id = 1;
+  string version = 2;          // empty = latest
+  string request_id = 3;       // correlation ID for logs/audit
+}
+
+message FetchSchemaResponse {
+  bytes spec = 1;              // raw OpenAPI spec bytes (JSON or YAML)
+  string resolved_version = 2; // actual version returned (useful when request was "latest")
+}
+
+message RegisterConsumerUsageRequest {
+  string consumer_id = 1;
+  string schema_id = 2;
+  string schema_version = 3;
+  string environment = 4;      // e.g., "ci", "staging", "production"
+  repeated EndpointUsage endpoints = 5;
+  string request_id = 6;
+}
+
+message EndpointUsage {
+  string method = 1;           // e.g., "GET"
+  string path = 2;             // e.g., "/pets/{id}"
+}
+
+message RegisterConsumerUsageResponse {
+  bool acknowledged = 1;
+}
