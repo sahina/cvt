@@ -20,6 +20,12 @@ RUN go mod download
 COPY cmd/ ./cmd/
 COPY pkg/ ./pkg/
 COPY server/ ./server/
+# internal/pluginmgr + internal/pluginclient are imported by cmd/cvt/plugins.go
+COPY internal/ ./internal/
+# api/protos is referenced indirectly via the generated pb packages under
+# pkg/cvtplugin/pb (copied with pkg/ above). No direct .proto reads at
+# runtime, but keeping the tree available is cheap.
+COPY api/ ./api/
 
 # Build args for multi-platform builds and version injection
 ARG TARGETOS=linux

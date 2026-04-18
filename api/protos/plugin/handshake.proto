@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package cvt.plugin.handshake.v1;
+
+option go_package = "github.com/sahina/cvt/pkg/cvtplugin/pb/handshake/v1;handshakepb";
+
+// PluginHandshake is the common service every CVT plugin implements.
+// It handles CVT-specific metadata exchange, health checks, and secret-safe
+// config delivery. The transport handshake itself (magic cookie, gRPC dial)
+// is performed by hashicorp/go-plugin before any of these RPCs are called.
+service PluginHandshake {
+  // Info returns plugin identity and the list of CVT plugin services the
+  // plugin implements. Called by core exactly once, right after go-plugin
+  // establishes the gRPC transport, within a 5s total deadline.
+  rpc Info(InfoRequest) returns (InfoResponse);
+
+  // Health is polled periodically by core. SERVING = ready; anything else
+  // triggers supervisor restart per config.
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // SetConfig delivers config values to the plugin, including secret keys
+  // declared in `plugins.<name>.secrets`. Core calls SetConfig once per
+  // key after Info succeeds and before any extension-point RPC is invoked.
+  // Secrets travel over the gRPC transport, not the subprocess environment.
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
+}
+
+message InfoRequest {}
+
+message InfoResponse {
+  // Plugin's self-reported name. Not trusted; recorded as reported_name.
+  string name = 1;
+
+  // Plugin's self-reported version. Not trusted; recorded as reported_version.
+  string version = 2;
+
+  // Services the plugin implements, e.g., ["registry.v1", "events.v1"].
+  repeated string services = 3;
+
+  // CVT plugin protocol version. Mismatch with core = plugin rejected.
+  uint32 protocol_version = 4;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  enum Status {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  Status status = 1;
+}
+
+message SetConfigRequest {
+  // Config key. For non-secret keys, this corresponds to an entry under
+  // `plugins.<name>.config:` in the CVT config file. For secret keys, this
+  // corresponds to a name listed in `plugins.<name>.secrets:`.
+  string key = 1;
+
+  // Config value, after environment variable interpolation has been applied
+  // by core. Secret values are never logged by core and must not be logged
+  // by the plugin.
+  string value = 2;
+}
+
+message SetConfigResponse {}

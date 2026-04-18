@@ -155,6 +155,15 @@
                     <pluginId>grpc-java</pluginId>
                     <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
                     <protoSourceRoot>${project.basedir}/../../api/protos</protoSourceRoot>
+                    <!-- Only compile the public SDK proto. Plugin-system
+                         protos under api/protos/plugin/ are core-internal
+                         (Go-only); pulling them into the Java SDK would
+                         drag ~40 uncovered generated classes into
+                         coverage math and ship plugin-framework types
+                         in the public SDK. -->
+                    <includes>
+                        <include>cvt.proto</include>
+                    </includes>
                 </configuration>
                 <executions>
                     <execution>
@@ -206,11 +215,23 @@
                             <goal>prepare-agent</goal>
                         </goals>
                         <configuration>
+                            <!-- Agent-level excludes don't record coverage
+                                 data for these classes at all. Required
+                                 here (not just on check) because jacoco
+                                 0.8.14's `check` goal ignores <excludes>
+                                 for threshold math, so we must stop the
+                                 agent from recording proto/examples/
+                                 adapter classes in the first place.
+                                 Patterns use / separator; * = one
+                                 segment, ** = many. -->
                             <excludes>
                                 <exclude>sun.*</exclude>
                                 <exclude>jdk.*</exclude>
                                 <exclude>java.*</exclude>
                                 <exclude>com.sun.*</exclude>
+                                <exclude>io/github/sahina/proto/**</exclude>
+                                <exclude>io/github/sahina/examples/**</exclude>
+                                <exclude>io/github/sahina/sdk/producer/adapters/**</exclude>
                             </excludes>
                         </configuration>
                     </execution>

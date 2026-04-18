@@ -1,5 +1,65 @@
 # CVT TODOs
 
+## P2: Multi-plugin write pipelines (v1.1)
+
+**What:** Extend plugin pipeline executor to support multiple plugins per stage on write RPCs (currently restricted to single-plugin in v1). Requires two-phase commit or compensating-transaction semantics so partial-write failures are not silently swallowed.
+
+**Why:** v1 of the plugin system restricts `register_consumer_usage` (and any future write RPC) to at most one plugin per stage. Teams that want to fan out consumer-usage writes to two registries (e.g., primary Central API Registry + mirror for DR) cannot do so in v1. This unblocks that use case without sacrificing rigor.
+
+**Options to explore:**
+- Two-phase commit with prepare/commit/abort phases per plugin.
+- Compensating transactions: if plugin B fails after plugin A succeeds, core invokes a delete RPC on plugin A.
+- Accept-at-least-once with explicit audit reconciliation workflow (the weakest semantics, documented clearly).
+
+**Effort:** L (human: ~1 week) → with CC: M (~1 hour)
+**Priority:** P2
+**Depends on:** Plugin system v1 shipped.
+**Source:** Outside-voice review 2026-04-17 (plugin-system.md)
+
+## P2: Windows support for plugin framework
+
+**What:** Add Windows support to the subprocess plugin framework. Requires loopback socket + cookie fallback path (HashiCorp go-plugin supports this natively), plus provisioning a Windows CI runner.
+
+**Why:** CVT is built with goreleaser for Windows (amd64), but v1 of the plugin framework ships Linux + macOS only because there's no Windows CI runner today. Windows users must use WSL2 in v1.
+
+**Effort:** M (human: ~3 days; CI runner provisioning is the bulk) → with CC: S (~30 min for code; runner provisioning stays human)
+**Priority:** P2
+**Depends on:** Plugin system v1 shipped + GitHub Actions Windows runner provisioned.
+**Source:** Outside-voice review 2026-04-17 (plugin-system.md)
+
+## P2: Plugin template repo (cvt-plugin-template)
+
+**What:** Publish `github.com/sahina/cvt-plugin-template` with goreleaser config, GitHub Actions CI, `cvt plugins verify` CI step, README template, example RegistryProvider and EventHandler implementations.
+
+**Why:** Three reference plugins (`cvt-plugin-registry-rest`, `cvt-plugin-registry-github`, `cvt-plugin-slack-events`) and any future third-party plugins all need the same build + release + verify scaffolding. Without a template, each plugin author reinvents.
+
+**Effort:** S (human: ~1 day) → with CC: S (~15 min)
+**Priority:** P2
+**Depends on:** Plugin proto v1 frozen (end of Plugin System Lane 1).
+**Source:** Eng Review 2026-04-17 (plugin-system.md)
+
+## P3: Pipeline `merge` strategy decision (v1.1)
+
+**What:** Plugin system v1 mentions `strategy: merge` in pipeline config but does not implement it (no v1 extension point produces mergeable output). Either implement alongside Validator extension point in v1.1 or remove the mention entirely.
+
+**Why:** Leaving unimplemented strategy names in the config schema is a footgun. Users may set `strategy: merge` expecting it to work and get a silent fallback or unclear error.
+
+**Effort:** S (remove) or M (implement alongside Validator) → with CC: S (~15 min) or M (~1 hour)
+**Priority:** P3
+**Depends on:** Validator extension point (category A) scope decision for v1.1.
+**Source:** Eng Review 2026-04-17 (plugin-system.md)
+
+## P3: Plugin config YAML JSON-schema
+
+**What:** Publish `cvt-config.schema.json` so editors (VSCode, JetBrains, neovim-lsp) can autocomplete and validate `.cvt/config.yaml` + `~/.cvt/config.yaml`.
+
+**Why:** Plugin config is the primary UX surface for the plugin system. Misspelled keys (`on_error` vs `onError`, `strategy: first-success` vs `first_success`) silently ignored or mis-merged is painful. Schema gives squiggles and fix suggestions in editors.
+
+**Effort:** S (human: ~4 hours) → with CC: S (~15 min)
+**Priority:** P3
+**Depends on:** Plugin config schema frozen (end of Plugin System Lane 1).
+**Source:** Eng Review 2026-04-17 (plugin-system.md)
+
 ## P2: Split validator_service.go into focused files
 
 **What:** Extract validator_service.go (1,956 LOC, 33 methods) into focused files along Phase boundaries.
@@ -55,7 +115,11 @@
 **Depends on:** Consumer skills (chore/skills PR) landing first.
 **Source:** CEO Review 2026-03-24
 
-## P2: DRY schema URL fetching (3 duplicate implementations)
+## P2: DRY schema URL fetching (3 duplicate implementations) — SUPERSEDED
+
+**Status:** Superseded by plugin system (see `docs/design/plugin-system.md`). Registry-based schema fetching moves into `cvt-plugin-registry-rest` and `cvt-plugin-registry-github`. Core keeps one HTTP fetch path in `pkg/cvt/validator.go:RegisterSchemaFromURL()` for direct file/URL schema args; `cmd/cvt/register_schema.go:fetchSchemaFromURL()` remains the CLI entry point. The 3-way duplication with a hypothetical `HTTPProvider.Fetch()` no longer lands because `HTTPProvider` ships as a plugin.
+
+_Original description preserved below for context:_
 
 **What:** Consolidate schema URL fetching from 3 locations into the SchemaProvider interface: `pkg/cvt/validator.go:RegisterSchemaFromURL()`, `cmd/cvt/register_schema.go:fetchSchemaFromURL()`, and the planned `HTTPProvider.Fetch()`.
 
@@ -77,7 +141,11 @@
 **Depends on:** Offline can-i-deploy implementation (Phase 1a)
 **Source:** Eng Review 2026-04-09
 
-## P2: Notification system design document
+## P2: Notification system design document — SUPERSEDED
+
+**Status:** Superseded by plugin system. The `EventHandler` plugin contract (`api/protos/plugin/events/v1/events.proto`) is the notification surface; the reference plugin `cvt-plugin-slack-events` is the first implementation. Per-plugin rate limiting and dedup live in the plugin itself (each plugin decides its own policy), which is the right placement per the original TODO's blast-radius concern. Additional channels (Jira, GitHub issues, email) become additional plugins rather than core code.
+
+_Original description preserved below for context:_
 
 **What:** Before implementing notifications in Phase 2, produce a design doc covering: notification triggers (breaking change detected, schema registered, consumer deregistered), delivery channels (GitHub issues, webhooks, email), auth model (GITHUB_TOKEN vs CVT_NOTIFY_TOKEN), rate limiting, and failure handling.
 
@@ -88,7 +156,11 @@
 **Depends on:** Phase 1a + 1b complete
 **Source:** CEO Review 2026-04-09
 
-## P2: GitHubProvider dependency investigation
+## P2: GitHubProvider dependency investigation — SUPERSEDED
+
+**Status:** Superseded by plugin system. GitHub-backed schema registry ships as a separate plugin (`cvt-plugin-registry-github`, not yet implemented as a v1 deliverable but tracked as a separate repo). The `go-github` vs `gh` CLI vs raw HTTP decision is made inside the plugin's own module; CVT core gains zero dependency weight regardless of which direction the plugin takes.
+
+_Original description preserved below for context:_
 
 **What:** Investigate whether GitHubProvider should depend on `go-github`, `gh` CLI, or raw HTTP + GraphQL. Consider: auth token handling (GITHUB_TOKEN, GH_TOKEN, gh auth), API rate limits, large repo schema fetching, and release asset downloads.
 

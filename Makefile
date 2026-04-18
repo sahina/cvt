@@ -1,4 +1,4 @@
-.PHONY: all build build-cli install-cli test test-docker test-server test-cli test-e2e test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability test-cover clean generate generate-python generate-go-sdk generate-java-sdk help
+.PHONY: all build build-cli install-cli test test-docker test-server test-cli test-e2e test-node-sdk test-python-sdk test-go-sdk test-java-sdk test-integration test-cache test-all test-with-observability test-cover test-pluginmgr test-cvtplugin clean generate generate-python generate-go-sdk generate-java-sdk generate-plugin-protos help
 .PHONY: up down restart logs status
 .PHONY: install-health-probe health check-health watch-health
 .PHONY: run-server run-example
@@ -114,6 +114,30 @@ generate:
 		api/protos/cvt.proto
 	@mv api/protos/cvt.pb.go api/protos/cvt_grpc.pb.go server/pb/ 2>/dev/null || true
 	@echo "✅ Protobuf code generated in server/pb/"
+
+generate-plugin-protos:
+	@echo "🔄 Generating plugin system protobuf code..."
+	@mkdir -p pkg/cvtplugin/pb/handshake/v1 pkg/cvtplugin/pb/registry/v1 pkg/cvtplugin/pb/events/v1
+	protoc \
+		--go_out=. --go_opt=module=github.com/sahina/cvt \
+		--go-grpc_out=. --go-grpc_opt=module=github.com/sahina/cvt \
+		api/protos/plugin/handshake.proto \
+		api/protos/plugin/registry/v1/registry.proto \
+		api/protos/plugin/events/v1/events.proto
+	@echo "✅ Plugin protobuf code generated in pkg/cvtplugin/pb/"
+
+# Shortcuts for running the plugin-system test surface. Useful when
+# iterating on internal/pluginmgr or pkg/cvtplugin without re-running
+# the full go-test target.
+test-pluginmgr:
+	@echo "🧪 Running plugin manager tests..."
+	go test -v ./internal/pluginmgr/... ./internal/pluginclient/...
+	@echo "🧪 Running plugin manager integration tests..."
+	go test -tags=integration -timeout 120s -v ./internal/pluginmgr/...
+
+test-cvtplugin:
+	@echo "🧪 Running plugin SDK tests..."
+	go test -v ./pkg/cvtplugin/...
 
 generate-python:
 	@echo "🔄 Generating protobuf code for Python SDK..."
@@ -506,7 +530,12 @@ lint-python:
 
 lint-java:
 	@echo "🔍 Linting Java SDK..."
-	cd sdks/java && mvn verify -DskipTests -q
+	# -DskipTests skips test execution; -Djacoco.skip=true skips the
+	# coverage gate (which requires a matching fresh jacoco.exec and is
+	# exercised by `make check-coverage`, not by lint). Without the skip,
+	# recompiling classes here invalidates any cached jacoco.exec and
+	# coverage appears at 0 even though tests actually pass.
+	cd sdks/java && mvn verify -DskipTests -Djacoco.skip=true -q
 	@echo "✅ Java linting passed!"
 
 # Validate agent skill templates

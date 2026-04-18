@@ -27,6 +27,31 @@ type Validator struct {
 	schemas map[string]*openapi3.T
 	mu      sync.RWMutex
 	faker   *gofakeit.Faker
+	hooks   Hooks
+}
+
+// SetHooks installs a Hooks implementation on the validator. When hooks are
+// set, Validate fires OnValidationFailed after a non-valid result. nil
+// hooks is equivalent to NoopHooks (no-op). This indirection keeps pkg/cvt
+// free of internal/* imports.
+//
+// Safe to call concurrently with Validate: v.mu serializes the
+// assignment against the read in hooksOrNoop.
+func (v *Validator) SetHooks(h Hooks) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.hooks = h
+}
+
+// hooksOrNoop returns the configured hooks or a NoopHooks if none set.
+func (v *Validator) hooksOrNoop() Hooks {
+	v.mu.RLock()
+	h := v.hooks
+	v.mu.RUnlock()
+	if h == nil {
+		return NoopHooks{}
+	}
+	return h
 }
 
 // NewValidator creates a new local validator instance with random faker seed.
@@ -166,7 +191,11 @@ func (v *Validator) Validate(schemaID string, interaction *Interaction) (*Valida
 		return nil, fmt.Errorf("schema not found: %s", schemaID)
 	}
 
-	return v.validateInteraction(doc, interaction)
+	result, err := v.validateInteraction(doc, interaction)
+	if err == nil && result != nil && !result.Valid {
+		v.fireOnValidationFailed(schemaID, interaction, result)
+	}
+	return result, err
 }
 
 // ValidateWithSchema validates an interaction against a schema provided directly.
