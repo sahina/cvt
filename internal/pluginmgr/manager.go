@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sahina/cvt/pkg/cvtplugin"
 	eventspb "github.com/sahina/cvt/pkg/cvtplugin/pb/events/v1"
 	handshakepb "github.com/sahina/cvt/pkg/cvtplugin/pb/handshake/v1"
@@ -38,18 +39,18 @@ type Manager struct {
 	metrics *Metrics
 	audit   AuditSink
 
-	mu       sync.RWMutex
-	handles  map[string]*pluginHandle
+	mu      sync.RWMutex
+	handles map[string]*pluginHandle
 }
 
 // pluginHandle is the per-plugin runtime bundle. Holds the go-plugin
 // client, the dispensed typed sub-clients, and the identity fields we
 // carry into audit records.
 type pluginHandle struct {
-	name       string
-	cfg        PluginConfig
-	installed  InstalledPlugin
-	client     *plugin.Client
+	name      string
+	cfg       PluginConfig
+	installed InstalledPlugin
+	client    *plugin.Client
 
 	handshakeClient handshakepb.PluginHandshakeClient
 	registryClient  registrypb.RegistryProviderClient
@@ -168,7 +169,10 @@ func (m *Manager) Stop() {
 	for name, h := range handles {
 		m.logger.Info("plugin_stopping", zap.String("plugin", name))
 		h.client.Kill()
-		m.metrics.Up.WithLabelValues(name, h.reportedVersion).Set(0)
+		m.metrics.Up.WithLabelValues(name).Set(0)
+		// Drop the Info series for this plugin so Prometheus stops
+		// reporting identity for a plugin that's no longer running.
+		m.metrics.Info.DeletePartialMatch(prometheus.Labels{"plugin": name})
 	}
 }
 
@@ -278,12 +282,31 @@ func (m *Manager) startOne(ctx context.Context, name string, pcfg PluginConfig) 
 		return nil, fmt.Errorf("connect to plugin: %w", err)
 	}
 
+	// dispense wraps go-plugin's Dispense in a deadline. Dispense itself
+	// has no timeout and a hung plugin (TCP handshake completes but gRPC
+	// never serves) would otherwise block startOne indefinitely.
+	// pluginStartTimeout bounds the whole start sequence.
 	dispense := func(key string) (interface{}, error) {
-		raw, err := rpcClient.Dispense(key)
-		if err != nil {
-			return nil, fmt.Errorf("dispense %s: %w", key, err)
+		type result struct {
+			raw interface{}
+			err error
 		}
-		return raw, nil
+		ch := make(chan result, 1)
+		go func() {
+			raw, err := rpcClient.Dispense(key)
+			ch <- result{raw: raw, err: err}
+		}()
+		select {
+		case r := <-ch:
+			if r.err != nil {
+				return nil, fmt.Errorf("dispense %s: %w", key, r.err)
+			}
+			return r.raw, nil
+		case <-time.After(pluginStartTimeout):
+			return nil, fmt.Errorf("dispense %s: timeout after %s (plugin hung?)", key, pluginStartTimeout)
+		case <-ctx.Done():
+			return nil, fmt.Errorf("dispense %s: %w", key, ctx.Err())
+		}
 	}
 
 	rawH, err := dispense(cvtplugin.PluginKeyHandshake)
@@ -375,7 +398,12 @@ func (m *Manager) startOne(ctx context.Context, name string, pcfg PluginConfig) 
 		zap.Int("pid", h.pid),
 		zap.Strings("services", info.GetServices()),
 	)
-	m.metrics.Up.WithLabelValues(name, h.reportedVersion).Set(1)
+	// Clear any stale Info series for this plugin (version bump, restart)
+	// before setting the new identity, so we never report two versions
+	// simultaneously for the same plugin.
+	m.metrics.Info.DeletePartialMatch(prometheus.Labels{"plugin": name})
+	m.metrics.Info.WithLabelValues(name, h.reportedVersion, short(installed.SHA256)).Set(1)
+	m.metrics.Up.WithLabelValues(name).Set(1)
 
 	success = true
 	return h, nil

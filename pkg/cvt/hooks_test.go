@@ -2,6 +2,7 @@ package cvt
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 
@@ -116,6 +117,40 @@ func TestOnValidationFailedNotFiredOnSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, result.Valid)
 	assert.Equal(t, int32(0), atomic.LoadInt32(&h.validationFailedCalls))
+}
+
+// erroringHooks returns an error from OnValidationFailed to verify the
+// error is swallowed and doesn't propagate back through Validate.
+type erroringHooks struct {
+	recordingHooks
+	returnErr error
+}
+
+func (h *erroringHooks) OnValidationFailed(_ context.Context, _ *eventspb.ValidationFailedRequest) (*eventspb.EventResponse, error) {
+	return nil, h.returnErr
+}
+
+func TestOnValidationFailedHookErrorDoesNotAffectValidate(t *testing.T) {
+	// A fail_closed plugin that's unreachable returns an error from the
+	// hook call. Validate() must still return the underlying validation
+	// result; the hook failure is an observability concern handled by
+	// the adapter's audit + metrics path, not a validation error.
+	h := &erroringHooks{returnErr: errors.New("plugin down")}
+	v := NewValidator()
+	v.SetHooks(h)
+
+	require.NoError(t, v.RegisterSchema("widgets", []byte(tinyOpenAPI)))
+	result, err := v.Validate("widgets", &Interaction{
+		Method:          "GET",
+		Path:            "/widgets/42",
+		Headers:         map[string]string{"Accept": "application/json"},
+		StatusCode:      200,
+		ResponseHeaders: map[string]string{"Content-Type": "application/json"},
+		ResponseBody:    `{}`,
+	})
+	require.NoError(t, err, "hook error must not surface as Validate error")
+	require.NotNil(t, result)
+	assert.False(t, result.Valid, "validation still completes and reports invalid")
 }
 
 func TestValidatorWithoutHooksFallsBackToNoop(t *testing.T) {

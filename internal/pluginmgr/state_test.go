@@ -1,8 +1,10 @@
 package pluginmgr
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -162,4 +164,118 @@ func TestWriteStateIsAtomic(t *testing.T) {
 	// Lock file exists (adjacent artifact of WriteState).
 	_, err = os.Stat(path + ".lock")
 	assert.NoError(t, err)
+}
+
+// TestInstallConcurrentWritersAllPersist pins the flock behavior:
+// multiple concurrent Install calls against the same state.json must
+// all land in the final state (no silently-dropped entries from racing
+// read-modify-write cycles).
+func TestInstallConcurrentWritersAllPersist(t *testing.T) {
+	tmp := t.TempDir()
+	pluginRoot := filepath.Join(tmp, "plugins")
+	require.NoError(t, os.MkdirAll(pluginRoot, 0o755))
+	statePath := filepath.Join(pluginRoot, "state.json")
+
+	// Build N distinct source binaries (distinct basenames + contents so
+	// sha256 differs).
+	const N = 10
+	srcPaths := make([]string, N)
+	names := make([]string, N)
+	srcDir := filepath.Join(tmp, "src")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	for i := 0; i < N; i++ {
+		name := fmt.Sprintf("plug-%d", i)
+		names[i] = name
+		p := filepath.Join(srcDir, fmt.Sprintf("cvt-plugin-plug-%d", i))
+		require.NoError(t, os.WriteFile(p, []byte(name), 0o755))
+		srcPaths[i] = p
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, N)
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			_, err := Install(srcPaths[idx], names[idx], pluginRoot, statePath)
+			errs <- err
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		require.NoError(t, e)
+	}
+
+	// Every install must have landed.
+	s, err := ReadState(statePath)
+	require.NoError(t, err)
+	assert.Len(t, s.Plugins, N, "all concurrent installs should persist")
+	for _, name := range names {
+		_, ok := s.Plugins[name]
+		assert.True(t, ok, "plugin %q missing from state", name)
+	}
+}
+
+// TestInstallRejectsSameBasenameCollision: two different plugin names
+// with source binaries sharing a basename would both resolve to
+// pluginRoot/cvt-plugin-foo; the second install must refuse rather than
+// silently truncating the first plugin's binary.
+func TestInstallRejectsSameBasenameCollision(t *testing.T) {
+	tmp := t.TempDir()
+	pluginRoot := filepath.Join(tmp, "plugins")
+	require.NoError(t, os.MkdirAll(pluginRoot, 0o755))
+	statePath := filepath.Join(pluginRoot, "state.json")
+
+	// Build two sources with the same basename in distinct directories.
+	dir1 := filepath.Join(tmp, "build-a")
+	dir2 := filepath.Join(tmp, "build-b")
+	require.NoError(t, os.MkdirAll(dir1, 0o755))
+	require.NoError(t, os.MkdirAll(dir2, 0o755))
+	src1 := filepath.Join(dir1, "cvt-plugin-shared")
+	src2 := filepath.Join(dir2, "cvt-plugin-shared")
+	require.NoError(t, os.WriteFile(src1, []byte("A"), 0o755))
+	require.NoError(t, os.WriteFile(src2, []byte("B"), 0o755))
+
+	_, err := Install(src1, "alpha", pluginRoot, statePath)
+	require.NoError(t, err)
+
+	_, err = Install(src2, "bravo", pluginRoot, statePath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already used by plugin")
+	assert.Contains(t, err.Error(), `"alpha"`)
+
+	// Alpha still intact.
+	s, err := ReadState(statePath)
+	require.NoError(t, err)
+	require.Contains(t, s.Plugins, "alpha")
+	assert.NotContains(t, s.Plugins, "bravo", "bravo should not be registered when install refused")
+}
+
+// TestInstallAtomicCopyNoPartialWrite: a previous, shorter binary
+// shouldn't become visible as truncated if the copy is interrupted.
+// atomicCopyFile uses temp+rename, so this asserts that the
+// installed-binary size matches the source size exactly.
+func TestInstallAtomicCopyFullLength(t *testing.T) {
+	tmp := t.TempDir()
+	pluginRoot := filepath.Join(tmp, "plugins")
+	require.NoError(t, os.MkdirAll(pluginRoot, 0o755))
+	statePath := filepath.Join(pluginRoot, "state.json")
+
+	srcDir := filepath.Join(tmp, "src")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	src := filepath.Join(srcDir, "cvt-plugin-big")
+	payload := make([]byte, 1<<20) // 1 MiB of a repeating byte
+	for i := range payload {
+		payload[i] = byte(i % 251)
+	}
+	require.NoError(t, os.WriteFile(src, payload, 0o755))
+
+	_, err := Install(src, "big", pluginRoot, statePath)
+	require.NoError(t, err)
+
+	dst := filepath.Join(pluginRoot, "cvt-plugin-big")
+	got, err := os.ReadFile(dst)
+	require.NoError(t, err)
+	assert.Equal(t, payload, got, "destination binary must match source byte-for-byte")
 }

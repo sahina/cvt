@@ -183,6 +183,12 @@ func validateBinaryPath(bin, pluginRoot string) (string, error) {
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("binary: must be under %s (got %s)", root, clean)
 	}
+	// rel == "." means the configured path is pluginRoot itself (a
+	// directory). exec.Command on a directory fails with a cryptic
+	// EACCES; reject early with a clear message.
+	if rel == "." {
+		return "", fmt.Errorf("binary: must be a file under %s, not the directory itself", root)
+	}
 	return clean, nil
 }
 

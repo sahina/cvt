@@ -217,7 +217,12 @@ func TestIntegrationReferencePluginEndToEnd(t *testing.T) {
 	assert.Equal(t, pluginmgr.AuditKindRead, kindsByMethod["FetchSchema"])
 	assert.Equal(t, pluginmgr.AuditKindWrite, kindsByMethod["RegisterConsumerUsage"])
 
-	// Secret redaction: the token must not appear in any audit entry.
+	// Audit records must not embed secret config values. The AuditRecord
+	// struct has no field for config, so this assertion is structural:
+	// if a future change adds a field that propagates config values into
+	// audit, this test fails. Token redaction for log emission is
+	// covered by TestZapAuditSinkDoesNotEmitSecretConfigValues in
+	// audit_test.go.
 	for _, r := range audit.Records {
 		bytes, _ := json.Marshal(r)
 		assert.NotContainsf(t, string(bytes), "test-token-xyz",

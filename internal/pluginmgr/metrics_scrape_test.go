@@ -90,7 +90,10 @@ func TestIntegrationMetricsScrape(t *testing.T) {
 		`# TYPE cvt_plugin_call_duration_seconds histogram`,
 		`cvt_plugin_call_duration_seconds_count{method="FetchSchema",plugin="echo",service="registry.v1"} 1`,
 		`# TYPE cvt_plugin_up gauge`,
-		`cvt_plugin_up{plugin="echo",version="echo/0.0.1"} 1`,
+		`cvt_plugin_up{plugin="echo"} 1`,
+		`# TYPE cvt_plugin_info gauge`,
+		`cvt_plugin_info{plugin="echo",sha256="`,
+		`,version="echo/0.0.1"} 1`,
 	} {
 		assert.Truef(t, strings.Contains(text, needle), "metric line missing: %s\n--- full body ---\n%s", needle, text)
 	}

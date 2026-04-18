@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -22,7 +23,7 @@ import (
 // disk contention between the running daemon and the CLI, and eliminates
 // stale-read risk.
 type StateFile struct {
-	Version int                    `json:"version"`
+	Version int                        `json:"version"`
 	Plugins map[string]InstalledPlugin `json:"plugins"`
 }
 
@@ -48,11 +49,15 @@ func DefaultStatePath() (string, error) {
 
 // ReadState loads the state file. Missing file returns an empty StateFile
 // (not an error) since fresh installs have no state yet.
+//
+// Note: ReadState does NOT hold a lock. Pure reads are acceptable
+// (stale-read tolerance for list/inspect). Mutating callers must use
+// withStateLock to serialize read-modify-write cycles.
 func ReadState(path string) (*StateFile, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &StateFile{Version: CurrentStateVersion, Plugins: map[string]InstalledPlugin{}}, nil
+			return emptyState(), nil
 		}
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
@@ -70,11 +75,26 @@ func ReadState(path string) (*StateFile, error) {
 	return &s, nil
 }
 
-// WriteState writes state to the given path atomically, guarded by a
-// file lock so concurrent CLI invocations don't corrupt each other. The
-// write is temp-file + rename, which is atomic on POSIX filesystems.
+// WriteState writes state to the given path. Acquires the flock before
+// writing. If you're doing a read-modify-write cycle, prefer
+// withStateLock so the lock is held across both operations (otherwise
+// concurrent mutators race to clobber each other's entries).
 func WriteState(path string, state *StateFile) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	return withStateLock(path, func(_ *StateFile) (*StateFile, error) {
+		return state, nil
+	})
+}
+
+// withStateLock runs fn under an exclusive file lock on the state file.
+// fn receives the current state (or an empty state if the file doesn't
+// exist) and returns the new state to persist; returning an error from
+// fn aborts without writing. The write is atomic via temp-file + rename.
+//
+// Callers use this to make Install / Remove transactional across
+// concurrent CLI invocations: two simultaneous `cvt plugins install`
+// calls no longer race to clobber each other's entries.
+func withStateLock(path string, fn func(*StateFile) (*StateFile, error)) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 	lockPath := path + ".lock"
@@ -87,8 +107,29 @@ func WriteState(path string, state *StateFile) error {
 	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
 		return fmt.Errorf("acquire lock: %w", err)
 	}
-	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+	defer func() { _ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN) }()
 
+	// Read-under-lock: ReadState itself doesn't lock, but we're holding
+	// the flock exclusively here, so no concurrent mutator can interleave.
+	current, err := ReadState(path)
+	if err != nil {
+		return err
+	}
+
+	next, err := fn(current)
+	if err != nil {
+		return err
+	}
+	if next == nil {
+		return fmt.Errorf("withStateLock: callback returned nil state")
+	}
+
+	return writeStateUnderLock(path, next)
+}
+
+// writeStateUnderLock persists state to disk. Caller MUST already hold
+// the flock.
+func writeStateUnderLock(path string, state *StateFile) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), "state-*.json.tmp")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
@@ -103,12 +144,12 @@ func WriteState(path string, state *StateFile) error {
 	enc := json.NewEncoder(tmp)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(state); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		removeTmp()
 		return fmt.Errorf("encode: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		removeTmp()
 		return fmt.Errorf("fsync: %w", err)
 	}
@@ -123,15 +164,24 @@ func WriteState(path string, state *StateFile) error {
 	return nil
 }
 
-// Install copies (or verifies) the binary at srcPath into pluginRoot,
-// records the entry in state.json, and returns the installed entry.
+func emptyState() *StateFile {
+	return &StateFile{Version: CurrentStateVersion, Plugins: map[string]InstalledPlugin{}}
+}
+
+// Install copies (or verifies) the binary at srcPath into pluginRoot and
+// records the entry in state.json under a single flock-guarded
+// transaction. Returns the persisted entry.
 //
-// If srcPath is already inside pluginRoot, the binary stays where it is
-// and only the SHA256 is computed and recorded. Otherwise the binary is
-// copied into pluginRoot with the same basename and permission 0o700.
-//
-// name must match the plugin-name regex; this is the key used for the
-// state entry.
+// Behavior:
+//   - If srcPath is already inside pluginRoot, the binary stays in place
+//     and only its SHA256 is computed.
+//   - Otherwise the binary is copied to pluginRoot/<basename>(src). The
+//     copy is staged to a temp file and atomically renamed, so a crashed
+//     or concurrent install never leaves a half-written binary.
+//   - If the destination path is already registered under a DIFFERENT
+//     plugin name, Install refuses: the user must pick a distinct
+//     binary file or remove the existing plugin first.
+//   - name must match the plugin-name regex.
 func Install(srcPath, name, pluginRoot, statePath string) (InstalledPlugin, error) {
 	if !pluginNameRegex.MatchString(name) {
 		return InstalledPlugin{}, fmt.Errorf("invalid plugin name %q", name)
@@ -158,72 +208,88 @@ func Install(srcPath, name, pluginRoot, statePath string) (InstalledPlugin, erro
 
 	var destPath string
 	rel, relErr := filepath.Rel(root, absSrc)
-	insideRoot := relErr == nil && rel != ".." && !hasDotDotPrefix(rel)
+	insideRoot := relErr == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 
-	if insideRoot {
-		destPath = absSrc
-	} else {
-		destPath = filepath.Join(root, filepath.Base(absSrc))
-		if err := copyFileTo(absSrc, destPath, 0o700); err != nil {
-			return InstalledPlugin{}, fmt.Errorf("copy binary: %w", err)
+	var entry InstalledPlugin
+	txErr := withStateLock(statePath, func(state *StateFile) (*StateFile, error) {
+		if insideRoot {
+			destPath = absSrc
+		} else {
+			destPath = filepath.Join(root, filepath.Base(absSrc))
+			// Collision guard: if the dest path is already registered under
+			// a different name, refuse rather than silently truncating the
+			// other plugin's binary.
+			for otherName, other := range state.Plugins {
+				if otherName == name {
+					continue
+				}
+				if filepath.Clean(other.BinaryPath) == filepath.Clean(destPath) {
+					return nil, fmt.Errorf("binary path %s already used by plugin %q; pick a different source filename or use --name, or remove %q first",
+						destPath, otherName, otherName)
+				}
+			}
+			if err := atomicCopyFile(absSrc, destPath, 0o700); err != nil {
+				return nil, fmt.Errorf("copy binary: %w", err)
+			}
 		}
-	}
 
-	sum, err := sha256File(destPath)
-	if err != nil {
-		return InstalledPlugin{}, fmt.Errorf("sha256: %w", err)
-	}
-
-	state, err := ReadState(statePath)
-	if err != nil {
-		return InstalledPlugin{}, err
-	}
-	entry := InstalledPlugin{
-		BinaryPath:  destPath,
-		SHA256:      sum,
-		InstalledAt: time.Now().UTC().Truncate(time.Second),
-	}
-	state.Plugins[name] = entry
-	if err := WriteState(statePath, state); err != nil {
-		return InstalledPlugin{}, err
+		sum, err := sha256File(destPath)
+		if err != nil {
+			return nil, fmt.Errorf("sha256: %w", err)
+		}
+		entry = InstalledPlugin{
+			BinaryPath:  destPath,
+			SHA256:      sum,
+			InstalledAt: time.Now().UTC().Truncate(time.Second),
+		}
+		state.Plugins[name] = entry
+		return state, nil
+	})
+	if txErr != nil {
+		return InstalledPlugin{}, txErr
 	}
 	return entry, nil
 }
 
-// Remove deletes the plugin binary and its state entry. Returns an error
-// if the plugin is not installed, or if the recorded binary path escapes
-// the plugin root (defensive: state.json is user-writable and shouldn't
-// be trusted to point at arbitrary files).
+// Remove deletes the plugin binary and its state entry under a single
+// flock-guarded transaction. Ordering:
+//  1. Acquire lock.
+//  2. Verify entry exists and binary path is under pluginRoot.
+//  3. Write new state (without the entry).
+//  4. Release lock.
+//  5. Delete the binary (outside lock).
 //
-// Ordering: state.json is written first, binary deleted second. A crash
-// between the two leaves the binary behind on disk but not in state,
-// which is recoverable (operator deletes by hand). The reverse ordering
-// would leave state pointing at a missing file, which blocks reinstall
-// without manual state-file surgery.
+// If step 3 fails, nothing changes. If step 5 fails, state is correct
+// but the orphaned binary remains on disk — operator can delete by hand
+// and reinstall works. The reverse ordering (binary-first) would leave
+// state pointing at a missing file, blocking reinstall.
 func Remove(name, pluginRoot, statePath string) error {
 	if !pluginNameRegex.MatchString(name) {
 		return fmt.Errorf("invalid plugin name %q", name)
 	}
-	state, err := ReadState(statePath)
-	if err != nil {
-		return err
+
+	var binaryPath string
+	txErr := withStateLock(statePath, func(state *StateFile) (*StateFile, error) {
+		entry, ok := state.Plugins[name]
+		if !ok {
+			return nil, fmt.Errorf("plugin %q not installed", name)
+		}
+		// Defensive: state.json sits in the user's home directory and is
+		// writable outside this CLI. If someone rewrote the entry to point
+		// at a path outside pluginRoot, refuse rather than letting
+		// `cvt plugins remove` become a file-deletion primitive driven
+		// by unvalidated JSON.
+		if _, err := validateBinaryPath(entry.BinaryPath, pluginRoot); err != nil {
+			return nil, fmt.Errorf("plugin %q binary path escapes plugin root: %w", name, err)
+		}
+		binaryPath = entry.BinaryPath
+		delete(state.Plugins, name)
+		return state, nil
+	})
+	if txErr != nil {
+		return txErr
 	}
-	entry, ok := state.Plugins[name]
-	if !ok {
-		return fmt.Errorf("plugin %q not installed", name)
-	}
-	// Defensive: state.json sits in the user's home directory and is
-	// writable outside this CLI. If someone rewrote the entry to point at
-	// a path outside pluginRoot, refuse rather than letting `cvt plugins
-	// remove` become a file-deletion primitive driven by unvalidated JSON.
-	if _, err := validateBinaryPath(entry.BinaryPath, pluginRoot); err != nil {
-		return fmt.Errorf("plugin %q binary path escapes plugin root: %w", name, err)
-	}
-	delete(state.Plugins, name)
-	if err := WriteState(statePath, state); err != nil {
-		return err
-	}
-	if err := os.Remove(entry.BinaryPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(binaryPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove binary (state already updated): %w", err)
 	}
 	return nil
@@ -256,23 +322,46 @@ func sha256File(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func copyFileTo(src, dst string, mode os.FileMode) error {
+// atomicCopyFile copies src to dst via a temp file in dst's directory
+// followed by atomic rename. A concurrent copy of the same dst (or a
+// crash mid-copy) can never leave a partially-written file at dst: the
+// destination only becomes visible once it's complete and fsynced.
+func atomicCopyFile(src, dst string, mode os.FileMode) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
-}
 
-func hasDotDotPrefix(rel string) bool {
-	return len(rel) >= 3 && rel[:3] == ".."+string(filepath.Separator)
+	tmp, err := os.CreateTemp(filepath.Dir(dst), filepath.Base(dst)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create temp: %w", err)
+	}
+	tmpPath := tmp.Name()
+	removeTmp := func() { _ = os.Remove(tmpPath) }
+
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		removeTmp()
+		return fmt.Errorf("chmod temp: %w", err)
+	}
+	if _, err := io.Copy(tmp, in); err != nil {
+		_ = tmp.Close()
+		removeTmp()
+		return fmt.Errorf("copy: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		removeTmp()
+		return fmt.Errorf("fsync temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		removeTmp()
+		return fmt.Errorf("close temp: %w", err)
+	}
+	if err := os.Rename(tmpPath, dst); err != nil {
+		removeTmp()
+		return fmt.Errorf("rename: %w", err)
+	}
+	return nil
 }
