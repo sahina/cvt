@@ -31,6 +31,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// maxSchemaBytes caps FetchSchema response size. OpenAPI specs above
+// this threshold almost certainly indicate a registry misconfiguration
+// rather than a legitimate schema. Surfaced as ResourceExhausted.
+const maxSchemaBytes int64 = 50 << 20 // 50 MiB
+
 type restRegistry struct {
 	mu      sync.RWMutex
 	baseURL string
@@ -104,9 +109,17 @@ func (r *restRegistry) FetchSchema(ctx context.Context, req *registrypb.FetchSch
 		return nil, status.Errorf(codes.InvalidArgument, "registry %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 50<<20)) // 50MiB cap
+	// Read up to maxSchemaBytes+1. If we hit the +1 byte, the response
+	// overflowed the cap — return a distinct error rather than silently
+	// truncating, which would produce confusing downstream parse
+	// failures ("unexpected end of JSON").
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxSchemaBytes+1))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "read body: %v", err)
+	}
+	if int64(len(body)) > maxSchemaBytes {
+		return nil, status.Errorf(codes.ResourceExhausted,
+			"schema %s@%s exceeds %d-byte limit", req.GetSchemaId(), version, maxSchemaBytes)
 	}
 
 	// The REST registry returns the resolved version in a header when the

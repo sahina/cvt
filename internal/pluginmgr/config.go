@@ -23,13 +23,16 @@ type Config struct {
 }
 
 // PluginConfig is per-plugin configuration.
+//
+// Note: there is no Restart field in v1. go-plugin's default behavior
+// restarts crashed plugins automatically; a configurable restart policy
+// is tracked as part of the v1.1 supervisor work (see issue #107).
 type PluginConfig struct {
-	Binary   string            `yaml:"binary"`
-	Timeout  time.Duration     `yaml:"timeout"`
-	OnError  string            `yaml:"on_error"`
-	Secrets  []string          `yaml:"secrets"`
-	Config   map[string]string `yaml:"config"`
-	Restart  *bool             `yaml:"restart,omitempty"`
+	Binary  string            `yaml:"binary"`
+	Timeout time.Duration     `yaml:"timeout"`
+	OnError string            `yaml:"on_error"`
+	Secrets []string          `yaml:"secrets"`
+	Config  map[string]string `yaml:"config"`
 }
 
 // HookBindings maps hook names to the single plugin that handles each.

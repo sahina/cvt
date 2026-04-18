@@ -14,7 +14,7 @@ const ProtocolVersion uint32 = 1
 // invoked directly by a user rather than launched by CVT, and the plugin
 // exits with a helpful message.
 var Handshake = plugin.HandshakeConfig{
-	ProtocolVersion:  1,
+	ProtocolVersion:  uint(ProtocolVersion),
 	MagicCookieKey:   "CVT_PLUGIN_MAGIC_COOKIE",
 	MagicCookieValue: "cvt-plugin-v1",
 }

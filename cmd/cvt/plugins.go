@@ -136,11 +136,15 @@ func pluginsRemoveCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
+			root, err := pluginmgr.DefaultPluginRoot()
+			if err != nil {
+				return err
+			}
 			statePath, err := pluginmgr.DefaultStatePath()
 			if err != nil {
 				return err
 			}
-			if err := pluginmgr.Remove(name, statePath); err != nil {
+			if err := pluginmgr.Remove(name, root, statePath); err != nil {
 				return err
 			}
 			_, err = fmt.Fprintf(os.Stdout, "Removed %q. Also remove its entry from ~/.cvt/config.yaml, then restart `cvt serve` if running.\n", name)

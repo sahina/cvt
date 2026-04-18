@@ -85,7 +85,7 @@ func TestRemoveDeletesBinaryAndStateEntry(t *testing.T) {
 	entry, err := Install(src, "registry", pluginRoot, statePath)
 	require.NoError(t, err)
 
-	require.NoError(t, Remove("registry", statePath))
+	require.NoError(t, Remove("registry", pluginRoot, statePath))
 
 	_, err = os.Stat(entry.BinaryPath)
 	assert.True(t, os.IsNotExist(err), "binary deleted")
@@ -97,10 +97,36 @@ func TestRemoveDeletesBinaryAndStateEntry(t *testing.T) {
 
 func TestRemoveUnknownPlugin(t *testing.T) {
 	pluginRoot, statePath, _ := setupStateTest(t)
-	_ = pluginRoot
-	err := Remove("missing", statePath)
+	err := Remove("missing", pluginRoot, statePath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not installed")
+}
+
+// Regression for the path-validation guard: if state.json is tampered
+// (rewritten to point at an arbitrary path), Remove must refuse rather
+// than deleting the targeted file.
+func TestRemoveRejectsBinaryPathOutsideRoot(t *testing.T) {
+	pluginRoot, statePath, src := setupStateTest(t)
+	_, err := Install(src, "registry", pluginRoot, statePath)
+	require.NoError(t, err)
+
+	// Tamper: rewrite the recorded binary path to a file outside pluginRoot.
+	state, err := ReadState(statePath)
+	require.NoError(t, err)
+	victim := filepath.Join(t.TempDir(), "victim.txt")
+	require.NoError(t, os.WriteFile(victim, []byte("do not delete me"), 0o644))
+	entry := state.Plugins["registry"]
+	entry.BinaryPath = victim
+	state.Plugins["registry"] = entry
+	require.NoError(t, WriteState(statePath, state))
+
+	err = Remove("registry", pluginRoot, statePath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "escapes plugin root")
+
+	// Victim file untouched.
+	_, err = os.Stat(victim)
+	assert.NoError(t, err, "victim file must still exist after refused Remove")
 }
 
 func TestVerifyInstalledMatches(t *testing.T) {

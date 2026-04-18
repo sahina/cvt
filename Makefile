@@ -516,7 +516,12 @@ lint-python:
 
 lint-java:
 	@echo "🔍 Linting Java SDK..."
-	cd sdks/java && mvn verify -DskipTests -q
+	# -DskipTests skips test execution; -Djacoco.skip=true skips the
+	# coverage gate (which requires a matching fresh jacoco.exec and is
+	# exercised by `make check-coverage`, not by lint). Without the skip,
+	# recompiling classes here invalidates any cached jacoco.exec and
+	# coverage appears at 0 even though tests actually pass.
+	cd sdks/java && mvn verify -DskipTests -Djacoco.skip=true -q
 	@echo "✅ Java linting passed!"
 
 # Validate agent skill templates

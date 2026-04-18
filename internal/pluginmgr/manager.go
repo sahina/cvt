@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"sort"
 	"sync"
 	"time"
 
@@ -15,6 +16,12 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
+
+// pluginStartTimeout bounds the go-plugin handshake + gRPC dial + the
+// CVT-specific PluginHandshake.Info round-trip. Deliberately distinct
+// from DefaultCallTimeout (which governs per-RPC deadlines after the
+// plugin is live).
+const pluginStartTimeout = 5 * time.Second
 
 // Manager owns the lifecycle of every configured plugin subprocess. It is
 // a singleton per cvt process: Start forks all configured plugins in
@@ -255,7 +262,7 @@ func (m *Manager) startOne(ctx context.Context, name string, pcfg PluginConfig) 
 		Cmd:              exec.Command(pcfg.Binary),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		Logger:           pluginLogger,
-		StartTimeout:     5 * time.Second,
+		StartTimeout:     pluginStartTimeout,
 	})
 
 	// Ensure we kill the subprocess on any error from here on.
@@ -304,7 +311,18 @@ func (m *Manager) startOne(ctx context.Context, name string, pcfg PluginConfig) 
 	// that want to pull values from os.Environ directly may ignore the
 	// delivery, but sending everything keeps the plugin SDK contract
 	// uniform.
-	for k, v := range pcfg.Config {
+	//
+	// Keys are sorted for deterministic delivery order across restarts.
+	// Plugins that validate one key against another now see a stable
+	// sequence; reproducing a config-load failure no longer depends on
+	// Go's random map-iteration order.
+	keys := make([]string, 0, len(pcfg.Config))
+	for k := range pcfg.Config {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := pcfg.Config[k]
 		cctx, ccancel := context.WithTimeout(ctx, pcfg.Timeout)
 		_, err := hClient.SetConfig(cctx, &handshakepb.SetConfigRequest{Key: k, Value: v})
 		ccancel()

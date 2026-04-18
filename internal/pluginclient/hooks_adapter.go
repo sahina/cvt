@@ -36,6 +36,19 @@ func NewHooks(mgr *pluginmgr.Manager) *HooksAdapter {
 // Compile-time assertion.
 var _ cvt.Hooks = (*HooksAdapter)(nil)
 
+// isUnimplemented reports whether err signals "plugin chose not to handle
+// this RPC." Plugins opt out of events by returning codes.Unimplemented
+// (documented behavior in pkg/cvtplugin/events.go). Treat it as a no-op,
+// bypassing the per-plugin on_error policy — Unimplemented is explicit
+// intent, not a fault.
+func isUnimplemented(err error) bool {
+	if err == nil {
+		return false
+	}
+	st, ok := status.FromError(err)
+	return ok && st.Code() == codes.Unimplemented
+}
+
 // FetchSchema invokes the plugin bound to the fetch_schema hook, if any.
 // Returns (nil, nil) when no plugin is bound — the caller falls back to
 // direct resolution.
@@ -51,15 +64,25 @@ func (a *HooksAdapter) FetchSchema(ctx context.Context, req *registrypb.FetchSch
 	if client == nil {
 		// Plugin bound in config but not running (startup failure). Policy
 		// applies as if the call errored.
-		return nil, applyOnErrorRead(a.mgr, name, errors.New("plugin not running"))
+		return nil, applyOnError(a.mgr, name, errors.New("plugin not running"))
 	}
 	resp, err := timedCall(ctx, a.mgr, name, pluginmgr.AuditKindRead, "registry.v1", "FetchSchema", req.GetRequestId(), func(c context.Context) (interface{}, error) {
 		return client.FetchSchema(c, req)
 	})
 	if err != nil {
-		return nil, applyOnErrorRead(a.mgr, name, err)
+		if isUnimplemented(err) {
+			return a.noop.FetchSchema(ctx, req)
+		}
+		return nil, applyOnError(a.mgr, name, err)
 	}
-	return resp.(*registrypb.FetchSchemaResponse), nil
+	typed, ok := resp.(*registrypb.FetchSchemaResponse)
+	if !ok || typed == nil {
+		// A plugin that returns (nil, nil) from FetchSchema is valid gRPC
+		// but callers can't dereference a nil response. Fall back to the
+		// noop path (caller resolves schema themselves).
+		return a.noop.FetchSchema(ctx, req)
+	}
+	return typed, nil
 }
 
 // RegisterConsumerUsage invokes the plugin bound to the
@@ -74,19 +97,26 @@ func (a *HooksAdapter) RegisterConsumerUsage(ctx context.Context, req *registryp
 	}
 	client := a.mgr.Registry(name)
 	if client == nil {
-		return nil, applyOnErrorWrite(a.mgr, name, errors.New("plugin not running"))
+		return nil, applyOnError(a.mgr, name, errors.New("plugin not running"))
 	}
 	resp, err := timedCall(ctx, a.mgr, name, pluginmgr.AuditKindWrite, "registry.v1", "RegisterConsumerUsage", req.GetRequestId(), func(c context.Context) (interface{}, error) {
 		return client.RegisterConsumerUsage(c, req)
 	})
 	if err != nil {
-		if wrapped := applyOnErrorWrite(a.mgr, name, err); wrapped != nil {
+		if isUnimplemented(err) {
+			return a.noop.RegisterConsumerUsage(ctx, req)
+		}
+		if wrapped := applyOnError(a.mgr, name, err); wrapped != nil {
 			return nil, wrapped
 		}
 		// fail_open swallowed the error — return a noop-ack response.
 		return a.noop.RegisterConsumerUsage(ctx, req)
 	}
-	return resp.(*registrypb.RegisterConsumerUsageResponse), nil
+	typed, ok := resp.(*registrypb.RegisterConsumerUsageResponse)
+	if !ok || typed == nil {
+		return a.noop.RegisterConsumerUsage(ctx, req)
+	}
+	return typed, nil
 }
 
 // OnBreakingChangeDetected invokes the plugin bound to
@@ -101,7 +131,7 @@ func (a *HooksAdapter) OnBreakingChangeDetected(ctx context.Context, req *events
 	}
 	client := a.mgr.Events(name)
 	if client == nil {
-		if err := applyOnErrorWrite(a.mgr, name, errors.New("plugin not running")); err != nil {
+		if err := applyOnError(a.mgr, name, errors.New("plugin not running")); err != nil {
 			return nil, err
 		}
 		return a.noop.OnBreakingChangeDetected(ctx, req)
@@ -110,12 +140,19 @@ func (a *HooksAdapter) OnBreakingChangeDetected(ctx context.Context, req *events
 		return client.OnBreakingChangeDetected(c, req)
 	})
 	if err != nil {
-		if wrapped := applyOnErrorWrite(a.mgr, name, err); wrapped != nil {
+		if isUnimplemented(err) {
+			return a.noop.OnBreakingChangeDetected(ctx, req)
+		}
+		if wrapped := applyOnError(a.mgr, name, err); wrapped != nil {
 			return nil, wrapped
 		}
 		return a.noop.OnBreakingChangeDetected(ctx, req)
 	}
-	return resp.(*eventspb.EventResponse), nil
+	typed, ok := resp.(*eventspb.EventResponse)
+	if !ok || typed == nil {
+		return a.noop.OnBreakingChangeDetected(ctx, req)
+	}
+	return typed, nil
 }
 
 // OnValidationFailed invokes the plugin bound to on_validation_failed.
@@ -129,7 +166,7 @@ func (a *HooksAdapter) OnValidationFailed(ctx context.Context, req *eventspb.Val
 	}
 	client := a.mgr.Events(name)
 	if client == nil {
-		if err := applyOnErrorWrite(a.mgr, name, errors.New("plugin not running")); err != nil {
+		if err := applyOnError(a.mgr, name, errors.New("plugin not running")); err != nil {
 			return nil, err
 		}
 		return a.noop.OnValidationFailed(ctx, req)
@@ -138,12 +175,19 @@ func (a *HooksAdapter) OnValidationFailed(ctx context.Context, req *eventspb.Val
 		return client.OnValidationFailed(c, req)
 	})
 	if err != nil {
-		if wrapped := applyOnErrorWrite(a.mgr, name, err); wrapped != nil {
+		if isUnimplemented(err) {
+			return a.noop.OnValidationFailed(ctx, req)
+		}
+		if wrapped := applyOnError(a.mgr, name, err); wrapped != nil {
 			return nil, wrapped
 		}
 		return a.noop.OnValidationFailed(ctx, req)
 	}
-	return resp.(*eventspb.EventResponse), nil
+	typed, ok := resp.(*eventspb.EventResponse)
+	if !ok || typed == nil {
+		return a.noop.OnValidationFailed(ctx, req)
+	}
+	return typed, nil
 }
 
 // timedCall wraps an RPC with per-plugin timeout, metrics, and audit.
@@ -170,12 +214,10 @@ func timedCall(
 
 	code := codes.OK.String()
 	outcome := pluginmgr.OutcomeOK
-	errorCode := ""
 	if err != nil {
 		outcome = pluginmgr.OutcomeError
 		st, _ := status.FromError(err)
 		code = st.Code().String()
-		errorCode = code
 		if st.Code() == codes.DeadlineExceeded {
 			outcome = pluginmgr.OutcomeTimeout
 		}
@@ -186,6 +228,10 @@ func timedCall(
 		mgr.Metrics().CallErrors.WithLabelValues(plugin, service, method, code).Inc()
 	}
 
+	errorCode := ""
+	if err != nil {
+		errorCode = code
+	}
 	mgr.Audit().Record(pluginmgr.AuditRecord{
 		Kind:            kind,
 		Plugin:          plugin,
@@ -204,20 +250,12 @@ func timedCall(
 	return resp, err
 }
 
-// applyOnErrorRead returns the error unchanged if on_error=fail_closed,
-// or nil if fail_open. Read hooks return nil response on fail_open so
-// callers fall back to default resolution.
-func applyOnErrorRead(mgr *pluginmgr.Manager, name string, err error) error {
-	cfg, ok := mgr.Cfg().Plugins[name]
-	if !ok || cfg.OnError == pluginmgr.OnErrorFailClosed {
-		return err
-	}
-	return nil
-}
-
-// applyOnErrorWrite returns the error unchanged if on_error=fail_closed,
-// or nil if fail_open.
-func applyOnErrorWrite(mgr *pluginmgr.Manager, name string, err error) error {
+// applyOnError returns err unchanged if the plugin's on_error policy is
+// fail_closed (or the plugin isn't declared), and nil if fail_open. The
+// same rule applies to reads and writes — callers decide what to return
+// on the fail_open path (reads fall back to noop resolution, writes
+// return an acknowledged no-op response).
+func applyOnError(mgr *pluginmgr.Manager, name string, err error) error {
 	cfg, ok := mgr.Cfg().Plugins[name]
 	if !ok || cfg.OnError == pluginmgr.OnErrorFailClosed {
 		return err

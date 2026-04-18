@@ -150,7 +150,9 @@ func Install(srcPath, name, pluginRoot, statePath string) (InstalledPlugin, erro
 	}
 
 	root := filepath.Clean(pluginRoot)
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	// 0o700: only the CVT-invoking user should enumerate installed plugins.
+	// Plugin binaries inside use 0o700 as well.
+	if err := os.MkdirAll(root, 0o700); err != nil {
 		return InstalledPlugin{}, fmt.Errorf("mkdir plugin root: %w", err)
 	}
 
@@ -189,8 +191,16 @@ func Install(srcPath, name, pluginRoot, statePath string) (InstalledPlugin, erro
 }
 
 // Remove deletes the plugin binary and its state entry. Returns an error
-// if the plugin is not installed.
-func Remove(name, statePath string) error {
+// if the plugin is not installed, or if the recorded binary path escapes
+// the plugin root (defensive: state.json is user-writable and shouldn't
+// be trusted to point at arbitrary files).
+//
+// Ordering: state.json is written first, binary deleted second. A crash
+// between the two leaves the binary behind on disk but not in state,
+// which is recoverable (operator deletes by hand). The reverse ordering
+// would leave state pointing at a missing file, which blocks reinstall
+// without manual state-file surgery.
+func Remove(name, pluginRoot, statePath string) error {
 	if !pluginNameRegex.MatchString(name) {
 		return fmt.Errorf("invalid plugin name %q", name)
 	}
@@ -202,11 +212,21 @@ func Remove(name, statePath string) error {
 	if !ok {
 		return fmt.Errorf("plugin %q not installed", name)
 	}
-	if err := os.Remove(entry.BinaryPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove binary: %w", err)
+	// Defensive: state.json sits in the user's home directory and is
+	// writable outside this CLI. If someone rewrote the entry to point at
+	// a path outside pluginRoot, refuse rather than letting `cvt plugins
+	// remove` become a file-deletion primitive driven by unvalidated JSON.
+	if _, err := validateBinaryPath(entry.BinaryPath, pluginRoot); err != nil {
+		return fmt.Errorf("plugin %q binary path escapes plugin root: %w", name, err)
 	}
 	delete(state.Plugins, name)
-	return WriteState(statePath, state)
+	if err := WriteState(statePath, state); err != nil {
+		return err
+	}
+	if err := os.Remove(entry.BinaryPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove binary (state already updated): %w", err)
+	}
+	return nil
 }
 
 // VerifyInstalled re-hashes the binary on disk and returns an error if it

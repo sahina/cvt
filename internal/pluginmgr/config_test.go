@@ -3,6 +3,7 @@ package pluginmgr
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,35 +26,9 @@ func writeTempConfig(t *testing.T, yaml string) (string, string) {
 	}
 	cfgPath := filepath.Join(tmp, "config.yaml")
 	// Replace {PLUGINROOT} placeholder with actual path so tests read cleanly.
-	rendered := ""
-	for _, ch := range yaml {
-		rendered += string(ch)
-	}
-	expanded := replaceAll(rendered, "{PLUGINROOT}", pluginRoot)
+	expanded := strings.ReplaceAll(yaml, "{PLUGINROOT}", pluginRoot)
 	require.NoError(t, os.WriteFile(cfgPath, []byte(expanded), 0o644))
 	return cfgPath, pluginRoot
-}
-
-func replaceAll(s, from, to string) string {
-	out := ""
-	for {
-		i := indexOf(s, from)
-		if i < 0 {
-			out += s
-			return out
-		}
-		out += s[:i] + to
-		s = s[i+len(from):]
-	}
-}
-
-func indexOf(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
 }
 
 func TestLoadMissingFileReturnsEmptyConfig(t *testing.T) {
