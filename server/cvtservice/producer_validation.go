@@ -1,5 +1,3 @@
-// Producer-side response validation. Validates HTTP responses produced by an
-// API implementation against the registered OpenAPI schema for that contract.
 package cvtservice
 
 import (

@@ -1,5 +1,3 @@
-// Deployment safety checks. CanIDeploy answers whether a new schema version
-// can ship without breaking registered consumers in a target environment.
 package cvtservice
 
 import (

@@ -1,5 +1,3 @@
-// Consumer Registry RPCs. Tracks which consumers depend on which schemas
-// and enables deployment safety checks via CanIDeploy.
 package cvtservice
 
 import (

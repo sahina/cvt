@@ -1,5 +1,3 @@
-// Test fixture generation. Produces request/response examples from an
-// OpenAPI schema, delegating shape generation to pkg/cvt.
 package cvtservice
 
 import (
