@@ -268,3 +268,40 @@ func TestDeregisterConsumer(t *testing.T) {
 		assert.True(t, resp.Success)
 	})
 }
+
+func TestRegisterConsumer_FiresRegisterConsumerUsageHook(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	// Register a schema first so RegisterConsumer's existence check passes.
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "rc-fire-schema",
+		SchemaContent: compatTestV1Schema,
+	})
+	require.NoError(t, err)
+
+	resp, err := service.RegisterConsumer(context.Background(), &pb.RegisterConsumerRequest{
+		ConsumerId:      "order-svc",
+		ConsumerVersion: "1.0.0",
+		SchemaId:        "rc-fire-schema",
+		SchemaVersion:   "1.0.0",
+		Environment:     "ci",
+		UsedEndpoints: []*pb.EndpointUsage{
+			{Method: "GET", Path: "/items", UsedFields: []string{"id"}},
+		},
+	})
+	require.NoError(t, err)
+	require.True(t, resp.Success)
+
+	require.Len(t, rec.registerConsumerCalls, 1, "hook should fire once on success")
+	got := rec.registerConsumerCalls[0]
+	assert.Equal(t, "order-svc", got.ConsumerId)
+	assert.Equal(t, "rc-fire-schema", got.SchemaId)
+	assert.Equal(t, "1.0.0", got.SchemaVersion)
+	assert.Equal(t, "ci", got.Environment)
+	require.Len(t, got.Endpoints, 1)
+	assert.Equal(t, []string{"id"}, got.Endpoints[0].UsedFields, "used_fields should propagate (plugin proto v1.1)")
+}

@@ -88,18 +88,26 @@ Handshake itself is `go-plugin`'s native `HandshakeConfig{MagicCookieKey, MagicC
 
 ## Hooks
 
-Four hook points wired via `pkg/cvt.Hooks`:
+Four hook points wired via `pkg/cvt.Hooks` (server) and `pkg/cvt.Validator.SetHooks` (CLI):
 
 | Hook | Fires in | Maps to plugin call |
 |---|---|---|
 | `fetch_schema` | `pkg/cvt/validator.go` before schema-by-ID resolve | `RegistryProvider.FetchSchema` |
-| `register_consumer_usage` | post-split `server/cvtservice/consumer_registry.go` after successful `ValidateInteraction` | `RegistryProvider.RegisterConsumerUsage` |
-| `on_breaking_change_detected` | post-split `server/cvtservice/producer_validation.go` after `CompareSchemas` / `RegisterSchema --check-compatibility` commit | `EventHandler.OnBreakingChangeDetected` |
-| `on_validation_failed` | `pkg/cvt/validator.go` after `ValidateInteraction` returns non-valid | `EventHandler.OnValidationFailed` |
+| `register_consumer_usage` | `server/cvtservice/consumer_registry.go` at `RegisterConsumer` success | `RegistryProvider.RegisterConsumerUsage` |
+| `on_breaking_change_detected` | `server/cvtservice/validator_service.go` at success returns of `CompareSchemas` and `RegisterSchema --check-compatibility` | `EventHandler.OnBreakingChangeDetected` |
+| `on_validation_failed` | `pkg/cvt/validator.go` after `Validate` returns a non-valid result (CLI path) | `EventHandler.OnValidationFailed` |
+
+Hook fire-sites stay in `validator_service.go` (core Phase 1 methods) and `consumer_registry.go` (Phase 2 consumer lifecycle) after the file split (#107). Other post-split files (`producer_validation.go`, `deployment_safety.go`, `fixture_generator.go`) do NOT host hook fire-sites in v1.
+
+`register_consumer_usage` carries the consumer's `used_endpoints` end-to-end including `used_fields` (added in plugin proto v1.1 alongside the hook wiring). Plugins that ignore the field stay backward-compatible with v1.0.
+
+`on_breaking_change_detected` fires only when the comparison surfaced non-empty changes. Empty-changes calls are silently dropped at the helper layer; downstream call sites do not duplicate the guard.
+
+The `RegisterSchema --check-compatibility` flag is server-side enforced as of issue #107 (was a silent no-op in #108): the server looks up the prior version, compares, populates `RegisterSchemaResponse.BreakingChanges`, and fires the hook. Storage errors during prior-version lookup are fail-closed — the registration is refused with a clear error so the safety check never silently passes (decision 1C, eng review 2026-04-18).
 
 Each hook invokes **at most one plugin**, chosen by config key. Fanout = v1.1.
 
-**Sequencing:** this plan is blocked on the P2 TODO "Split validator_service.go into focused files" landing first. Hook sites land in the post-split focused files, not the god-file.
+**Status:** `on_validation_failed` (CLI), `on_breaking_change_detected`, and `register_consumer_usage` are wired as of issue #107. `fetch_schema` is blocked on the issue #83 rewrite.
 
 ## Config
 

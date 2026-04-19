@@ -35,6 +35,22 @@ type ValidatorService struct {
 	cache     *SchemaCache
 	store     storage.Store  // Optional persistent storage (nil = cache-only)
 	generator *cvt.Validator // Embedded generator for fixture generation (delegates to pkg/cvt)
+	hooks     cvt.Hooks      // Optional plugin hooks (nil = NoopHooks via hooksOrNoop)
+}
+
+// SetHooks installs a plugin Hooks adapter on the service. cmd/cvt/serve.go
+// calls this after constructing the plugin manager. Tests typically leave
+// hooks nil; hooksOrNoop returns NoopHooks{} in that case so call sites
+// stay simple.
+func (s *ValidatorService) SetHooks(h cvt.Hooks) { s.hooks = h }
+
+// hooksOrNoop returns the configured hooks adapter or a NoopHooks{} when
+// none has been set. Mirrors *Validator.hooksOrNoop in pkg/cvt.
+func (s *ValidatorService) hooksOrNoop() cvt.Hooks {
+	if s.hooks == nil {
+		return cvt.NoopHooks{}
+	}
+	return s.hooks
 }
 
 // NewValidatorService creates a new instance of ValidatorService with an initialized cache.
@@ -189,6 +205,40 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 	// Always use schema's info.version as the version
 	version := schemaInfoVersion
 
+	// --check-compatibility: look up the prior version (if any) and compute
+	// breaking changes against the new schema BEFORE we commit. The
+	// comparison must happen against the actual prior, not against the new
+	// version we're about to write. Per decision 1C (eng review), a storage
+	// error during prior-version lookup is fail-closed: we refuse the
+	// registration so the caller knows the safety check did not run.
+	var (
+		breakingChanges []*pb.BreakingChange
+		priorVersion    string
+	)
+	if req.CheckCompatibility {
+		prior, found, lookupErr := s.lookupPriorSchemaForCompat(ctx, req.SchemaId)
+		if lookupErr != nil {
+			Error("CheckCompatibility failed: storage error during prior-version lookup",
+				zap.String("schemaId", req.SchemaId),
+				zap.Error(lookupErr))
+			schemasRegistered.WithLabelValues("failure").Inc()
+			schemaRegistrationErrors.WithLabelValues("compat_check_storage_error").Inc()
+			grpcRequestsTotal.WithLabelValues("RegisterSchema", "failure").Inc()
+			return &pb.RegisterSchemaResponse{
+				Success: false,
+				Message: fmt.Sprintf("Failed to check compatibility: storage error during prior-version lookup: %v", lookupErr),
+			}, nil
+		}
+		if found && prior != nil && prior.Document != nil {
+			if prior.Metadata != nil {
+				priorVersion = prior.Metadata.SchemaVersion
+			}
+			engine := NewCompatibilityEngine()
+			bc, _ := engine.CompareSchemas(prior.Document, doc)
+			breakingChanges = bc
+		}
+	}
+
 	// Create schema entry with metadata
 	entry := NewSchemaEntry(
 		req.SchemaId,
@@ -254,10 +304,15 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 	schemasRegistered.WithLabelValues("success").Inc()
 	grpcRequestsTotal.WithLabelValues("RegisterSchema", "success").Inc()
 
+	// Fire on_breaking_change_detected hook only when we actually ran the
+	// compat check AND it surfaced changes. Helper guards on empty.
+	s.fireOnBreakingChangeDetected(ctx, req.SchemaId, priorVersion, version, breakingChanges, "RegisterSchema")
+
 	return &pb.RegisterSchemaResponse{
-		Success:  true,
-		Message:  successMsg,
-		Metadata: entry.Metadata,
+		Success:         true,
+		Message:         successMsg,
+		Metadata:        entry.Metadata,
+		BreakingChanges: breakingChanges,
 	}, nil
 }
 
@@ -656,6 +711,38 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 	return entry, true
 }
 
+// lookupPriorSchemaForCompat returns the latest registered schema entry
+// for use as the "prior" side of a compatibility check. Differs from
+// getSchemaEntry by surfacing storage errors instead of swallowing them
+// — required by decision 1C (fail-closed on storage error during
+// --check-compatibility).
+//
+// Returns:
+//   - (entry, true, nil)  prior version exists in cache or storage
+//   - (nil, false, nil)   no prior version (first registration of schemaID)
+//   - (nil, false, err)   storage error during lookup; caller refuses register
+func (s *ValidatorService) lookupPriorSchemaForCompat(ctx context.Context, schemaID string) (*SchemaEntry, bool, error) {
+	if entry, ok := s.cache.Get(schemaID); ok && entry != nil {
+		return entry, true, nil
+	}
+	if s.store == nil {
+		return nil, false, nil
+	}
+	record, err := s.store.GetSchema(ctx, schemaID)
+	if err != nil {
+		return nil, false, err
+	}
+	if record == nil {
+		return nil, false, nil
+	}
+	doc, parseErr := s.parseAndConvertSchema([]byte(record.Content))
+	if parseErr != nil {
+		return nil, false, fmt.Errorf("rehydrate prior schema: %w", parseErr)
+	}
+	entry := NewSchemaEntry(schemaID, record.Content, doc, record.Version, record.Ownership)
+	return entry, true, nil
+}
+
 // buildRouter creates a gorillamux router from a document, handling Swagger v2 basePath.
 // It creates a copy of the servers slice to avoid mutating the original document.
 func (s *ValidatorService) buildRouter(doc *openapi3.T) (routers.Router, error) {
@@ -962,6 +1049,9 @@ func (s *ValidatorService) CompareSchemas(ctx context.Context, req *pb.CompareSc
 	for _, change := range breakingChanges {
 		breakingChangesDetected.WithLabelValues(change.Type.String()).Inc()
 	}
+
+	// Fire on_breaking_change_detected hook (helper guards on empty changes).
+	s.fireOnBreakingChangeDetected(ctx, req.SchemaId, oldVersion, newVersion, breakingChanges, "CompareSchemas")
 
 	grpcRequestsTotal.WithLabelValues("CompareSchemas", "success").Inc()
 	return &pb.CompareSchemasResponse{

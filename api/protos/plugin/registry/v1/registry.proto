@@ -53,6 +53,15 @@ message RegisterConsumerUsageRequest {
 message EndpointUsage {
   string method = 1;           // e.g., "GET"
   string path = 2;             // e.g., "/pets/{id}"
+
+  // Field paths the consumer reads from the response. Optional; populated
+  // when the consumer's contract test declares which response fields it
+  // depends on (e.g., ["id", "email"]). Registry plugins doing precise
+  // impact analysis ("can we drop `phone` safely?") use this; plugins that
+  // ignore it stay backward-compatible.
+  //
+  // Added in plugin proto v1.1 alongside server-side hook wiring (issue #107).
+  repeated string used_fields = 3;
 }
 
 message RegisterConsumerUsageResponse {

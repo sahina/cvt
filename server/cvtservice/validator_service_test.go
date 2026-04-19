@@ -2,6 +2,7 @@ package cvtservice
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sync"
 	"testing"
@@ -1073,4 +1074,197 @@ func TestBuildRouter_SwaggerV2BasePath(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.True(t, result.Valid, "Validation should succeed without basePath prefix too")
+}
+
+// ============================================================================
+// CheckCompatibility + hook fire tests (PR 2 — issue #107)
+// ============================================================================
+
+const compatTestV1Schema = `{
+  "openapi": "3.0.0",
+  "info": {"title": "Compat Test", "version": "1.0.0"},
+  "paths": {
+    "/items": {
+      "get": {"responses": {"200": {"description": "ok"}}}
+    }
+  }
+}`
+
+// v2 removes /items endpoint => ENDPOINT_REMOVED breaking change.
+const compatTestV2Schema = `{
+  "openapi": "3.0.0",
+  "info": {"title": "Compat Test", "version": "2.0.0"},
+  "paths": {
+    "/items/v2": {
+      "get": {"responses": {"200": {"description": "ok"}}}
+    }
+  }
+}`
+
+// v2 same shape as v1 plus a new endpoint => no breaking change.
+const compatTestV2NonBreakingSchema = `{
+  "openapi": "3.0.0",
+  "info": {"title": "Compat Test", "version": "2.0.0"},
+  "paths": {
+    "/items": {
+      "get": {"responses": {"200": {"description": "ok"}}}
+    },
+    "/items/new": {
+      "get": {"responses": {"200": {"description": "ok"}}}
+    }
+  }
+}`
+
+func TestRegisterSchema_CheckCompatibility_NoPrior_RegistersClean(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:           "compat-no-prior",
+		SchemaContent:      compatTestV1Schema,
+		CheckCompatibility: true,
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success, "first registration with --check-compatibility should succeed cleanly")
+	assert.Empty(t, resp.BreakingChanges)
+	assert.Empty(t, rec.breakingChangeCalls, "no prior version means no comparison and no fire")
+}
+
+func TestRegisterSchema_CheckCompatibility_NoBreaking_NoFire(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	// v1
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "compat-no-breaking",
+		SchemaContent: compatTestV1Schema,
+	})
+	require.NoError(t, err)
+	rec.breakingChangeCalls = nil // reset
+
+	// v2 — additive only
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:           "compat-no-breaking",
+		SchemaContent:      compatTestV2NonBreakingSchema,
+		CheckCompatibility: true,
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	assert.Empty(t, resp.BreakingChanges, "additive change => no breaking changes")
+	assert.Empty(t, rec.breakingChangeCalls, "no breaking changes => hook must not fire")
+}
+
+func TestRegisterSchema_CheckCompatibility_BreakingDetected_FiresHook(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "compat-breaking",
+		SchemaContent: compatTestV1Schema,
+	})
+	require.NoError(t, err)
+	rec.breakingChangeCalls = nil
+
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:           "compat-breaking",
+		SchemaContent:      compatTestV2Schema, // /items removed
+		CheckCompatibility: true,
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success, "breaking changes are reported, not refused")
+	require.NotEmpty(t, resp.BreakingChanges, "expected ENDPOINT_REMOVED in response")
+
+	require.Len(t, rec.breakingChangeCalls, 1, "hook should fire exactly once")
+	got := rec.breakingChangeCalls[0]
+	assert.Equal(t, "compat-breaking", got.SchemaId)
+	assert.Equal(t, "1.0.0", got.OldVersion)
+	assert.Equal(t, "2.0.0", got.NewVersion)
+	assert.Equal(t, "RegisterSchema", got.DetectedBy)
+	assert.NotEmpty(t, got.Changes)
+}
+
+// errorStore wraps a real Store but returns an error from GetSchema.
+// Used to drive decision 1C: storage error during prior-version lookup
+// must fail-close the registration. All other Store calls forward to the
+// embedded MemoryStore so service.Close() and friends behave normally.
+type errorStore struct {
+	storage.Store
+	getSchemaErr error
+}
+
+func newErrorStore(err error) *errorStore {
+	return &errorStore{Store: storage.NewMemoryStore(), getSchemaErr: err}
+}
+
+func (e *errorStore) GetSchema(_ context.Context, _ string) (*storage.SchemaRecord, error) {
+	return nil, e.getSchemaErr
+}
+
+func TestRegisterSchema_CheckCompatibility_StorageError_FailsClosed(t *testing.T) {
+	// Build a service with a store that errors on GetSchema. The cache
+	// is empty for this schema_id so getSchemaEntry path is bypassed in
+	// favor of the store; the store error must surface as fail-closed.
+	store := newErrorStore(errors.New("simulated postgres timeout"))
+	service, err := NewValidatorServiceWithStore(store)
+	require.NoError(t, err)
+	defer service.Close()
+
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:           "compat-storage-err",
+		SchemaContent:      compatTestV1Schema,
+		CheckCompatibility: true,
+	})
+	require.NoError(t, err, "gRPC call returns response, not error (codebase convention)")
+	assert.False(t, resp.Success, "fail-closed: must refuse the registration on storage error (decision 1C)")
+	assert.Contains(t, resp.Message, "compatibility")
+	assert.Contains(t, resp.Message, "storage error")
+	assert.Empty(t, rec.breakingChangeCalls, "no fire when registration was refused")
+}
+
+func TestCompareSchemas_BreakingDetected_FiresHook(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "compare-fire",
+		SchemaContent: compatTestV1Schema,
+		SchemaVersion: "1.0.0",
+	})
+	require.NoError(t, err)
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "compare-fire",
+		SchemaContent: compatTestV2Schema,
+		SchemaVersion: "2.0.0",
+	})
+	require.NoError(t, err)
+	rec.breakingChangeCalls = nil
+
+	resp, err := service.CompareSchemas(context.Background(), &pb.CompareSchemasRequest{
+		SchemaId:   "compare-fire",
+		OldVersion: "1.0.0",
+		NewVersion: "2.0.0",
+	})
+	require.NoError(t, err)
+	assert.False(t, resp.Compatible)
+	require.NotEmpty(t, resp.BreakingChanges)
+	require.Len(t, rec.breakingChangeCalls, 1)
+	got := rec.breakingChangeCalls[0]
+	assert.Equal(t, "compare-fire", got.SchemaId)
+	assert.Equal(t, "CompareSchemas", got.DetectedBy)
 }

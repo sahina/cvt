@@ -119,6 +119,14 @@ func (s *ValidatorService) RegisterConsumer(ctx context.Context, req *pb.Registe
 		zap.String("schemaId", req.SchemaId),
 		zap.String("environment", req.Environment))
 
+	// Fire register_consumer_usage hook to notify a configured registry
+	// plugin (e.g., Central API Registry) that this consumer depends on
+	// the given schema + endpoints. Per locked decision, hook fires after
+	// cache write succeeds regardless of storage outcome — matches existing
+	// RegisterConsumer semantics where storage failures log a warning but
+	// don't fail the RPC.
+	s.fireRegisterConsumerUsage(ctx, req)
+
 	grpcRequestsTotal.WithLabelValues("RegisterConsumer", "success").Inc()
 
 	// Convert endpoint usage to proto format for response

@@ -192,6 +192,12 @@ Examples:
 			}
 			defer validatorService.Close()
 
+			// Inject the plugin Hooks adapter set up by the root command's
+			// PersistentPreRunE. This activates on_breaking_change_detected
+			// and register_consumer_usage end-to-end via the wired RPCs.
+			// pluginHooks defaults to NoopHooks when no plugins are installed.
+			validatorService.SetHooks(pluginHooks)
+
 			pb.RegisterContractValidatorServer(grpcServer, validatorService)
 			cvtservice.Info("Registered ValidatorService")
 
