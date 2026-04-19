@@ -3,7 +3,6 @@ package cvtservice
 import (
 	"context"
 
-	"github.com/getkin/kin-openapi/openapi3"
 	eventspb "github.com/sahina/cvt/pkg/cvtplugin/pb/events/v1"
 	registrypb "github.com/sahina/cvt/pkg/cvtplugin/pb/registry/v1"
 	"github.com/sahina/cvt/server/pb"
@@ -115,15 +114,21 @@ func (s *ValidatorService) tryFetchSchemaFromPlugin(ctx context.Context, schemaI
 		return nil, false, nil
 	}
 
-	loader := openapi3.NewLoader()
-	if valErr := doc.Validate(loader.Context); valErr != nil {
+	if valErr := doc.Validate(ctx); valErr != nil {
 		Warn("fetch_schema plugin spec failed validation",
 			zap.String("schemaId", schemaID),
 			zap.Error(valErr))
 		return nil, false, nil
 	}
 
-	entry := NewSchemaEntry(schemaID, string(resp.Spec), doc, resp.ResolvedVersion, nil)
+	// Fall back to the spec's own info.version when the plugin omits
+	// ResolvedVersion — prevents empty cache keys and empty metadata.
+	resolvedVersion := resp.ResolvedVersion
+	if resolvedVersion == "" && doc.Info != nil {
+		resolvedVersion = doc.Info.Version
+	}
+
+	entry := NewSchemaEntry(schemaID, string(resp.Spec), doc, resolvedVersion, nil)
 
 	router, routerErr := s.buildRouter(doc)
 	if routerErr != nil {
@@ -137,7 +142,13 @@ func (s *ValidatorService) tryFetchSchemaFromPlugin(ctx context.Context, schemaI
 	if version == "" {
 		s.cache.Set(schemaID, entry)
 	} else {
-		s.cache.SetVersion(schemaID, resp.ResolvedVersion, entry)
+		// Cache under both the requested key and the resolved key when
+		// they differ — otherwise alias lookups (e.g. "v1" resolving to
+		// "1.2.3") pay the plugin round-trip on every call.
+		s.cache.SetVersion(schemaID, version, entry)
+		if resolvedVersion != "" && resolvedVersion != version {
+			s.cache.SetVersion(schemaID, resolvedVersion, entry)
+		}
 	}
 
 	if genErr := s.generator.RegisterSchema(schemaID, resp.Spec); genErr != nil {
@@ -148,7 +159,7 @@ func (s *ValidatorService) tryFetchSchemaFromPlugin(ctx context.Context, schemaI
 
 	Info("Loaded schema via fetch_schema plugin",
 		zap.String("schemaId", schemaID),
-		zap.String("version", resp.ResolvedVersion))
+		zap.String("version", resolvedVersion))
 
 	return entry, true, nil
 }

@@ -12,7 +12,7 @@ All four v1 hook call sites are wired today:
 
 | Hook | Plugin service | Status |
 |---|---|---|
-| `on_validation_failed` | `EventHandler` | **wired** — fires from `ValidateInteraction` after a non-valid result |
+| `on_validation_failed` | `EventHandler` | **wired** — fires from `pkg/cvt.Validator.Validate` after a non-valid result (CLI/library path) |
 | `on_breaking_change_detected` | `EventHandler` | **wired** — fires from `CompareSchemas` and from `RegisterSchema` when `--check-compatibility` is set |
 | `register_consumer_usage` | `RegistryProvider` | **wired** — fires from `RegisterConsumer` on success |
 | `fetch_schema` | `RegistryProvider` | **wired** — fires on schema cache miss, before storage fallback, for every RPC that resolves a schema by ID |

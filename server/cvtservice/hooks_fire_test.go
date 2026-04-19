@@ -212,6 +212,49 @@ func TestTryFetchSchemaFromPlugin_VersionedLookup_UsesVersionedSlot(t *testing.T
 	assert.True(t, versionHit)
 }
 
+func TestTryFetchSchemaFromPlugin_AliasCachedUnderBothKeys(t *testing.T) {
+	// Plugin resolves alias "v1" → "1.2.3". Both keys must land in the
+	// cache so subsequent alias lookups don't pay the plugin round-trip.
+	const aliasSpec = `{"openapi":"3.0.0","info":{"title":"Alias","version":"1.2.3"},"paths":{}}`
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	rec := &recordingHooks{
+		fetchSchemaResp: &registrypb.FetchSchemaResponse{
+			Spec:            []byte(aliasSpec),
+			ResolvedVersion: "1.2.3",
+		},
+	}
+	s.SetHooks(rec)
+
+	_, ok, _ := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "v1")
+	require.True(t, ok)
+
+	_, aliasHit := s.cache.GetVersion("pet-api", "v1")
+	assert.True(t, aliasHit, "alias key must cache")
+	_, canonicalHit := s.cache.GetVersion("pet-api", "1.2.3")
+	assert.True(t, canonicalHit, "resolved canonical key must also cache")
+}
+
+func TestTryFetchSchemaFromPlugin_EmptyResolvedVersion_UsesInfoVersion(t *testing.T) {
+	// Plugin returns empty ResolvedVersion — fall back to doc.Info.Version
+	// so metadata and cache keys are never blank.
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	rec := &recordingHooks{
+		fetchSchemaResp: &registrypb.FetchSchemaResponse{
+			Spec: []byte(fetchSchemaTestSpec), // info.version = 1.0.0
+		},
+	}
+	s.SetHooks(rec)
+
+	entry, ok, _ := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "")
+	require.True(t, ok)
+	require.NotNil(t, entry)
+	assert.Equal(t, "1.0.0", entry.Metadata.SchemaVersion)
+}
+
 func TestTryFetchSchemaFromPlugin_MalformedSpec_FallsThrough(t *testing.T) {
 	s, err := NewValidatorService()
 	require.NoError(t, err)
