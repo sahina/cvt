@@ -51,7 +51,11 @@ Examples:
 	rootCmd.AddCommand(pluginsCmd())
 	rootCmd.AddCommand(versionCmd())
 
-	if err := rootCmd.Execute(); err != nil {
+	installPluginBootstrap(rootCmd)
+
+	err := rootCmd.Execute()
+	runPluginShutdown()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

@@ -42,6 +42,7 @@ Examples:
 
 			// Load schemas
 			v := cvt.NewValidator()
+			v.SetHooks(pluginHooks)
 
 			if err := v.RegisterSchemaFromPath("old", oldSchemaFile); err != nil {
 				return fmt.Errorf("failed to load old schema: %w", err)
