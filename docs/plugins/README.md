@@ -59,7 +59,7 @@ the plugin author publishes.
 
 1. **Install a plugin:**
    ```sh
-   cvt plugins install ./cvt-plugin-registry-rest
+   cvt plugins install ./cvt-plugin-rest
    ```
    The binary is copied into `~/.cvt/plugins/`; its SHA256 is recorded in
    `~/.cvt/plugins/state.json`.
@@ -69,7 +69,7 @@ the plugin author publishes.
    config_version: 1
    plugins:
      registry:
-       binary: ~/.cvt/plugins/cvt-plugin-registry-rest
+       binary: ~/.cvt/plugins/cvt-plugin-rest
        on_error: fail_closed
        secrets: [token]
        config:
@@ -97,7 +97,7 @@ the plugin author publishes.
     │
     │  hashicorp/go-plugin: fork + gRPC over Unix socket
     ▼
-  [cvt-plugin-registry-rest]     [cvt-plugin-slack-events]
+  [cvt-plugin-rest]     [cvt-plugin-slack]
        (subprocess)                  (subprocess)
 ```
 
@@ -113,9 +113,9 @@ SIGKILL.
 
 Two first-party reference plugins ship in separate repos:
 
-- `github.com/sahina/cvt-plugin-registry-rest` — simple REST registry
+- `github.com/sahina/cvt-plugin-rest` — simple REST registry
   client (covers issue #83).
-- `github.com/sahina/cvt-plugin-slack-events` — posts breaking-change
+- `github.com/sahina/cvt-plugin-slack` — posts breaking-change
   and validation-failure events to a Slack webhook.
 
 See [reference-plugins.md](reference-plugins.md) for walkthroughs.

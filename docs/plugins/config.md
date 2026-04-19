@@ -10,7 +10,7 @@ dormant (no plugins run, no overhead).
 config_version: 1
 plugins:
   registry:
-    binary: ~/.cvt/plugins/cvt-plugin-registry-rest
+    binary: ~/.cvt/plugins/cvt-plugin-rest
     on_error: fail_closed
     secrets: [token]
     config:

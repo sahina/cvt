@@ -4,9 +4,26 @@ Two first-party plugins live in separate repositories. They validate
 the SDK from a plugin-author perspective and cover the two concrete
 use cases the plugin system was built for.
 
-## cvt-plugin-registry-rest
+Both were extracted from this monorepo on 2026-04-19 and track CVT
+releases via the `github.com/sahina/cvt` Go module dependency.
 
-**Repo:** `github.com/sahina/cvt-plugin-registry-rest`
+## Installation
+
+Clone the plugin repo, build the binary, install with `cvt plugins install`:
+
+```bash
+git clone https://github.com/sahina/cvt-plugin-rest
+cd cvt-plugin-rest
+go build -o cvt-plugin-rest .
+cvt plugins install ./cvt-plugin-rest
+```
+
+Substitute `cvt-plugin-slack` for the Slack event sink.
+
+## cvt-plugin-rest
+
+**Repo:** <https://github.com/sahina/cvt-plugin-rest>
+**Contract:** `RegistryProvider`
 
 A `RegistryProvider` implementation that speaks to a generic REST
 schema registry. It covers the design described in
@@ -22,17 +39,12 @@ under the Phase 1a Enterprise Deployment work.
   with a JSON body containing consumer identity, schema version,
   environment, and endpoints tested. Idempotent upsert per spec.
 
-Note: both methods are plugin-side capabilities. Whether CVT invokes
-them from core depends on the hook's v1 call-site status (see
-`README.md` table). In v1 these are declarative-only; the call sites
-land in #107.
-
 ### Config
 
 ```yaml
 plugins:
   registry:
-    binary: ~/.cvt/plugins/cvt-plugin-registry-rest
+    binary: ~/.cvt/plugins/cvt-plugin-rest
     timeout: 5s
     on_error: fail_closed
     secrets: [token]
@@ -65,9 +77,10 @@ hooks:
 - You want consumer-usage tracking in CI — every `cvt validate` in your
   pipeline records a consumer→schema dependency.
 
-## cvt-plugin-slack-events
+## cvt-plugin-slack
 
-**Repo:** `github.com/sahina/cvt-plugin-slack-events`
+**Repo:** <https://github.com/sahina/cvt-plugin-slack>
+**Contract:** `EventHandler`
 
 An `EventHandler` implementation that posts CVT events to a Slack
 webhook. Supersedes the "P2: Notification system design document" TODO.
@@ -75,19 +88,19 @@ webhook. Supersedes the "P2: Notification system design document" TODO.
 ### What it does
 
 - `OnBreakingChangeDetected`: formats a Slack message summarizing the
-  breaking changes and posts to the configured webhook URL. Plugin-side
-  capability — the core call site lands in #107.
+  breaking changes and posts to the configured webhook URL. Fires from
+  `CompareSchemas` and `RegisterSchema --check-compatibility`.
 - `OnValidationFailed`: formats and posts a message describing the
   failed interaction. Includes per-plugin dedup + rate limiting so a
   broken deploy producing 10k failures/minute doesn't translate to
-  10k Slack messages. **This is the one hook CVT core invokes in v1.**
+  10k Slack messages.
 
 ### Config
 
 ```yaml
 plugins:
   slack:
-    binary: ~/.cvt/plugins/cvt-plugin-slack-events
+    binary: ~/.cvt/plugins/cvt-plugin-slack
     timeout: 3s
     on_error: fail_open   # don't let Slack outages fail CVT
     secrets: [webhook_url]
