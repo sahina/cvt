@@ -26,14 +26,14 @@ var (
 // These either don't validate anything (mock, version, wait) or manage the
 // plugin set itself (plugins).
 var skipPluginBootstrap = map[string]bool{
-	"cvt version":          true,
-	"cvt help":             true,
-	"cvt wait":             true,
-	"cvt mock":             true,
-	"cvt plugins":          true,
-	"cvt plugins list":     true,
-	"cvt plugins install":  true,
-	"cvt plugins remove":   true,
+	"cvt version":         true,
+	"cvt help":            true,
+	"cvt wait":            true,
+	"cvt mock":            true,
+	"cvt plugins":         true,
+	"cvt plugins list":    true,
+	"cvt plugins install": true,
+	"cvt plugins remove":  true,
 }
 
 // installPluginBootstrap attaches PersistentPreRunE to the root command so

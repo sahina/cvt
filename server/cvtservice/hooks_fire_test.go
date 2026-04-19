@@ -16,11 +16,11 @@ import (
 // recordingHooks is a Hooks impl that captures every call. Tests use it to
 // assert what core fired without spinning up a real plugin subprocess.
 type recordingHooks struct {
-	mu                       sync.Mutex
-	breakingChangeCalls      []*eventspb.BreakingChangeDetectedRequest
-	registerConsumerCalls    []*registrypb.RegisterConsumerUsageRequest
-	validationFailedCalls    []*eventspb.ValidationFailedRequest
-	fetchSchemaCalls         []*registrypb.FetchSchemaRequest
+	mu                    sync.Mutex
+	breakingChangeCalls   []*eventspb.BreakingChangeDetectedRequest
+	registerConsumerCalls []*registrypb.RegisterConsumerUsageRequest
+	validationFailedCalls []*eventspb.ValidationFailedRequest
+	fetchSchemaCalls      []*registrypb.FetchSchemaRequest
 }
 
 func (r *recordingHooks) FetchSchema(_ context.Context, req *registrypb.FetchSchemaRequest) (*registrypb.FetchSchemaResponse, error) {

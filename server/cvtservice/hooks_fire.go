@@ -3,9 +3,9 @@ package cvtservice
 import (
 	"context"
 
-	"github.com/sahina/cvt/server/pb"
 	eventspb "github.com/sahina/cvt/pkg/cvtplugin/pb/events/v1"
 	registrypb "github.com/sahina/cvt/pkg/cvtplugin/pb/registry/v1"
+	"github.com/sahina/cvt/server/pb"
 )
 
 // fireOnBreakingChangeDetected dispatches the on_breaking_change_detected
