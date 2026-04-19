@@ -18,7 +18,14 @@ go build -o cvt-plugin-rest .
 cvt plugins install ./cvt-plugin-rest
 ```
 
-Substitute `cvt-plugin-slack` for the Slack event sink.
+To install the Slack event sink, repeat the same steps against its repo:
+
+```bash
+git clone https://github.com/sahina/cvt-plugin-slack
+cd cvt-plugin-slack
+go build -o cvt-plugin-slack .
+cvt plugins install ./cvt-plugin-slack
+```
 
 ## cvt-plugin-rest
 
@@ -89,11 +96,13 @@ webhook. Supersedes the "P2: Notification system design document" TODO.
 
 - `OnBreakingChangeDetected`: formats a Slack message summarizing the
   breaking changes and posts to the configured webhook URL. Fires from
-  `CompareSchemas` and `RegisterSchema --check-compatibility`.
+  the `CompareSchemas` gRPC method and from `RegisterSchema` when
+  compatibility checking is enabled (`cvt register-schema --check-compatibility`).
 - `OnValidationFailed`: formats and posts a message describing the
-  failed interaction. Includes per-plugin dedup + rate limiting so a
-  broken deploy producing 10k failures/minute doesn't translate to
-  10k Slack messages.
+  failed interaction. Fires from `ValidateInteraction` when a
+  request/response pair fails validation. Includes per-plugin dedup
+  + rate limiting so a broken deploy producing 10k failures/minute
+  doesn't translate to 10k Slack messages.
 
 ### Config
 
