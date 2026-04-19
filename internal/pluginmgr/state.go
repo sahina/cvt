@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -104,10 +103,10 @@ func withStateLock(path string, fn func(*StateFile) (*StateFile, error)) error {
 	}
 	defer lock.Close()
 
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+	if err := flockExclusive(lock); err != nil {
 		return fmt.Errorf("acquire lock: %w", err)
 	}
-	defer func() { _ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN) }()
+	defer func() { _ = flockUnlock(lock) }()
 
 	// Read-under-lock: ReadState itself doesn't lock, but we're holding
 	// the flock exclusively here, so no concurrent mutator can interleave.
