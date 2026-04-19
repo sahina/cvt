@@ -9,6 +9,7 @@ import (
 	eventspb "github.com/sahina/cvt/pkg/cvtplugin/pb/events/v1"
 	registrypb "github.com/sahina/cvt/pkg/cvtplugin/pb/registry/v1"
 	"github.com/sahina/cvt/server/pb"
+	"github.com/sahina/cvt/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,12 +22,17 @@ type recordingHooks struct {
 	registerConsumerCalls []*registrypb.RegisterConsumerUsageRequest
 	validationFailedCalls []*eventspb.ValidationFailedRequest
 	fetchSchemaCalls      []*registrypb.FetchSchemaRequest
+	fetchSchemaResp       *registrypb.FetchSchemaResponse
+	fetchSchemaErr        error
 }
 
 func (r *recordingHooks) FetchSchema(_ context.Context, req *registrypb.FetchSchemaRequest) (*registrypb.FetchSchemaResponse, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.fetchSchemaCalls = append(r.fetchSchemaCalls, req)
+	if r.fetchSchemaResp != nil || r.fetchSchemaErr != nil {
+		return r.fetchSchemaResp, r.fetchSchemaErr
+	}
 	return nil, nil
 }
 
@@ -135,4 +141,179 @@ func TestFireRegisterConsumerUsage_FieldMapping(t *testing.T) {
 	assert.Equal(t, "GET", got.Endpoints[0].Method)
 	assert.Equal(t, "/pets/{id}", got.Endpoints[0].Path)
 	assert.Equal(t, []string{"id", "name"}, got.Endpoints[0].UsedFields, "used_fields must propagate per plugin proto v1.1")
+}
+
+const fetchSchemaTestSpec = `{"openapi":"3.0.0","info":{"title":"Test","version":"1.0.0"},"paths":{}}`
+
+func TestTryFetchSchemaFromPlugin_NoopHooks_FallsThrough(t *testing.T) {
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	// No hooks set → NoopHooks.FetchSchema returns (nil, nil) → helper
+	// signals "not found, no error" so getSchemaEntry moves on to storage.
+	entry, ok, fetchErr := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "")
+	assert.Nil(t, entry)
+	assert.False(t, ok)
+	assert.NoError(t, fetchErr)
+}
+
+func TestTryFetchSchemaFromPlugin_HappyPath_CachesEntry(t *testing.T) {
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	rec := &recordingHooks{
+		fetchSchemaResp: &registrypb.FetchSchemaResponse{
+			Spec:            []byte(fetchSchemaTestSpec),
+			ResolvedVersion: "1.0.0",
+		},
+	}
+	s.SetHooks(rec)
+
+	entry, ok, fetchErr := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "")
+	require.NoError(t, fetchErr)
+	require.True(t, ok)
+	require.NotNil(t, entry)
+	assert.Equal(t, "1.0.0", entry.Metadata.SchemaVersion)
+	assert.NotNil(t, entry.Router, "router must be built for plugin-supplied specs")
+
+	require.Len(t, rec.fetchSchemaCalls, 1)
+	assert.Equal(t, "pet-api", rec.fetchSchemaCalls[0].SchemaId)
+	assert.Equal(t, "", rec.fetchSchemaCalls[0].Version, "empty version propagates as 'latest'")
+
+	// Entry must land in the bare (unversioned) slot when the lookup was
+	// unversioned — mirrors the storage-readthrough rule.
+	cached, cachedOK := s.cache.Get("pet-api")
+	assert.True(t, cachedOK)
+	assert.Same(t, entry, cached)
+}
+
+func TestTryFetchSchemaFromPlugin_VersionedLookup_UsesVersionedSlot(t *testing.T) {
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	rec := &recordingHooks{
+		fetchSchemaResp: &registrypb.FetchSchemaResponse{
+			Spec:            []byte(fetchSchemaTestSpec),
+			ResolvedVersion: "2.0.0",
+		},
+	}
+	s.SetHooks(rec)
+
+	_, ok, _ := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "2.0.0")
+	require.True(t, ok)
+	require.Len(t, rec.fetchSchemaCalls, 1)
+	assert.Equal(t, "2.0.0", rec.fetchSchemaCalls[0].Version)
+
+	// Versioned-only cache write: the bare key must stay empty so an old
+	// version can't masquerade as "latest".
+	_, bareHit := s.cache.Get("pet-api")
+	assert.False(t, bareHit)
+	_, versionHit := s.cache.GetVersion("pet-api", "2.0.0")
+	assert.True(t, versionHit)
+}
+
+func TestTryFetchSchemaFromPlugin_AliasCachedUnderBothKeys(t *testing.T) {
+	// Plugin resolves alias "v1" → "1.2.3". Both keys must land in the
+	// cache so subsequent alias lookups don't pay the plugin round-trip.
+	const aliasSpec = `{"openapi":"3.0.0","info":{"title":"Alias","version":"1.2.3"},"paths":{}}`
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	rec := &recordingHooks{
+		fetchSchemaResp: &registrypb.FetchSchemaResponse{
+			Spec:            []byte(aliasSpec),
+			ResolvedVersion: "1.2.3",
+		},
+	}
+	s.SetHooks(rec)
+
+	_, ok, _ := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "v1")
+	require.True(t, ok)
+
+	_, aliasHit := s.cache.GetVersion("pet-api", "v1")
+	assert.True(t, aliasHit, "alias key must cache")
+	_, canonicalHit := s.cache.GetVersion("pet-api", "1.2.3")
+	assert.True(t, canonicalHit, "resolved canonical key must also cache")
+}
+
+func TestTryFetchSchemaFromPlugin_EmptyResolvedVersion_UsesInfoVersion(t *testing.T) {
+	// Plugin returns empty ResolvedVersion — fall back to doc.Info.Version
+	// so metadata and cache keys are never blank.
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	rec := &recordingHooks{
+		fetchSchemaResp: &registrypb.FetchSchemaResponse{
+			Spec: []byte(fetchSchemaTestSpec), // info.version = 1.0.0
+		},
+	}
+	s.SetHooks(rec)
+
+	entry, ok, _ := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "")
+	require.True(t, ok)
+	require.NotNil(t, entry)
+	assert.Equal(t, "1.0.0", entry.Metadata.SchemaVersion)
+}
+
+func TestTryFetchSchemaFromPlugin_MalformedSpec_FallsThrough(t *testing.T) {
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	rec := &recordingHooks{
+		fetchSchemaResp: &registrypb.FetchSchemaResponse{Spec: []byte("{not openapi")},
+	}
+	s.SetHooks(rec)
+
+	entry, ok, fetchErr := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "")
+	assert.Nil(t, entry)
+	assert.False(t, ok)
+	assert.NoError(t, fetchErr, "malformed spec logs+falls through, does not surface error")
+}
+
+func TestTryFetchSchemaFromPlugin_PluginError_Surfaces(t *testing.T) {
+	s, err := NewValidatorService()
+	require.NoError(t, err)
+	defer s.Close()
+	rec := &recordingHooks{fetchSchemaErr: assert.AnError}
+	s.SetHooks(rec)
+
+	entry, ok, fetchErr := s.tryFetchSchemaFromPlugin(context.Background(), "pet-api", "")
+	assert.Nil(t, entry)
+	assert.False(t, ok)
+	assert.ErrorIs(t, fetchErr, assert.AnError, "fail_closed plugin error must reach caller so storage is not consulted")
+}
+
+func TestGetSchemaEntry_FetchesFromPluginBeforeStorage(t *testing.T) {
+	// Prove ordering — not just that the plugin works. Populate storage
+	// with one spec, have the plugin return a *different* spec, show that
+	// getSchemaEntry returns the plugin's version.
+	memStore := storage.NewMemoryStore()
+	s, err := NewValidatorServiceWithStore(memStore)
+	require.NoError(t, err)
+	defer s.Close()
+
+	const storageSpec = `{"openapi":"3.0.0","info":{"title":"FromStorage","version":"0.9.0"},"paths":{}}`
+	const pluginSpec = `{"openapi":"3.0.0","info":{"title":"FromPlugin","version":"2.0.0"},"paths":{}}`
+
+	_, err = s.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "pet-api",
+		SchemaContent: storageSpec,
+	})
+	require.NoError(t, err)
+	s.cache.Delete("pet-api") // force the miss path
+
+	rec := &recordingHooks{
+		fetchSchemaResp: &registrypb.FetchSchemaResponse{
+			Spec:            []byte(pluginSpec),
+			ResolvedVersion: "2.0.0",
+		},
+	}
+	s.SetHooks(rec)
+
+	entry, found := s.getSchemaEntry(context.Background(), "pet-api", "")
+	require.True(t, found)
+	require.NotNil(t, entry)
+	assert.Equal(t, "2.0.0", entry.Metadata.SchemaVersion, "plugin spec must win over storage")
+	assert.Equal(t, "FromPlugin", entry.Document.Info.Title)
+	require.Len(t, rec.fetchSchemaCalls, 1)
 }

@@ -671,6 +671,16 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 		return entry, true
 	}
 
+	// Cache miss — ask the fetch_schema plugin (if one is bound) before
+	// consulting storage. When a plugin is configured for this hook, it
+	// is the authoritative source; an error under fail_closed must NOT
+	// fall through to storage, or we'd silently contradict the plugin.
+	if entry, ok, err := s.tryFetchSchemaFromPlugin(ctx, schemaID, version); ok {
+		return entry, true
+	} else if err != nil {
+		return nil, false
+	}
+
 	// Cache miss — try storage
 	if s.store == nil {
 		return nil, false
@@ -758,6 +768,17 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 func (s *ValidatorService) lookupPriorSchemaForCompat(ctx context.Context, schemaID string) (*SchemaEntry, bool, error) {
 	if entry, ok := s.cache.Get(schemaID); ok && entry != nil {
 		return entry, true, nil
+	}
+	// Compat check: when a fetch_schema plugin is bound, it is the
+	// authoritative source of truth for "what version is currently
+	// deployed" — the baseline for breaking-change detection must come
+	// from the plugin, not from whatever happens to be in local storage.
+	// Plugin errors propagate as-is so decision 1C (fail-closed on
+	// prior-version lookup) applies uniformly to storage and plugin.
+	if entry, ok, err := s.tryFetchSchemaFromPlugin(ctx, schemaID, ""); ok {
+		return entry, true, nil
+	} else if err != nil {
+		return nil, false, err
 	}
 	if s.store == nil {
 		return nil, false, nil

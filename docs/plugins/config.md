@@ -20,11 +20,8 @@ hooks:
   fetch_schema: registry
 ```
 
-Run CVT; the `registry` plugin forks at startup. Three of the four
-hooks fire from core today (`on_validation_failed`,
-`on_breaking_change_detected`, `register_consumer_usage`);
-`fetch_schema` is the one exception — its call site is still pending
-(see the hook status table in `README.md`).
+Run CVT; the `registry` plugin forks at startup. All four hooks fire
+from core today — see the hook status table in `README.md`.
 
 ## Full schema
 
@@ -120,7 +117,7 @@ runs for that hook).
 | `on_validation_failed` | After `ValidateInteraction` returns a non-valid result | `EventHandler` | **wired** |
 | `on_breaking_change_detected` | After `CompareSchemas`, or after `RegisterSchema` when `check_compatibility=true` and breaking changes are detected | `EventHandler` | **wired** |
 | `register_consumer_usage` | After `RegisterConsumer` succeeds | `RegistryProvider` | **wired** |
-| `fetch_schema` | Before schema-by-ID resolution | `RegistryProvider` | declarative only; call site pending [issue #83](https://github.com/sahina/cvt/issues/83) |
+| `fetch_schema` | Before schema-by-ID resolution (on cache miss, before storage) | `RegistryProvider` | **wired** |
 
 A hook referencing a plugin that isn't declared under `plugins:` is a
 load-time error.
