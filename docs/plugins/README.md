@@ -6,21 +6,21 @@ services (registry provider, event handler) and communicates with `cvt`
 over gRPC on a Unix domain socket. Plugins live in their own repositories
 on their own release schedules.
 
-## v1 call-site status
+## Hook call-site status
 
-v1 wires one of the four planned hook call sites today:
+Three of the four v1 hook call sites are wired today:
 
-| Hook | Plugin service | Status in v1 |
+| Hook | Plugin service | Status |
 |---|---|---|
-| `on_validation_failed` | `EventHandler` | **fires from core** after `Validate()` returns a non-valid result |
-| `fetch_schema` | `RegistryProvider` | SDK + config surface only; core call site deferred to [#107](https://github.com/sahina/cvt/issues/107) (needs schema-by-ID resolution path from issue #83) |
-| `register_consumer_usage` | `RegistryProvider` | SDK + config surface only; core call site deferred to [#107](https://github.com/sahina/cvt/issues/107) (blocked on P2 god-file split of `server/cvtservice/validator_service.go`) |
-| `on_breaking_change_detected` | `EventHandler` | SDK + config surface only; core call site deferred to [#107](https://github.com/sahina/cvt/issues/107) (blocked on same split) |
+| `on_validation_failed` | `EventHandler` | **wired** — fires from `ValidateInteraction` after a non-valid result |
+| `on_breaking_change_detected` | `EventHandler` | **wired** — fires from `CompareSchemas` and from `RegisterSchema` when `--check-compatibility` is set |
+| `register_consumer_usage` | `RegistryProvider` | **wired** — fires from `RegisterConsumer` on success |
+| `fetch_schema` | `RegistryProvider` | SDK + config surface only; core call site deferred pending the schema-by-ID resolution path from [issue #83](https://github.com/sahina/cvt/issues/83) |
 
 Plugins can be written, installed, and configured against all four hook
 names today. The SDK, proto contracts, and config schema are frozen.
-Configured-but-not-yet-wired hooks are declarative no-ops until their
-call sites land.
+The unwired `fetch_schema` binding is a declarative no-op until its
+call site lands.
 
 ## When to use a plugin
 
@@ -29,12 +29,13 @@ Use a plugin when you want:
 - **Custom schema registry.** CVT's built-in schema loading handles files
   and raw URLs. If your organization hosts schemas in a registry with its
   own API (internal Central API Registry, Backstage, Apicurio), write a
-  `RegistryProvider` plugin and point `fetch_schema` at it. The plugin
-  is ready to ship; the core call site is wired in #107.
+  `RegistryProvider` plugin and point `fetch_schema` / `register_consumer_usage`
+  at it. `register_consumer_usage` fires on every `RegisterConsumer`
+  today; `fetch_schema` is the one hook still awaiting its call site.
 - **Event integrations.** CVT fires events on breaking-change detection
   and validation failure. Write an `EventHandler` plugin that reacts to
-  those events. Today only `on_validation_failed` fires; the
-  `on_breaking_change_detected` call site lands in #107.
+  those events. Both `on_validation_failed` and `on_breaking_change_detected`
+  fire from core today.
 
 Don't write a plugin when:
 
@@ -81,10 +82,9 @@ the plugin author publishes.
    ```
 
 3. **Run CVT.** The plugin forks at startup, receives its secret via
-   gRPC (not subprocess env), and is ready for the bound hooks. In v1
-   only `on_validation_failed` invokes the plugin from core; the
-   registry hooks activate when their call sites land (#107). See
-   [config.md](config.md) for the full schema.
+   gRPC (not subprocess env), and is ready for the bound hooks. Three
+   of the four hooks fire from core today; see the status table above.
+   See [config.md](config.md) for the full schema.
 
 4. **Write your own plugin.** See [authoring-go.md](authoring-go.md).
    Plugin authors import `github.com/sahina/cvt/pkg/cvtplugin` and call
@@ -113,12 +113,18 @@ SIGKILL.
 
 Two first-party reference plugins ship in separate repos:
 
-- `github.com/sahina/cvt-plugin-rest` — simple REST registry
-  client (covers issue #83).
-- `github.com/sahina/cvt-plugin-slack` — posts breaking-change
-  and validation-failure events to a Slack webhook.
+- **[cvt-plugin-rest](https://github.com/sahina/cvt-plugin-rest)** —
+  `RegistryProvider` backed by any REST schema registry. Fetches
+  OpenAPI specs by ID and records consumer usage via HTTP. Covers
+  [issue #83](https://github.com/sahina/cvt/issues/83).
+- **[cvt-plugin-slack](https://github.com/sahina/cvt-plugin-slack)** —
+  `EventHandler` that posts breaking-change and validation-failure
+  events to a Slack webhook, with plugin-side dedup so you don't get
+  paged 10,000 times per bad deploy.
 
-See [reference-plugins.md](reference-plugins.md) for walkthroughs.
+See [reference-plugins.md](reference-plugins.md) for walkthroughs and
+install recipes. Each plugin's own repo README covers its full config
+surface and a quick-test recipe.
 
 ## Scope: what's in v1, what isn't
 

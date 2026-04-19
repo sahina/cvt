@@ -20,11 +20,11 @@ hooks:
   fetch_schema: registry
 ```
 
-Run CVT; the `registry` plugin forks at startup. In v1, only
-`on_validation_failed` invokes plugins from core. The other three hook
-bindings are accepted but declarative-only until their core call sites
-land (tracked in #107). See the v1 call-site status table in
-`README.md`.
+Run CVT; the `registry` plugin forks at startup. Three of the four
+hooks fire from core today (`on_validation_failed`,
+`on_breaking_change_detected`, `register_consumer_usage`);
+`fetch_schema` is the one exception — its call site is still pending
+(see the hook status table in `README.md`).
 
 ## Full schema
 
@@ -115,12 +115,12 @@ Maps each of the four v1 hook points to exactly one plugin name. An
 unset hook means CVT falls back to its built-in behavior (no plugin
 runs for that hook).
 
-| Hook | When it fires | Plugin service | v1 status |
+| Hook | When it fires | Plugin service | Status |
 |---|---|---|---|
-| `fetch_schema` | Before schema-by-ID resolution | `RegistryProvider` | declarative only; call site in #107 |
-| `register_consumer_usage` | After successful `ValidateInteraction` | `RegistryProvider` | declarative only; call site in #107 |
-| `on_breaking_change_detected` | After `CompareSchemas` or `RegisterSchema --check-compatibility` commits a breaking-change result | `EventHandler` | declarative only; call site in #107 |
-| `on_validation_failed` | After `Validate` returns a non-valid result | `EventHandler` | **wired in v1** |
+| `on_validation_failed` | After `ValidateInteraction` returns a non-valid result | `EventHandler` | **wired** |
+| `on_breaking_change_detected` | After `CompareSchemas`, or after `RegisterSchema` when `check_compatibility=true` and breaking changes are detected | `EventHandler` | **wired** |
+| `register_consumer_usage` | After `RegisterConsumer` succeeds | `RegistryProvider` | **wired** |
+| `fetch_schema` | Before schema-by-ID resolution | `RegistryProvider` | declarative only; call site pending [issue #83](https://github.com/sahina/cvt/issues/83) |
 
 A hook referencing a plugin that isn't declared under `plugins:` is a
 load-time error.
