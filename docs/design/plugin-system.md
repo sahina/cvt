@@ -31,7 +31,7 @@ That is the whole v1. Everything else is v1.1+.
     │
     │  hashicorp/go-plugin (fork + gRPC over unix socket)
     ▼
-  [cvt-plugin-registry-rest]     [cvt-plugin-slack-events]
+  [cvt-plugin-rest]              [cvt-plugin-slack]
        (subprocess)                  (subprocess)
 ```
 
@@ -118,7 +118,7 @@ config_version: 1
 
 plugins:
   registry:
-    binary: ~/.cvt/plugins/cvt-plugin-registry-rest
+    binary: ~/.cvt/plugins/cvt-plugin-rest
     timeout: 5s
     on_error: fail_closed
     secrets: [token]
@@ -127,7 +127,7 @@ plugins:
       token: ${CVT_REGISTRY_TOKEN}
 
   slack:
-    binary: ~/.cvt/plugins/cvt-plugin-slack-events
+    binary: ~/.cvt/plugins/cvt-plugin-slack
     timeout: 3s
     on_error: fail_closed
     secrets: [webhook_url]
@@ -200,7 +200,7 @@ No `inspect`, no `verify`, no `reset` in v1.
   "version": 1,
   "plugins": {
     "registry": {
-      "binary_path": "/Users/.../.cvt/plugins/cvt-plugin-registry-rest",
+      "binary_path": "/Users/.../.cvt/plugins/cvt-plugin-rest",
       "sha256": "abc123...",
       "installed_at": "2026-04-17T19:00:00Z"
     }
@@ -244,7 +244,7 @@ Four files, shipped with v1:
 - `docs/plugins/README.md` — overview, trust boundary, when to use plugins.
 - `docs/plugins/config.md` — config schema, env interpolation, secrets, safe mode.
 - `docs/plugins/authoring-go.md` — write a plugin using `pkg/cvtplugin`; handshake handled by SDK; use `hclog.Logger`; honor `ctx.Done()`.
-- `docs/plugins/reference-plugins.md` — walkthrough of `cvt-plugin-registry-rest` and `cvt-plugin-slack-events`.
+- `docs/plugins/reference-plugins.md` — walkthrough of `cvt-plugin-rest` and `cvt-plugin-slack`.
 
 Proto docs generated from the three `.proto` files.
 
@@ -252,8 +252,8 @@ Proto docs generated from the three `.proto` files.
 
 Two, each in its own repo:
 
-- `github.com/sahina/cvt-plugin-registry-rest` — implements `RegistryProvider` over REST. Covers issue #83.
-- `github.com/sahina/cvt-plugin-slack-events` — implements `EventHandler` for breaking-change + validation-failed → Slack webhook. Covers the notifications TODO.
+- `github.com/sahina/cvt-plugin-rest` — implements `RegistryProvider` over REST. Covers issue #83.
+- `github.com/sahina/cvt-plugin-slack` — implements `EventHandler` for breaking-change + validation-failed → Slack webhook. Covers the notifications TODO.
 
 A GitHub-backed registry plugin (`cvt-plugin-registry-github`) is tracked in `TODOS.md` but is NOT a v1 deliverable — someone needs it first.
 
@@ -265,7 +265,7 @@ A GitHub-backed registry plugin (`cvt-plugin-registry-github`) is tracked in `TO
 2. **SDK unit tests** — `go test ./pkg/cvtplugin/... -v`. `Serve` round-trip, `plugintest` harness, Zap↔hclog adapter emits structured records.
 3. **Real-subprocess integration test** — `go test -tags=integration ./internal/pluginmgr/... -v`. Fork a test plugin, complete handshake + `Info`, call both services, observe `go-plugin` restart on plugin crash, zombie reap after CVT SIGKILL.
 4. **Handshake deadline** — plugin that never emits go-plugin handshake is killed at 5s; plugin whose `Info.protocol_version` doesn't match is rejected cleanly.
-5. **Reference plugin end-to-end** — build `cvt-plugin-registry-rest` in its repo, install, run `cvt validate --schema test-api` against a mock registry, assert schema fetched + usage registered.
+5. **Reference plugin end-to-end** — build `cvt-plugin-rest` in its repo, install, run `cvt validate --schema test-api` against a mock registry, assert schema fetched + usage registered.
 6. **Metrics** — start `cvt serve` with plugins configured, trigger calls, scrape `localhost:9551/metrics`, confirm all four `cvt_plugin_*` series present.
 7. **Audit** — trigger a write call, confirm audit entry with `plugin`, `sha256`, `outcome`. Confirm `${CVT_REGISTRY_TOKEN}` does NOT appear in any log or audit entry.
 8. **Config** — `${VAR}` + `${VAR:-default}` interpolation; unset required secret = load-time fail-closed; bad plugin name = load-time error; binary path outside `~/.cvt/plugins/` = load-time error.
@@ -278,8 +278,8 @@ Proto discipline: new field = new number, new method = additive, never mutate pu
 
 Post-merge follow-ups:
 
-- Issue #83: remove the `SchemaRegistryProvider` in-tree interface proposal; rewrite against `cvt.plugin.registry.v1.RegistryProvider`; REST provider code moves to `cvt-plugin-registry-rest` repo.
-- Phase 1a: `SchemaProvider` + `HTTPProvider` + `GitHubProvider` in-tree interfaces drop; `HTTPProvider` ships as `cvt-plugin-registry-rest`, `GitHubProvider` becomes a TODO-tracked plugin.
+- Issue #83: remove the `SchemaRegistryProvider` in-tree interface proposal; rewrite against `cvt.plugin.registry.v1.RegistryProvider`; REST provider code moves to `cvt-plugin-rest` repo.
+- Phase 1a: `SchemaProvider` + `HTTPProvider` + `GitHubProvider` in-tree interfaces drop; `HTTPProvider` ships as `cvt-plugin-rest`, `GitHubProvider` becomes a TODO-tracked plugin.
 - Closed TODOs (superseded): P2 "Notification system design document", P2 "GitHubProvider dependency investigation", P2 "DRY schema URL fetching (3 duplicate implementations)".
 
 ## Parallelization

@@ -1,5 +1,13 @@
 # CVT TODOs
 
+## Closed: issue #107 (plugin system v1 follow-ups) — see git log 2026-04-18..2026-04-19
+
+Reference plugins extracted to `github.com/sahina/cvt-plugin-rest` and
+`github.com/sahina/cvt-plugin-slack` (v0.1.0 each). `validator_service.go`
+split, three-of-four hooks wired, `register-schema --check-compatibility`
+now does real server-side work. Follow `docs/plugins/reference-plugins.md`
+for install.
+
 ## P2: Multi-plugin write pipelines (v1.1)
 
 **What:** Extend plugin pipeline executor to support multiple plugins per stage on write RPCs (currently restricted to single-plugin in v1). Requires two-phase commit or compensating-transaction semantics so partial-write failures are not silently swallowed.
@@ -31,7 +39,7 @@
 
 **What:** Publish `github.com/sahina/cvt-plugin-template` with goreleaser config, GitHub Actions CI, `cvt plugins verify` CI step, README template, example RegistryProvider and EventHandler implementations.
 
-**Why:** Three reference plugins (`cvt-plugin-registry-rest`, `cvt-plugin-registry-github`, `cvt-plugin-slack-events`) and any future third-party plugins all need the same build + release + verify scaffolding. Without a template, each plugin author reinvents.
+**Why:** Three reference plugins (`cvt-plugin-rest`, `cvt-plugin-registry-github`, `cvt-plugin-slack`) and any future third-party plugins all need the same build + release + verify scaffolding. Without a template, each plugin author reinvents.
 
 **Effort:** S (human: ~1 day) → with CC: S (~15 min)
 **Priority:** P2
@@ -59,24 +67,6 @@
 **Priority:** P3
 **Depends on:** Plugin config schema frozen (end of Plugin System Lane 1).
 **Source:** Eng Review 2026-04-17 (plugin-system.md)
-
-## P2: Split validator_service.go into focused files
-
-**What:** Extract validator_service.go (1,956 LOC, 33 methods) into focused files along Phase boundaries.
-
-**Why:** Single-author project risk. A god-file makes onboarding contributors harder and increases merge conflict surface.
-
-**Proposed split:**
-- `validator_service.go` — core validation (RegisterSchema, ValidateInteraction, helpers)
-- `fixture_generator.go` — GenerateFixture + all generate* helpers (~300 LOC)
-- `consumer_registry.go` — RegisterConsumer, ListConsumers, DeregisterConsumer (~200 LOC)
-- `deployment_safety.go` — CanIDeploy (~150 LOC)
-- `producer_validation.go` — ValidateProducerResponse (~250 LOC)
-
-**Effort:** M (human: ~3 days) → with CC: S (~15 min)
-**Priority:** P2
-**Depends on:** Ideally after storage wiring lands to avoid double-touching the same code.
-**Source:** CEO Review 2026-03-19
 
 ## P2: Wire consumer registry operations to storage
 
@@ -117,7 +107,7 @@
 
 ## P2: DRY schema URL fetching (3 duplicate implementations) — SUPERSEDED
 
-**Status:** Superseded by plugin system (see `docs/design/plugin-system.md`). Registry-based schema fetching moves into `cvt-plugin-registry-rest` and `cvt-plugin-registry-github`. Core keeps one HTTP fetch path in `pkg/cvt/validator.go:RegisterSchemaFromURL()` for direct file/URL schema args; `cmd/cvt/register_schema.go:fetchSchemaFromURL()` remains the CLI entry point. The 3-way duplication with a hypothetical `HTTPProvider.Fetch()` no longer lands because `HTTPProvider` ships as a plugin.
+**Status:** Superseded by plugin system (see `docs/design/plugin-system.md`). Registry-based schema fetching moves into `cvt-plugin-rest` and `cvt-plugin-registry-github`. Core keeps one HTTP fetch path in `pkg/cvt/validator.go:RegisterSchemaFromURL()` for direct file/URL schema args; `cmd/cvt/register_schema.go:fetchSchemaFromURL()` remains the CLI entry point. The 3-way duplication with a hypothetical `HTTPProvider.Fetch()` no longer lands because `HTTPProvider` ships as a plugin.
 
 _Original description preserved below for context:_
 
@@ -143,7 +133,7 @@ _Original description preserved below for context:_
 
 ## P2: Notification system design document — SUPERSEDED
 
-**Status:** Superseded by plugin system. The `EventHandler` plugin contract (`api/protos/plugin/events/v1/events.proto`) is the notification surface; the reference plugin `cvt-plugin-slack-events` is the first implementation. Per-plugin rate limiting and dedup live in the plugin itself (each plugin decides its own policy), which is the right placement per the original TODO's blast-radius concern. Additional channels (Jira, GitHub issues, email) become additional plugins rather than core code.
+**Status:** Superseded by plugin system. The `EventHandler` plugin contract (`api/protos/plugin/events/v1/events.proto`) is the notification surface; the reference plugin `cvt-plugin-slack` is the first implementation. Per-plugin rate limiting and dedup live in the plugin itself (each plugin decides its own policy), which is the right placement per the original TODO's blast-radius concern. Additional channels (Jira, GitHub issues, email) become additional plugins rather than core code.
 
 _Original description preserved below for context:_
 
