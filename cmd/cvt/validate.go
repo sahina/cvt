@@ -49,6 +49,7 @@ Examples:
 			}
 
 			v := cvt.NewValidator()
+			v.SetHooks(pluginHooks)
 			if err := v.RegisterSchemaFromPath("schema", schemaFile); err != nil {
 				return fmt.Errorf("failed to load schema: %w", err)
 			}
@@ -173,7 +174,12 @@ Examples:
 					for _, e := range result.Errors {
 						fmt.Printf("  - %s\n", e)
 					}
-					os.Exit(1)
+					// Return through cobra so main runs runPluginShutdown
+					// before exiting; os.Exit here would orphan plugin
+					// subprocesses on every failed CI validation.
+					cmd.SilenceErrors = true
+					cmd.SilenceUsage = true
+					return errExit{code: 1}
 				}
 			}
 

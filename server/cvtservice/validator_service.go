@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi2"
@@ -24,6 +26,27 @@ import (
 	"go.uber.org/zap"
 )
 
+// hooksHolder wraps the cvt.Hooks interface so it can live behind an
+// atomic.Pointer (atomic.Value would panic on type changes between
+// SetHooks calls because cvt.Hooks is an interface with multiple
+// concrete implementations).
+type hooksHolder struct{ h cvt.Hooks }
+
+// schemaCompatLocks gives CheckCompatibility a per-schema-ID critical
+// section so two concurrent RegisterSchema calls for the same schema_id
+// can't race on the lookup-prior → compare → cache.Set sequence. Worst-
+// case race without the lock: caller A reads prior=v1, caller B reads
+// prior=v1, both write v2 + v3, both fire breaking-change hooks against
+// the wrong baseline.
+type schemaCompatLocks struct{ m sync.Map } // map[string]*sync.Mutex
+
+func (l *schemaCompatLocks) lock(schemaID string) func() {
+	v, _ := l.m.LoadOrStore(schemaID, &sync.Mutex{})
+	mu := v.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
 // ValidatorService implements the ContractValidator gRPC service.
 // It provides two main operations:
 // 1. RegisterSchema - Registers an OpenAPI schema for later validation
@@ -32,9 +55,29 @@ import (
 // The service maintains a cache of registered schemas for efficient validation.
 type ValidatorService struct {
 	pb.UnimplementedContractValidatorServer
-	cache     *SchemaCache
-	store     storage.Store  // Optional persistent storage (nil = cache-only)
-	generator *cvt.Validator // Embedded generator for fixture generation (delegates to pkg/cvt)
+	cache       *SchemaCache
+	store       storage.Store  // Optional persistent storage (nil = cache-only)
+	generator   *cvt.Validator // Embedded generator for fixture generation (delegates to pkg/cvt)
+	hooks       atomic.Pointer[hooksHolder]
+	compatLocks schemaCompatLocks
+}
+
+// SetHooks installs a plugin Hooks adapter on the service. Safe to call
+// concurrently (atomic.Pointer); the most recent value wins. cmd/cvt/serve.go
+// calls this once before Serve; future hot-reload paths can call it
+// repeatedly without a data race. Tests typically leave hooks unset;
+// hooksOrNoop returns NoopHooks{} in that case so call sites stay simple.
+func (s *ValidatorService) SetHooks(h cvt.Hooks) {
+	s.hooks.Store(&hooksHolder{h: h})
+}
+
+// hooksOrNoop returns the configured hooks adapter or a NoopHooks{} when
+// none has been set. Mirrors *Validator.hooksOrNoop in pkg/cvt.
+func (s *ValidatorService) hooksOrNoop() cvt.Hooks {
+	if p := s.hooks.Load(); p != nil && p.h != nil {
+		return p.h
+	}
+	return cvt.NoopHooks{}
 }
 
 // NewValidatorService creates a new instance of ValidatorService with an initialized cache.
@@ -189,6 +232,47 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 	// Always use schema's info.version as the version
 	version := schemaInfoVersion
 
+	// --check-compatibility: look up the prior version (if any) and compute
+	// breaking changes against the new schema BEFORE we commit. The
+	// comparison must happen against the actual prior, not against the new
+	// version we're about to write. Per decision 1C (eng review), a storage
+	// error during prior-version lookup is fail-closed: we refuse the
+	// registration so the caller knows the safety check did not run.
+	//
+	// Per-schema-ID lock prevents the lookup → cache.Set sequence from
+	// racing across concurrent registrations of the same schema_id. Two
+	// callers racing without this lock can both see prior=v1 and produce
+	// hook events against the wrong baseline.
+	var (
+		breakingChanges []*pb.BreakingChange
+		priorVersion    string
+	)
+	if req.CheckCompatibility {
+		unlock := s.compatLocks.lock(req.SchemaId)
+		defer unlock()
+		prior, found, lookupErr := s.lookupPriorSchemaForCompat(ctx, req.SchemaId)
+		if lookupErr != nil {
+			Error("CheckCompatibility failed: storage error during prior-version lookup",
+				zap.String("schemaId", req.SchemaId),
+				zap.Error(lookupErr))
+			schemasRegistered.WithLabelValues("failure").Inc()
+			schemaRegistrationErrors.WithLabelValues("compat_check_storage_error").Inc()
+			grpcRequestsTotal.WithLabelValues("RegisterSchema", "failure").Inc()
+			return &pb.RegisterSchemaResponse{
+				Success: false,
+				Message: fmt.Sprintf("Failed to check compatibility: storage error during prior-version lookup: %v", lookupErr),
+			}, nil
+		}
+		if found && prior != nil && prior.Document != nil {
+			if prior.Metadata != nil {
+				priorVersion = prior.Metadata.SchemaVersion
+			}
+			engine := NewCompatibilityEngine()
+			bc, _ := engine.CompareSchemas(prior.Document, doc)
+			breakingChanges = bc
+		}
+	}
+
 	// Create schema entry with metadata
 	entry := NewSchemaEntry(
 		req.SchemaId,
@@ -254,10 +338,15 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 	schemasRegistered.WithLabelValues("success").Inc()
 	grpcRequestsTotal.WithLabelValues("RegisterSchema", "success").Inc()
 
+	// Fire on_breaking_change_detected hook only when we actually ran the
+	// compat check AND it surfaced changes. Helper guards on empty.
+	s.fireOnBreakingChangeDetected(ctx, req.SchemaId, priorVersion, version, breakingChanges, "RegisterSchema")
+
 	return &pb.RegisterSchemaResponse{
-		Success:  true,
-		Message:  successMsg,
-		Metadata: entry.Metadata,
+		Success:         true,
+		Message:         successMsg,
+		Metadata:        entry.Metadata,
+		BreakingChanges: breakingChanges,
 	}, nil
 }
 
@@ -656,6 +745,48 @@ func (s *ValidatorService) getSchemaEntry(ctx context.Context, schemaID, version
 	return entry, true
 }
 
+// lookupPriorSchemaForCompat returns the latest registered schema entry
+// for use as the "prior" side of a compatibility check. Differs from
+// getSchemaEntry by surfacing storage errors instead of swallowing them
+// — required by decision 1C (fail-closed on storage error during
+// --check-compatibility).
+//
+// Returns:
+//   - (entry, true, nil)  prior version exists in cache or storage
+//   - (nil, false, nil)   no prior version (first registration of schemaID)
+//   - (nil, false, err)   storage error during lookup; caller refuses register
+func (s *ValidatorService) lookupPriorSchemaForCompat(ctx context.Context, schemaID string) (*SchemaEntry, bool, error) {
+	if entry, ok := s.cache.Get(schemaID); ok && entry != nil {
+		return entry, true, nil
+	}
+	if s.store == nil {
+		return nil, false, nil
+	}
+	record, err := s.store.GetSchema(ctx, schemaID)
+	if err != nil {
+		return nil, false, err
+	}
+	if record == nil {
+		return nil, false, nil
+	}
+	doc, parseErr := s.parseAndConvertSchema([]byte(record.Content))
+	if parseErr != nil {
+		return nil, false, fmt.Errorf("rehydrate prior schema: %w", parseErr)
+	}
+	// Validate the rehydrated document before handing it to the
+	// compatibility engine. A persisted schema can drift out of validity
+	// if kin-openapi tightens its rules between releases; we don't want
+	// to feed a malformed doc to engine.CompareSchemas — that turns
+	// "fail-closed on bad input" into "silently report fewer breaking
+	// changes than reality" (decision 1C extends naturally to this case).
+	loader := openapi3.NewLoader()
+	if valErr := doc.Validate(loader.Context); valErr != nil {
+		return nil, false, fmt.Errorf("validate rehydrated prior schema: %w", valErr)
+	}
+	entry := NewSchemaEntry(schemaID, record.Content, doc, record.Version, record.Ownership)
+	return entry, true, nil
+}
+
 // buildRouter creates a gorillamux router from a document, handling Swagger v2 basePath.
 // It creates a copy of the servers slice to avoid mutating the original document.
 func (s *ValidatorService) buildRouter(doc *openapi3.T) (routers.Router, error) {
@@ -963,6 +1094,9 @@ func (s *ValidatorService) CompareSchemas(ctx context.Context, req *pb.CompareSc
 		breakingChangesDetected.WithLabelValues(change.Type.String()).Inc()
 	}
 
+	// Fire on_breaking_change_detected hook (helper guards on empty changes).
+	s.fireOnBreakingChangeDetected(ctx, req.SchemaId, oldVersion, newVersion, breakingChanges, "CompareSchemas")
+
 	grpcRequestsTotal.WithLabelValues("CompareSchemas", "success").Inc()
 	return &pb.CompareSchemasResponse{
 		Compatible:      compatible,
@@ -970,153 +1104,6 @@ func (s *ValidatorService) CompareSchemas(ctx context.Context, req *pb.CompareSc
 		OldSchema:       oldEntry.Metadata,
 		NewSchema:       newEntry.Metadata,
 	}, nil
-}
-
-// GenerateFixture generates test fixtures from an OpenAPI schema.
-// This method creates request/response pairs based on the schema definition,
-// useful for testing APIs without making actual HTTP calls.
-func (s *ValidatorService) GenerateFixture(ctx context.Context, req *pb.GenerateFixtureRequest) (*pb.GenerateFixtureResponse, error) {
-	start := time.Now()
-	defer func() {
-		grpcRequestDuration.WithLabelValues("GenerateFixture").Observe(time.Since(start).Seconds())
-	}()
-
-	Info("Received GenerateFixture request",
-		zap.String("schemaId", req.SchemaId),
-		zap.String("method", req.Method),
-		zap.String("path", req.Path))
-
-	// Validate inputs
-	if err := ValidateSchemaID(req.SchemaId); err != nil {
-		grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
-		return &pb.GenerateFixtureResponse{
-			Success: false,
-			Message: fmt.Sprintf("Invalid schema ID: %v", err),
-		}, nil
-	}
-
-	if req.Method == "" || req.Path == "" {
-		grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
-		return &pb.GenerateFixtureResponse{
-			Success: false,
-			Message: "Method and path are required",
-		}, nil
-	}
-
-	// Ensure schema is available in the embedded generator (triggers storage rehydration if needed)
-	_, found := s.getSchemaEntry(ctx, req.SchemaId, "")
-	if !found {
-		grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
-		return &pb.GenerateFixtureResponse{
-			Success: false,
-			Message: fmt.Sprintf("Schema not found: %s", req.SchemaId),
-		}, nil
-	}
-
-	method := strings.ToUpper(req.Method)
-	opts := cvt.GenerateOptions{
-		StatusCode:  int(req.StatusCode),
-		UseExamples: req.UseExamples,
-		ContentType: req.ContentType,
-	}
-	if opts.ContentType == "" {
-		opts.ContentType = "application/json"
-	}
-
-	// Generate based on output type, delegating to pkg/cvt
-	switch req.OutputType {
-	case pb.OutputType_OUTPUT_REQUEST:
-		body, err := s.generator.GenerateRequestBody(req.SchemaId, method, req.Path, opts)
-		if err != nil {
-			grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
-			return &pb.GenerateFixtureResponse{
-				Success: false,
-				Message: fmt.Sprintf("Failed to generate request body: %v", err),
-			}, nil
-		}
-		jsonData, err := json.MarshalIndent(body, "", "  ")
-		if err != nil {
-			grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
-			return &pb.GenerateFixtureResponse{
-				Success: false,
-				Message: fmt.Sprintf("Failed to marshal request body: %v", err),
-			}, nil
-		}
-		grpcRequestsTotal.WithLabelValues("GenerateFixture", "success").Inc()
-		return &pb.GenerateFixtureResponse{
-			Success:     true,
-			Message:     "Request body generated successfully",
-			RequestBody: string(jsonData),
-		}, nil
-
-	case pb.OutputType_OUTPUT_RESPONSE:
-		resp, err := s.generator.GenerateResponse(req.SchemaId, method, req.Path, opts)
-		if err != nil {
-			grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
-			return &pb.GenerateFixtureResponse{
-				Success: false,
-				Message: fmt.Sprintf("Failed to generate response: %v", err),
-			}, nil
-		}
-		grpcRequestsTotal.WithLabelValues("GenerateFixture", "success").Inc()
-		return &pb.GenerateFixtureResponse{
-			Success:  true,
-			Message:  "Response generated successfully",
-			Response: convertResponse(resp),
-		}, nil
-
-	default: // OUTPUT_FIXTURE
-		fixture, err := s.generator.GenerateFixture(req.SchemaId, method, req.Path, opts)
-		if err != nil {
-			grpcRequestsTotal.WithLabelValues("GenerateFixture", "failure").Inc()
-			return &pb.GenerateFixtureResponse{
-				Success: false,
-				Message: fmt.Sprintf("Failed to generate fixture: %v", err),
-			}, nil
-		}
-
-		pbFixture := &pb.GeneratedFixture{
-			Request: &pb.GeneratedRequest{
-				Method:  fixture.Request.Method,
-				Path:    fixture.Request.Path,
-				Headers: fixture.Request.Headers,
-			},
-			Response: convertResponse(&fixture.Response),
-		}
-
-		if fixture.Request.Body != nil {
-			reqJSON, err := json.MarshalIndent(fixture.Request.Body, "", "  ")
-			if err == nil {
-				pbFixture.Request.Body = string(reqJSON)
-				if pbFixture.Request.Headers == nil {
-					pbFixture.Request.Headers = make(map[string]string)
-				}
-				pbFixture.Request.Headers["Content-Type"] = opts.ContentType
-			}
-		}
-
-		grpcRequestsTotal.WithLabelValues("GenerateFixture", "success").Inc()
-		return &pb.GenerateFixtureResponse{
-			Success: true,
-			Message: "Fixture generated successfully",
-			Fixture: pbFixture,
-		}, nil
-	}
-}
-
-// convertResponse converts a pkg/cvt GeneratedResponse to a protobuf GeneratedResponse.
-func convertResponse(resp *cvt.GeneratedResponse) *pb.GeneratedResponse {
-	pbResp := &pb.GeneratedResponse{
-		StatusCode: int32(resp.StatusCode),
-		Headers:    resp.Headers,
-	}
-	if resp.Body != nil {
-		jsonData, err := json.MarshalIndent(resp.Body, "", "  ")
-		if err == nil {
-			pbResp.Body = string(jsonData)
-		}
-	}
-	return pbResp
 }
 
 // ListEndpoints returns all endpoints available in a registered schema.
@@ -1160,656 +1147,4 @@ func (s *ValidatorService) ListEndpoints(ctx context.Context, req *pb.ListEndpoi
 
 	grpcRequestsTotal.WithLabelValues("ListEndpoints", "success").Inc()
 	return &pb.ListEndpointsResponse{Endpoints: endpoints}, nil
-}
-
-// ============================================================================
-// Phase 1: Producer Testing
-// ============================================================================
-
-// ValidateProducerResponse validates a producer's HTTP response against their OpenAPI schema.
-// This is used by producers to write contract tests that verify their handlers return
-// spec-compliant responses - without needing actual consumers to call their API.
-//
-// Unlike ValidateInteraction which validates both request and response (for consumer testing),
-// this method focuses on response validation only. Producers use this in their test suites
-// to ensure their implementation matches their contract.
-//
-// Parameters:
-//   - ctx: The request context
-//   - req: ValidateProducerRequest containing schemaId, method, path, and response data
-//
-// Returns:
-//   - ValidationResult: Contains validation status and any error messages
-//   - error: gRPC error (always nil, errors are returned in response)
-func (s *ValidatorService) ValidateProducerResponse(ctx context.Context, req *pb.ValidateProducerRequest) (*pb.ValidationResult, error) {
-	// Handle nil request early to avoid panic
-	if req == nil {
-		return &pb.ValidationResult{
-			Valid:  false,
-			Errors: []string{"ValidateProducerRequest cannot be null"},
-		}, nil
-	}
-
-	// Record metrics for validation timing
-	start := time.Now()
-	schemaID := req.GetSchemaId()
-	method := req.GetMethod()
-
-	defer func() {
-		validationDuration.WithLabelValues(schemaID, method).Observe(time.Since(start).Seconds())
-		grpcRequestDuration.WithLabelValues("ValidateProducerResponse").Observe(time.Since(start).Seconds())
-	}()
-
-	Debug("Received ValidateProducerResponse request",
-		zap.String("schemaId", schemaID),
-		zap.String("method", method),
-		zap.String("path", req.Path))
-
-	// Validate inputs
-	if err := s.validateProducerRequest(req); err != nil {
-		Warn("Validation error in ValidateProducerResponse",
-			zap.String("schemaId", schemaID),
-			zap.Error(err))
-		validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
-		validationErrors.WithLabelValues("input_validation").Inc()
-		grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "failure").Inc()
-		return &pb.ValidationResult{
-			Valid:  false,
-			Errors: []string{fmt.Sprintf("Validation error: %v", err)},
-		}, nil
-	}
-
-	// Retrieve schema (cache first, then storage)
-	entry, found := s.getSchemaEntry(ctx, schemaID, req.SchemaVersion)
-	if !found || entry == nil {
-		Warn("Schema not found", zap.String("schemaId", schemaID))
-		validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
-		validationErrors.WithLabelValues("schema_not_found").Inc()
-		grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "failure").Inc()
-		return &pb.ValidationResult{
-			Valid:  false,
-			Errors: []string{fmt.Sprintf("Schema not found: %s", schemaID)},
-		}, nil
-	}
-	doc := entry.Document
-
-	// Handle basePath from Swagger 2.0 schemas and resolve base URL
-	requestPath := stripBasePath(doc, req.Path)
-	baseURL := resolveBaseURL(doc)
-
-	// Create http.Request for route matching (even though we're only validating response)
-	httpReq, err := http.NewRequest(strings.ToUpper(method), fmt.Sprintf("%s%s", baseURL, requestPath), nil)
-	if err != nil {
-		Error("Failed to create HTTP request for route matching", zap.Error(err))
-		validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
-		validationErrors.WithLabelValues("http_request_creation").Inc()
-		grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "failure").Inc()
-		return &pb.ValidationResult{
-			Valid:  false,
-			Errors: []string{fmt.Sprintf("Failed to create HTTP request: %v", err)},
-		}, nil
-	}
-
-	// Add request headers if provided (for context)
-	if req.Request != nil && req.Request.Headers != nil {
-		for key, value := range req.Request.Headers {
-			httpReq.Header.Set(key, value)
-		}
-	}
-
-	// Use the pre-built router from the schema entry (built at registration time).
-	// Use a local variable to avoid mutating the shared cache entry (data race).
-	router := entry.Router
-	if router == nil {
-		var routerErr error
-		router, routerErr = s.buildRouter(doc)
-		if routerErr != nil {
-			Error("Failed to create router",
-				zap.String("schemaId", schemaID),
-				zap.Error(routerErr))
-			validationsTotal.WithLabelValues(schemaID, method, "error").Inc()
-			validationErrors.WithLabelValues("router_creation").Inc()
-			grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "failure").Inc()
-			return &pb.ValidationResult{
-				Valid:  false,
-				Errors: []string{fmt.Sprintf("Failed to create router: %v", routerErr)},
-			}, nil
-		}
-	}
-
-	// Find the matching route
-	route, pathParams, err := router.FindRoute(httpReq)
-	if err != nil {
-		Error("Route not found",
-			zap.String("method", method),
-			zap.String("path", req.Path),
-			zap.Error(err))
-		validationsTotal.WithLabelValues(schemaID, method, "invalid").Inc()
-		validationErrors.WithLabelValues("route_not_found").Inc()
-		grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "success").Inc()
-		return &pb.ValidationResult{
-			Valid:  false,
-			Errors: []string{fmt.Sprintf("Route not found: %s %s - %v", method, req.Path, err)},
-		}, nil
-	}
-
-	// Create request validation input (needed for response validation context)
-	requestValidationInput := &openapi3filter.RequestValidationInput{
-		Request:    httpReq,
-		PathParams: pathParams,
-		Route:      route,
-	}
-
-	// Validate the response against the OpenAPI schema
-	responseValidationInput := &openapi3filter.ResponseValidationInput{
-		RequestValidationInput: requestValidationInput,
-		Status:                 int(req.Response.StatusCode),
-		Header:                 s.createHTTPHeaders(req.Response.Headers),
-		Body:                   io.NopCloser(strings.NewReader(req.Response.Body)),
-	}
-
-	if err := openapi3filter.ValidateResponse(ctx, responseValidationInput); err != nil {
-		Debug("Response validation failed",
-			zap.Int32("statusCode", req.Response.StatusCode),
-			zap.Error(err))
-		validationsTotal.WithLabelValues(schemaID, method, "invalid").Inc()
-		validationErrors.WithLabelValues("response_invalid").Inc()
-		grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "success").Inc()
-		return &pb.ValidationResult{
-			Valid:  false,
-			Errors: []string{err.Error()},
-		}, nil
-	}
-
-	Info("Producer response validated successfully",
-		zap.String("schemaId", schemaID),
-		zap.String("method", method),
-		zap.String("path", req.Path),
-		zap.Int32("statusCode", req.Response.StatusCode))
-
-	// Record successful validation
-	validationsTotal.WithLabelValues(schemaID, method, "valid").Inc()
-	grpcRequestsTotal.WithLabelValues("ValidateProducerResponse", "success").Inc()
-
-	// Include version and hash in result
-	producerResult := &pb.ValidationResult{
-		Valid:  true,
-		Errors: nil,
-	}
-	if entry.Metadata != nil {
-		producerResult.ValidatedAgainstVersion = entry.Metadata.SchemaVersion
-		producerResult.ValidatedAgainstHash = entry.Metadata.SchemaHash
-	}
-
-	// Asynchronously record validation to storage
-	if s.store != nil {
-		go func() {
-			record := &storage.ValidationRecord{
-				SchemaID:       schemaID,
-				SchemaVersion:  entry.Metadata.SchemaVersion,
-				SchemaHash:     entry.Metadata.SchemaHash,
-				RequestMethod:  method,
-				RequestPath:    req.Path,
-				ResponseStatus: req.Response.StatusCode,
-				Valid:          producerResult.Valid,
-				Errors:         producerResult.Errors,
-				DurationMs:     time.Since(start).Milliseconds(),
-				ValidatedAt:    time.Now(),
-			}
-			if recErr := s.store.RecordValidation(context.Background(), record); recErr != nil {
-				Warn("Failed to record validation", zap.Error(recErr))
-			}
-		}()
-	}
-
-	return producerResult, nil
-}
-
-// validateProducerRequest validates the ValidateProducerRequest.
-func (s *ValidatorService) validateProducerRequest(req *pb.ValidateProducerRequest) error {
-	if req == nil {
-		return fmt.Errorf("ValidateProducerRequest cannot be null")
-	}
-	if err := ValidateSchemaID(req.SchemaId); err != nil {
-		return err
-	}
-	if err := ValidateHTTPMethod(req.Method); err != nil {
-		return err
-	}
-	if err := ValidateHTTPPath(req.Path); err != nil {
-		return err
-	}
-	if req.Response == nil {
-		return fmt.Errorf("ResponseData cannot be null")
-	}
-	if err := ValidateStatusCode(req.Response.StatusCode); err != nil {
-		return err
-	}
-	if err := ValidateResponseBody(req.Response.Body); err != nil {
-		return err
-	}
-	return nil
-}
-
-// ============================================================================
-// Consumer Registry RPCs
-// ============================================================================
-
-// RegisterConsumer registers a consumer's dependency on a schema.
-// This allows tracking which consumers depend on which schemas, enabling
-// deployment safety checks via CanIDeploy.
-func (s *ValidatorService) RegisterConsumer(ctx context.Context, req *pb.RegisterConsumerRequest) (*pb.RegisterConsumerResponse, error) {
-	start := time.Now()
-	defer func() {
-		grpcRequestDuration.WithLabelValues("RegisterConsumer").Observe(time.Since(start).Seconds())
-	}()
-
-	Info("Received RegisterConsumer request",
-		zap.String("consumerId", req.ConsumerId),
-		zap.String("schemaId", req.SchemaId),
-		zap.String("environment", req.Environment))
-
-	// Validate request
-	if req.ConsumerId == "" {
-		grpcRequestsTotal.WithLabelValues("RegisterConsumer", "failure").Inc()
-		return &pb.RegisterConsumerResponse{
-			Success: false,
-			Message: "consumer_id is required",
-		}, nil
-	}
-	if req.SchemaId == "" {
-		grpcRequestsTotal.WithLabelValues("RegisterConsumer", "failure").Inc()
-		return &pb.RegisterConsumerResponse{
-			Success: false,
-			Message: "schema_id is required",
-		}, nil
-	}
-	if req.Environment == "" {
-		req.Environment = "dev" // Default to dev
-	}
-
-	// Verify the schema exists (cache or storage)
-	_, found := s.getSchemaEntry(ctx, req.SchemaId, "")
-	if !found {
-		grpcRequestsTotal.WithLabelValues("RegisterConsumer", "failure").Inc()
-		return &pb.RegisterConsumerResponse{
-			Success: false,
-			Message: fmt.Sprintf("schema not found: %s", req.SchemaId),
-		}, nil
-	}
-
-	// Check consumer cap per schema (soft cap — not atomic with registration,
-	// so may be briefly exceeded under high concurrency; acceptable at 10K limit)
-	existingConsumers := s.cache.ListConsumers(req.SchemaId, "")
-	if len(existingConsumers) >= MaxConsumersPerSchema {
-		grpcRequestsTotal.WithLabelValues("RegisterConsumer", "failure").Inc()
-		return &pb.RegisterConsumerResponse{
-			Success: false,
-			Message: fmt.Sprintf("maximum consumers per schema reached (%d)", MaxConsumersPerSchema),
-		}, nil
-	}
-
-	// Convert endpoint usage from proto to storage format
-	usedEndpoints := make([]EndpointUsage, len(req.UsedEndpoints))
-	for i, eu := range req.UsedEndpoints {
-		usedEndpoints[i] = EndpointUsage{
-			Method:     eu.Method,
-			Path:       eu.Path,
-			UsedFields: eu.UsedFields,
-		}
-	}
-
-	now := time.Now()
-
-	// Register in cache
-	consumer := &ConsumerEntry{
-		ConsumerID:      req.ConsumerId,
-		ConsumerVersion: req.ConsumerVersion,
-		SchemaID:        req.SchemaId,
-		SchemaVersion:   req.SchemaVersion,
-		Environment:     req.Environment,
-		RegisteredAt:    now,
-		LastValidatedAt: now,
-		UsedEndpoints:   usedEndpoints,
-	}
-	s.cache.RegisterConsumer(consumer)
-
-	// Persist to storage if available
-	if s.store != nil {
-		record := &storage.ConsumerRecord{
-			ConsumerID:      req.ConsumerId,
-			ConsumerVersion: req.ConsumerVersion,
-			SchemaID:        req.SchemaId,
-			SchemaVersion:   req.SchemaVersion,
-			Environment:     req.Environment,
-			RegisteredAt:    now,
-			LastValidatedAt: now,
-		}
-		for _, eu := range usedEndpoints {
-			record.UsedEndpoints = append(record.UsedEndpoints, storage.EndpointUsage{
-				Method:     eu.Method,
-				Path:       eu.Path,
-				UsedFields: eu.UsedFields,
-			})
-		}
-		if storeErr := s.store.RegisterConsumer(ctx, record); storeErr != nil {
-			Warn("Failed to persist consumer to storage",
-				zap.String("consumerId", req.ConsumerId),
-				zap.Error(storeErr))
-		}
-	}
-
-	Info("Consumer registered successfully",
-		zap.String("consumerId", req.ConsumerId),
-		zap.String("schemaId", req.SchemaId),
-		zap.String("environment", req.Environment))
-
-	grpcRequestsTotal.WithLabelValues("RegisterConsumer", "success").Inc()
-
-	// Convert endpoint usage to proto format for response
-	protoEndpoints := make([]*pb.EndpointUsage, len(usedEndpoints))
-	for i, eu := range usedEndpoints {
-		protoEndpoints[i] = &pb.EndpointUsage{
-			Method:     eu.Method,
-			Path:       eu.Path,
-			UsedFields: eu.UsedFields,
-		}
-	}
-
-	return &pb.RegisterConsumerResponse{
-		Success: true,
-		Message: "Consumer registered successfully",
-		Consumer: &pb.ConsumerInfo{
-			ConsumerId:      req.ConsumerId,
-			ConsumerVersion: req.ConsumerVersion,
-			SchemaId:        req.SchemaId,
-			SchemaVersion:   req.SchemaVersion,
-			Environment:     req.Environment,
-			RegisteredAt:    now.Unix(),
-			LastValidatedAt: now.Unix(),
-			UsedEndpoints:   protoEndpoints,
-		},
-	}, nil
-}
-
-// ListConsumers returns all consumers that depend on a schema.
-func (s *ValidatorService) ListConsumers(ctx context.Context, req *pb.ListConsumersRequest) (*pb.ListConsumersResponse, error) {
-	start := time.Now()
-	defer func() {
-		grpcRequestDuration.WithLabelValues("ListConsumers").Observe(time.Since(start).Seconds())
-	}()
-
-	Debug("Received ListConsumers request",
-		zap.String("schemaId", req.SchemaId),
-		zap.String("environment", req.Environment))
-
-	if req.SchemaId == "" {
-		grpcRequestsTotal.WithLabelValues("ListConsumers", "failure").Inc()
-		return &pb.ListConsumersResponse{}, nil
-	}
-
-	consumers := s.cache.ListConsumers(req.SchemaId, req.Environment)
-
-	protoConsumers := make([]*pb.ConsumerInfo, len(consumers))
-	for i, c := range consumers {
-		protoEndpoints := make([]*pb.EndpointUsage, len(c.UsedEndpoints))
-		for j, eu := range c.UsedEndpoints {
-			protoEndpoints[j] = &pb.EndpointUsage{
-				Method:     eu.Method,
-				Path:       eu.Path,
-				UsedFields: eu.UsedFields,
-			}
-		}
-		protoConsumers[i] = &pb.ConsumerInfo{
-			ConsumerId:      c.ConsumerID,
-			ConsumerVersion: c.ConsumerVersion,
-			SchemaId:        c.SchemaID,
-			SchemaVersion:   c.SchemaVersion,
-			Environment:     c.Environment,
-			RegisteredAt:    c.RegisteredAt.Unix(),
-			LastValidatedAt: c.LastValidatedAt.Unix(),
-			UsedEndpoints:   protoEndpoints,
-		}
-	}
-
-	grpcRequestsTotal.WithLabelValues("ListConsumers", "success").Inc()
-
-	return &pb.ListConsumersResponse{
-		Consumers: protoConsumers,
-	}, nil
-}
-
-// DeregisterConsumer removes a consumer registration.
-func (s *ValidatorService) DeregisterConsumer(ctx context.Context, req *pb.DeregisterConsumerRequest) (*pb.DeregisterConsumerResponse, error) {
-	start := time.Now()
-	defer func() {
-		grpcRequestDuration.WithLabelValues("DeregisterConsumer").Observe(time.Since(start).Seconds())
-	}()
-
-	Info("Received DeregisterConsumer request",
-		zap.String("consumerId", req.ConsumerId),
-		zap.String("schemaId", req.SchemaId),
-		zap.String("environment", req.Environment))
-
-	if req.ConsumerId == "" {
-		grpcRequestsTotal.WithLabelValues("DeregisterConsumer", "failure").Inc()
-		return &pb.DeregisterConsumerResponse{
-			Success: false,
-			Message: "consumer_id is required",
-		}, nil
-	}
-
-	if req.SchemaId == "" {
-		grpcRequestsTotal.WithLabelValues("DeregisterConsumer", "failure").Inc()
-		return &pb.DeregisterConsumerResponse{
-			Success: false,
-			Message: "schema_id is required",
-		}, nil
-	}
-
-	environment := req.Environment
-	if environment == "" {
-		environment = "dev"
-	}
-
-	removed := s.cache.DeregisterConsumer(req.ConsumerId, req.SchemaId, environment)
-	if !removed {
-		grpcRequestsTotal.WithLabelValues("DeregisterConsumer", "failure").Inc()
-		return &pb.DeregisterConsumerResponse{
-			Success: false,
-			Message: fmt.Sprintf("consumer not found: %s/%s/%s", req.ConsumerId, req.SchemaId, environment),
-		}, nil
-	}
-
-	// Remove from storage if available
-	if s.store != nil {
-		if storeErr := s.store.DeregisterConsumer(ctx, req.ConsumerId, req.SchemaId, environment); storeErr != nil {
-			Warn("Failed to remove consumer from storage",
-				zap.String("consumerId", req.ConsumerId),
-				zap.Error(storeErr))
-		}
-	}
-
-	Info("Consumer deregistered successfully",
-		zap.String("consumerId", req.ConsumerId),
-		zap.String("schemaId", req.SchemaId),
-		zap.String("environment", environment))
-
-	grpcRequestsTotal.WithLabelValues("DeregisterConsumer", "success").Inc()
-
-	return &pb.DeregisterConsumerResponse{
-		Success: true,
-		Message: "Consumer deregistered successfully",
-	}, nil
-}
-
-// CanIDeploy checks if a schema version can be safely deployed.
-// It checks for breaking changes and analyzes impact on registered consumers.
-func (s *ValidatorService) CanIDeploy(ctx context.Context, req *pb.CanIDeployRequest) (*pb.CanIDeployResponse, error) {
-	start := time.Now()
-	defer func() {
-		grpcRequestDuration.WithLabelValues("CanIDeploy").Observe(time.Since(start).Seconds())
-	}()
-
-	Info("Received CanIDeploy request",
-		zap.String("schemaId", req.SchemaId),
-		zap.String("newVersion", req.NewVersion),
-		zap.String("environment", req.Environment))
-
-	// Validate request
-	if req.SchemaId == "" {
-		grpcRequestsTotal.WithLabelValues("CanIDeploy", "failure").Inc()
-		return &pb.CanIDeployResponse{
-			SafeToDeploy: false,
-			Summary:      "schema_id is required",
-		}, nil
-	}
-
-	environment := req.Environment
-	if environment == "" {
-		environment = "prod" // Default to prod for deployment safety
-	}
-
-	// Get the new schema version (cache or storage)
-	_, found := s.getSchemaEntry(ctx, req.SchemaId, "")
-	if !found {
-		grpcRequestsTotal.WithLabelValues("CanIDeploy", "failure").Inc()
-		return &pb.CanIDeployResponse{
-			SafeToDeploy: false,
-			Summary:      fmt.Sprintf("schema not found: %s", req.SchemaId),
-		}, nil
-	}
-
-	// Get the new schema version entry for comparison
-	newEntry, newFound := s.getSchemaEntry(ctx, req.SchemaId, req.NewVersion)
-	if !newFound || newEntry == nil {
-		// Try to get latest if specific version not found
-		newEntry, newFound = s.getSchemaEntry(ctx, req.SchemaId, "")
-		if !newFound || newEntry == nil {
-			grpcRequestsTotal.WithLabelValues("CanIDeploy", "failure").Inc()
-			return &pb.CanIDeployResponse{
-				SafeToDeploy: false,
-				Summary:      fmt.Sprintf("schema version not found: %s@%s", req.SchemaId, req.NewVersion),
-			}, nil
-		}
-	}
-
-	// Get all consumers in the target environment
-	consumers := s.cache.ListConsumers(req.SchemaId, environment)
-
-	// If no consumers, it's safe to deploy
-	if len(consumers) == 0 {
-		grpcRequestsTotal.WithLabelValues("CanIDeploy", "success").Inc()
-		return &pb.CanIDeployResponse{
-			SafeToDeploy: true,
-			Summary:      fmt.Sprintf("No consumers registered for %s in %s environment", req.SchemaId, environment),
-		}, nil
-	}
-
-	// Use CompatibilityEngine to detect actual breaking changes
-	engine := NewCompatibilityEngine()
-	var allBreakingChanges []*pb.BreakingChange
-	var affectedConsumers []*pb.ConsumerImpact
-	allSafe := true
-
-	for _, consumer := range consumers {
-		// If consumer is on the same version or not version-pinned, no need to compare
-		if consumer.SchemaVersion == "" || consumer.SchemaVersion == req.NewVersion {
-			affectedConsumers = append(affectedConsumers, &pb.ConsumerImpact{
-				ConsumerId:           consumer.ConsumerID,
-				ConsumerVersion:      consumer.ConsumerVersion,
-				CurrentSchemaVersion: consumer.SchemaVersion,
-				Environment:          consumer.Environment,
-				WillBreak:            false,
-			})
-			continue
-		}
-
-		// Get the consumer's current schema version for comparison
-		oldEntry, oldFound := s.getSchemaEntry(ctx, req.SchemaId, consumer.SchemaVersion)
-		if !oldFound || oldEntry == nil {
-			// Can't compare if old version not found, mark as potentially affected
-			Info("Cannot find consumer's schema version for comparison",
-				zap.String("consumerId", consumer.ConsumerID),
-				zap.String("schemaVersion", consumer.SchemaVersion))
-
-			affectedConsumers = append(affectedConsumers, &pb.ConsumerImpact{
-				ConsumerId:           consumer.ConsumerID,
-				ConsumerVersion:      consumer.ConsumerVersion,
-				CurrentSchemaVersion: consumer.SchemaVersion,
-				Environment:          consumer.Environment,
-				WillBreak:            true, // Conservative: assume breaking if can't compare
-			})
-			allSafe = false
-			continue
-		}
-
-		// Compare schemas to detect breaking changes
-		changes, _ := engine.CompareSchemas(oldEntry.Document, newEntry.Document)
-
-		// Filter breaking changes to only those affecting this consumer's used endpoints
-		relevantChanges := filterChangesForConsumer(changes, consumer.UsedEndpoints)
-
-		willBreak := len(relevantChanges) > 0
-		if willBreak {
-			allSafe = false
-			allBreakingChanges = append(allBreakingChanges, relevantChanges...)
-		}
-
-		affectedConsumers = append(affectedConsumers, &pb.ConsumerImpact{
-			ConsumerId:           consumer.ConsumerID,
-			ConsumerVersion:      consumer.ConsumerVersion,
-			CurrentSchemaVersion: consumer.SchemaVersion,
-			Environment:          consumer.Environment,
-			WillBreak:            willBreak,
-			RelevantChanges:      relevantChanges,
-		})
-	}
-
-	var summary string
-	if allSafe {
-		summary = fmt.Sprintf("Safe to deploy %s version %s to %s - %d consumer(s) verified",
-			req.SchemaId, req.NewVersion, environment, len(consumers))
-	} else {
-		breakingCount := 0
-		for _, c := range affectedConsumers {
-			if c.WillBreak {
-				breakingCount++
-			}
-		}
-		summary = fmt.Sprintf("Deployment of %s version %s to %s will break %d of %d consumer(s) - review required",
-			req.SchemaId, req.NewVersion, environment, breakingCount, len(affectedConsumers))
-	}
-
-	grpcRequestsTotal.WithLabelValues("CanIDeploy", "success").Inc()
-
-	return &pb.CanIDeployResponse{
-		SafeToDeploy:      allSafe,
-		Summary:           summary,
-		BreakingChanges:   allBreakingChanges,
-		AffectedConsumers: affectedConsumers,
-	}, nil
-}
-
-// filterChangesForConsumer filters breaking changes to only those affecting the consumer's used endpoints.
-func filterChangesForConsumer(changes []*pb.BreakingChange, endpoints []EndpointUsage) []*pb.BreakingChange {
-	if len(endpoints) == 0 {
-		// If no endpoints specified, all changes are relevant (conservative)
-		return changes
-	}
-
-	var relevant []*pb.BreakingChange
-	for _, change := range changes {
-		for _, ep := range endpoints {
-			// Match by path (and optionally method)
-			pathMatches := change.Path == ep.Path || change.Path == "" // Empty path means all paths affected
-			methodMatches := change.Method == "" || change.Method == ep.Method
-
-			if pathMatches && methodMatches {
-				relevant = append(relevant, change)
-				break
-			}
-		}
-	}
-	return relevant
 }

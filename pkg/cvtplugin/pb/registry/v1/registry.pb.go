@@ -218,9 +218,17 @@ func (x *RegisterConsumerUsageRequest) GetRequestId() string {
 }
 
 type EndpointUsage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Method        string                 `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"` // e.g., "GET"
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`     // e.g., "/pets/{id}"
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Method string                 `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"` // e.g., "GET"
+	Path   string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`     // e.g., "/pets/{id}"
+	// Field paths the consumer reads from the response. Optional; populated
+	// when the consumer's contract test declares which response fields it
+	// depends on (e.g., ["id", "email"]). Registry plugins doing precise
+	// impact analysis ("can we drop `phone` safely?") use this; plugins that
+	// ignore it stay backward-compatible.
+	//
+	// Added in plugin proto v1.1 alongside server-side hook wiring (issue #107).
+	UsedFields    []string `protobuf:"bytes,3,rep,name=used_fields,json=usedFields,proto3" json:"used_fields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -267,6 +275,13 @@ func (x *EndpointUsage) GetPath() string {
 		return x.Path
 	}
 	return ""
+}
+
+func (x *EndpointUsage) GetUsedFields() []string {
+	if x != nil {
+		return x.UsedFields
+	}
+	return nil
 }
 
 type RegisterConsumerUsageResponse struct {
@@ -334,10 +349,12 @@ const file_api_protos_plugin_registry_v1_registry_proto_rawDesc = "" +
 	"\venvironment\x18\x04 \x01(\tR\venvironment\x12C\n" +
 	"\tendpoints\x18\x05 \x03(\v2%.cvt.plugin.registry.v1.EndpointUsageR\tendpoints\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x06 \x01(\tR\trequestId\";\n" +
+	"request_id\x18\x06 \x01(\tR\trequestId\"\\\n" +
 	"\rEndpointUsage\x12\x16\n" +
 	"\x06method\x18\x01 \x01(\tR\x06method\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"C\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1f\n" +
+	"\vused_fields\x18\x03 \x03(\tR\n" +
+	"usedFields\"C\n" +
 	"\x1dRegisterConsumerUsageResponse\x12\"\n" +
 	"\facknowledged\x18\x01 \x01(\bR\facknowledged2\x81\x02\n" +
 	"\x10RegistryProvider\x12f\n" +

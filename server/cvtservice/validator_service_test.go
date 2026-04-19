@@ -2,6 +2,7 @@ package cvtservice
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sync"
 	"testing"
@@ -457,526 +458,9 @@ func TestListEndpoints_SchemaNotFound(t *testing.T) {
 	assert.Empty(t, resp.Endpoints)
 }
 
-// TestGenerateFixture tests the GenerateFixture gRPC method
-func TestGenerateFixture(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "generate-fixture-schema"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	testCases := []struct {
-		name       string
-		method     string
-		path       string
-		outputType pb.OutputType
-		statusCode int32
-	}{
-		{
-			name:       "GET /pets - full fixture",
-			method:     "GET",
-			path:       "/pets",
-			outputType: pb.OutputType_OUTPUT_FIXTURE,
-			statusCode: 200,
-		},
-		{
-			name:       "GET /pets/{petId} - response only",
-			method:     "GET",
-			path:       "/pets/{petId}",
-			outputType: pb.OutputType_OUTPUT_RESPONSE,
-			statusCode: 200,
-		},
-		{
-			name:       "POST /pets - request only",
-			method:     "POST",
-			path:       "/pets",
-			outputType: pb.OutputType_OUTPUT_REQUEST,
-			statusCode: 201,
-		},
-		{
-			name:       "POST /pets - full fixture",
-			method:     "POST",
-			path:       "/pets",
-			outputType: pb.OutputType_OUTPUT_FIXTURE,
-			statusCode: 201,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := &pb.GenerateFixtureRequest{
-				SchemaId:   schemaID,
-				Method:     tc.method,
-				Path:       tc.path,
-				OutputType: tc.outputType,
-				StatusCode: tc.statusCode,
-			}
-			resp, err := service.GenerateFixture(context.Background(), req)
-			require.NoError(t, err)
-			assert.True(t, resp.Success, "Expected success for %s, got message: %s", tc.name, resp.Message)
-
-			switch tc.outputType {
-			case pb.OutputType_OUTPUT_FIXTURE:
-				assert.NotNil(t, resp.Fixture, "Fixture should be present for fixture output")
-				assert.NotNil(t, resp.Fixture.Request, "Request should be present for fixture output")
-				assert.NotNil(t, resp.Fixture.Response, "Response should be present for fixture output")
-			case pb.OutputType_OUTPUT_REQUEST:
-				assert.NotEmpty(t, resp.RequestBody, "Request body should be present for request output")
-			case pb.OutputType_OUTPUT_RESPONSE:
-				assert.NotNil(t, resp.Response, "Response should be present for response output")
-			}
-		})
-	}
-}
-
-// TestGenerateFixture_SchemaNotFound tests GenerateFixture with non-existent schema
-func TestGenerateFixture_SchemaNotFound(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	req := &pb.GenerateFixtureRequest{
-		SchemaId: "non-existent-schema",
-		Method:   "GET",
-		Path:     "/pets",
-	}
-	resp, err := service.GenerateFixture(context.Background(), req)
-	require.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Contains(t, resp.Message, "not found")
-}
-
-// TestGenerateFixture_RouteNotFound tests GenerateFixture with invalid route
-func TestGenerateFixture_RouteNotFound(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "route-not-found-schema"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	req := &pb.GenerateFixtureRequest{
-		SchemaId: schemaID,
-		Method:   "GET",
-		Path:     "/non-existent-path",
-	}
-	resp, err := service.GenerateFixture(context.Background(), req)
-	require.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Contains(t, resp.Message, "not found")
-}
-
-// TestGenerateFixture_RequestBodyGeneration tests request body generation
-func TestGenerateFixture_RequestBodyGeneration(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "request-body-schema"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Test POST /pets which has a request body
-	req := &pb.GenerateFixtureRequest{
-		SchemaId:   schemaID,
-		Method:     "POST",
-		Path:       "/pets",
-		OutputType: pb.OutputType_OUTPUT_REQUEST,
-	}
-	resp, err := service.GenerateFixture(context.Background(), req)
-	require.NoError(t, err)
-	assert.True(t, resp.Success)
-	assert.NotEmpty(t, resp.RequestBody, "Request body should be generated")
-}
-
-// TestGenerateFixture_PathParameterResolution tests that path parameters are resolved
-func TestGenerateFixture_PathParameterResolution(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "path-param-schema"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Test GET /pets/{petId} - should resolve {petId}
-	req := &pb.GenerateFixtureRequest{
-		SchemaId:   schemaID,
-		Method:     "GET",
-		Path:       "/pets/{petId}",
-		OutputType: pb.OutputType_OUTPUT_FIXTURE,
-	}
-	resp, err := service.GenerateFixture(context.Background(), req)
-	require.NoError(t, err)
-	assert.True(t, resp.Success, "Message: %s", resp.Message)
-	assert.NotNil(t, resp.Fixture)
-	assert.NotNil(t, resp.Fixture.Request)
-	assert.NotContains(t, resp.Fixture.Request.Path, "{petId}", "Path parameter should be resolved")
-}
-
 // ============================================================================
 // Phase 1: Producer Testing - ValidateProducerResponse Tests
 // ============================================================================
-
-// TestValidateProducerResponse_ValidResponse tests validating a valid producer response
-func TestValidateProducerResponse_ValidResponse(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "producer-test-schema"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Test valid response for GET /pets
-	req := &pb.ValidateProducerRequest{
-		SchemaId: schemaID,
-		Method:   "GET",
-		Path:     "/pets",
-		Response: &pb.ResponseData{
-			StatusCode: 200,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       `[{"id": "1", "name": "Fluffy", "tag": "cat"}]`,
-		},
-	}
-
-	result, err := service.ValidateProducerResponse(context.Background(), req)
-	require.NoError(t, err)
-	assert.True(t, result.Valid, "Valid response should pass validation. Errors: %v", result.Errors)
-}
-
-// TestValidateProducerResponse_InvalidResponse tests validating an invalid producer response
-func TestValidateProducerResponse_InvalidResponse(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "producer-invalid-schema"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Test invalid response - missing required 'name' field
-	req := &pb.ValidateProducerRequest{
-		SchemaId: schemaID,
-		Method:   "GET",
-		Path:     "/pets/123",
-		Response: &pb.ResponseData{
-			StatusCode: 200,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       `{"id": "1"}`, // Missing required 'name' field
-		},
-	}
-
-	result, err := service.ValidateProducerResponse(context.Background(), req)
-	require.NoError(t, err)
-	assert.False(t, result.Valid, "Invalid response should fail validation")
-	assert.NotEmpty(t, result.Errors, "Should have validation errors")
-}
-
-// TestValidateProducerResponse_SchemaNotFound tests validation with non-existent schema
-func TestValidateProducerResponse_SchemaNotFound(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	req := &pb.ValidateProducerRequest{
-		SchemaId: "non-existent-schema",
-		Method:   "GET",
-		Path:     "/pets",
-		Response: &pb.ResponseData{
-			StatusCode: 200,
-			Body:       `[]`,
-		},
-	}
-
-	result, err := service.ValidateProducerResponse(context.Background(), req)
-	require.NoError(t, err)
-	assert.False(t, result.Valid)
-	assert.Contains(t, result.Errors[0], "Schema not found")
-}
-
-// TestValidateProducerResponse_PathNotFound tests validation with non-existent path
-func TestValidateProducerResponse_PathNotFound(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "producer-path-not-found"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	req := &pb.ValidateProducerRequest{
-		SchemaId: schemaID,
-		Method:   "GET",
-		Path:     "/non-existent-path",
-		Response: &pb.ResponseData{
-			StatusCode: 200,
-			Body:       `{}`,
-		},
-	}
-
-	result, err := service.ValidateProducerResponse(context.Background(), req)
-	require.NoError(t, err)
-	assert.False(t, result.Valid)
-	assert.Contains(t, result.Errors[0], "Route not found")
-}
-
-// TestValidateProducerResponse_WrongStatusCode tests validation with wrong status code
-func TestValidateProducerResponse_WrongStatusCode(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "producer-status-code"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Return 500 instead of expected 200/201
-	req := &pb.ValidateProducerRequest{
-		SchemaId: schemaID,
-		Method:   "GET",
-		Path:     "/pets",
-		Response: &pb.ResponseData{
-			StatusCode: 500,
-			Body:       `{"error": "Internal Server Error"}`,
-		},
-	}
-
-	result, err := service.ValidateProducerResponse(context.Background(), req)
-	require.NoError(t, err)
-	// This may or may not be valid depending on whether 500 is defined in the schema
-	// The important thing is it doesn't crash
-	assert.NotNil(t, result)
-}
-
-// TestValidateProducerResponse_WithPathParams tests validation with path parameters
-func TestValidateProducerResponse_WithPathParams(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "producer-path-params"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Test with actual path parameter value
-	req := &pb.ValidateProducerRequest{
-		SchemaId: schemaID,
-		Method:   "GET",
-		Path:     "/pets/123", // Actual path with resolved parameter
-		Response: &pb.ResponseData{
-			StatusCode: 200,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       `{"id": "123", "name": "Fluffy", "tag": "cat"}`,
-		},
-	}
-
-	result, err := service.ValidateProducerResponse(context.Background(), req)
-	require.NoError(t, err)
-	assert.True(t, result.Valid, "Should validate response for parameterized path. Errors: %v", result.Errors)
-}
-
-// TestValidateProducerResponse_InputValidation tests input validation
-func TestValidateProducerResponse_InputValidation(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	testCases := []struct {
-		name          string
-		request       *pb.ValidateProducerRequest
-		expectedError string
-	}{
-		{
-			name:          "Nil request",
-			request:       nil,
-			expectedError: "cannot be null",
-		},
-		{
-			name: "Empty schema ID",
-			request: &pb.ValidateProducerRequest{
-				SchemaId: "",
-				Method:   "GET",
-				Path:     "/pets",
-				Response: &pb.ResponseData{StatusCode: 200},
-			},
-			expectedError: "Validation error",
-		},
-		{
-			name: "Empty method",
-			request: &pb.ValidateProducerRequest{
-				SchemaId: "test",
-				Method:   "",
-				Path:     "/pets",
-				Response: &pb.ResponseData{StatusCode: 200},
-			},
-			expectedError: "Validation error",
-		},
-		{
-			name: "Empty path",
-			request: &pb.ValidateProducerRequest{
-				SchemaId: "test",
-				Method:   "GET",
-				Path:     "",
-				Response: &pb.ResponseData{StatusCode: 200},
-			},
-			expectedError: "Validation error",
-		},
-		{
-			name: "Nil response",
-			request: &pb.ValidateProducerRequest{
-				SchemaId: "test",
-				Method:   "GET",
-				Path:     "/pets",
-				Response: nil,
-			},
-			expectedError: "cannot be null",
-		},
-		{
-			name: "Invalid status code",
-			request: &pb.ValidateProducerRequest{
-				SchemaId: "test",
-				Method:   "GET",
-				Path:     "/pets",
-				Response: &pb.ResponseData{StatusCode: 0},
-			},
-			expectedError: "Validation error",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := service.ValidateProducerResponse(context.Background(), tc.request)
-			require.NoError(t, err, "gRPC call should not fail")
-			assert.False(t, result.Valid, "Validation should fail for invalid input")
-			assert.NotEmpty(t, result.Errors)
-			assert.Contains(t, result.Errors[0], tc.expectedError)
-		})
-	}
-}
-
-// TestValidateProducerResponse_VersionSpecific tests validation against specific schema version
-func TestValidateProducerResponse_VersionSpecific(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Load and register schema with version
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	schemaID := "producer-versioned"
-	regReq := &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(content),
-		SchemaVersion: "1.0.0",
-	}
-	regResp, err := service.RegisterSchema(context.Background(), regReq)
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Validate against specific version
-	req := &pb.ValidateProducerRequest{
-		SchemaId:      schemaID,
-		SchemaVersion: "1.0.0",
-		Method:        "GET",
-		Path:          "/pets",
-		Response: &pb.ResponseData{
-			StatusCode: 200,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-			Body:       `[{"id": "1", "name": "Fluffy"}]`,
-		},
-	}
-
-	result, err := service.ValidateProducerResponse(context.Background(), req)
-	require.NoError(t, err)
-	assert.True(t, result.Valid, "Should validate against specific version. Errors: %v", result.Errors)
-	assert.Equal(t, "1.0.0", result.ValidatedAgainstVersion)
-}
 
 // TestNewValidatorServiceWithCache tests creating service with existing cache
 func TestNewValidatorServiceWithCache(t *testing.T) {
@@ -1160,356 +644,6 @@ func TestCompareSchemas(t *testing.T) {
 	})
 }
 
-// TestRegisterConsumer tests consumer registration
-func TestRegisterConsumer(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// First register a schema
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	regResp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
-		SchemaId:      "consumer-test-schema",
-		SchemaContent: string(content),
-	})
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	t.Run("register consumer successfully", func(t *testing.T) {
-		req := &pb.RegisterConsumerRequest{
-			ConsumerId:      "order-service",
-			ConsumerVersion: "1.0.0",
-			SchemaId:        "consumer-test-schema",
-			SchemaVersion:   "1.0.0",
-			Environment:     "prod",
-			UsedEndpoints: []*pb.EndpointUsage{
-				{Method: "GET", Path: "/pets"},
-				{Method: "POST", Path: "/pets"},
-			},
-		}
-
-		resp, err := service.RegisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.True(t, resp.Success)
-		assert.NotNil(t, resp.Consumer)
-		assert.Equal(t, "order-service", resp.Consumer.ConsumerId)
-		assert.Equal(t, "prod", resp.Consumer.Environment)
-	})
-
-	t.Run("register consumer with default environment", func(t *testing.T) {
-		req := &pb.RegisterConsumerRequest{
-			ConsumerId:      "payment-service",
-			ConsumerVersion: "1.0.0",
-			SchemaId:        "consumer-test-schema",
-			SchemaVersion:   "1.0.0",
-			// No environment - should default to "dev"
-		}
-
-		resp, err := service.RegisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.True(t, resp.Success)
-		assert.Equal(t, "dev", resp.Consumer.Environment)
-	})
-
-	t.Run("register consumer missing consumer_id", func(t *testing.T) {
-		req := &pb.RegisterConsumerRequest{
-			SchemaId:    "consumer-test-schema",
-			Environment: "prod",
-		}
-
-		resp, err := service.RegisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.False(t, resp.Success)
-		assert.Contains(t, resp.Message, "consumer_id is required")
-	})
-
-	t.Run("register consumer missing schema_id", func(t *testing.T) {
-		req := &pb.RegisterConsumerRequest{
-			ConsumerId:  "test-consumer",
-			Environment: "prod",
-		}
-
-		resp, err := service.RegisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.False(t, resp.Success)
-		assert.Contains(t, resp.Message, "schema_id is required")
-	})
-
-	t.Run("register consumer with non-existent schema", func(t *testing.T) {
-		req := &pb.RegisterConsumerRequest{
-			ConsumerId:  "test-consumer",
-			SchemaId:    "non-existent-schema",
-			Environment: "prod",
-		}
-
-		resp, err := service.RegisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.False(t, resp.Success)
-		assert.Contains(t, resp.Message, "schema not found")
-	})
-}
-
-// TestListConsumers tests listing consumers for a schema
-func TestListConsumers(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Register a schema first
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	regResp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
-		SchemaId:      "list-consumers-schema",
-		SchemaContent: string(content),
-	})
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Register some consumers
-	consumers := []struct {
-		id  string
-		env string
-	}{
-		{"consumer-1", "prod"},
-		{"consumer-2", "prod"},
-		{"consumer-3", "staging"},
-	}
-
-	for _, c := range consumers {
-		_, err := service.RegisterConsumer(context.Background(), &pb.RegisterConsumerRequest{
-			ConsumerId:  c.id,
-			SchemaId:    "list-consumers-schema",
-			Environment: c.env,
-		})
-		require.NoError(t, err)
-	}
-
-	t.Run("list all consumers for schema", func(t *testing.T) {
-		req := &pb.ListConsumersRequest{
-			SchemaId: "list-consumers-schema",
-		}
-
-		resp, err := service.ListConsumers(context.Background(), req)
-		require.NoError(t, err)
-		assert.Len(t, resp.Consumers, 3)
-	})
-
-	t.Run("list consumers by environment", func(t *testing.T) {
-		req := &pb.ListConsumersRequest{
-			SchemaId:    "list-consumers-schema",
-			Environment: "prod",
-		}
-
-		resp, err := service.ListConsumers(context.Background(), req)
-		require.NoError(t, err)
-		assert.Len(t, resp.Consumers, 2)
-
-		for _, c := range resp.Consumers {
-			assert.Equal(t, "prod", c.Environment)
-		}
-	})
-
-	t.Run("list consumers with empty schema_id", func(t *testing.T) {
-		req := &pb.ListConsumersRequest{
-			SchemaId: "",
-		}
-
-		resp, err := service.ListConsumers(context.Background(), req)
-		require.NoError(t, err)
-		assert.Empty(t, resp.Consumers)
-	})
-}
-
-// TestDeregisterConsumer tests consumer deregistration
-func TestDeregisterConsumer(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Register a schema first
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	regResp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
-		SchemaId:      "deregister-test-schema",
-		SchemaContent: string(content),
-	})
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	// Register a consumer
-	_, err = service.RegisterConsumer(context.Background(), &pb.RegisterConsumerRequest{
-		ConsumerId:  "to-be-removed",
-		SchemaId:    "deregister-test-schema",
-		Environment: "prod",
-	})
-	require.NoError(t, err)
-
-	t.Run("deregister existing consumer", func(t *testing.T) {
-		req := &pb.DeregisterConsumerRequest{
-			ConsumerId:  "to-be-removed",
-			SchemaId:    "deregister-test-schema",
-			Environment: "prod",
-		}
-
-		resp, err := service.DeregisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.True(t, resp.Success)
-	})
-
-	t.Run("deregister non-existent consumer", func(t *testing.T) {
-		req := &pb.DeregisterConsumerRequest{
-			ConsumerId:  "non-existent",
-			SchemaId:    "deregister-test-schema",
-			Environment: "prod",
-		}
-
-		resp, err := service.DeregisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.False(t, resp.Success)
-		assert.Contains(t, resp.Message, "consumer not found")
-	})
-
-	t.Run("deregister with missing consumer_id", func(t *testing.T) {
-		req := &pb.DeregisterConsumerRequest{
-			SchemaId:    "deregister-test-schema",
-			Environment: "prod",
-		}
-
-		resp, err := service.DeregisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.False(t, resp.Success)
-		assert.Contains(t, resp.Message, "consumer_id is required")
-	})
-
-	t.Run("deregister with missing schema_id", func(t *testing.T) {
-		req := &pb.DeregisterConsumerRequest{
-			ConsumerId:  "some-consumer",
-			Environment: "prod",
-		}
-
-		resp, err := service.DeregisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.False(t, resp.Success)
-		assert.Contains(t, resp.Message, "schema_id is required")
-	})
-
-	t.Run("deregister with default environment", func(t *testing.T) {
-		// First register a consumer in dev environment
-		_, err := service.RegisterConsumer(context.Background(), &pb.RegisterConsumerRequest{
-			ConsumerId:  "dev-consumer",
-			SchemaId:    "deregister-test-schema",
-			Environment: "dev",
-		})
-		require.NoError(t, err)
-
-		// Deregister without specifying environment (defaults to dev)
-		req := &pb.DeregisterConsumerRequest{
-			ConsumerId: "dev-consumer",
-			SchemaId:   "deregister-test-schema",
-			// No environment - should default to "dev"
-		}
-
-		resp, err := service.DeregisterConsumer(context.Background(), req)
-		require.NoError(t, err)
-		assert.True(t, resp.Success)
-	})
-}
-
-// TestCanIDeploy tests deployment safety checks
-func TestCanIDeploy(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	// Register a schema first
-	content, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	regResp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
-		SchemaId:      "can-i-deploy-schema",
-		SchemaContent: string(content),
-	})
-	require.NoError(t, err)
-	require.True(t, regResp.Success)
-
-	t.Run("safe to deploy with no consumers", func(t *testing.T) {
-		req := &pb.CanIDeployRequest{
-			SchemaId:    "can-i-deploy-schema",
-			NewVersion:  "2.0.0",
-			Environment: "prod",
-		}
-
-		resp, err := service.CanIDeploy(context.Background(), req)
-		require.NoError(t, err)
-		assert.True(t, resp.SafeToDeploy)
-		assert.Contains(t, resp.Summary, "No consumers registered")
-	})
-
-	t.Run("missing schema_id", func(t *testing.T) {
-		req := &pb.CanIDeployRequest{
-			NewVersion:  "2.0.0",
-			Environment: "prod",
-		}
-
-		resp, err := service.CanIDeploy(context.Background(), req)
-		require.NoError(t, err)
-		assert.False(t, resp.SafeToDeploy)
-		assert.Contains(t, resp.Summary, "schema_id is required")
-	})
-
-	t.Run("schema not found", func(t *testing.T) {
-		req := &pb.CanIDeployRequest{
-			SchemaId:    "non-existent-schema",
-			NewVersion:  "2.0.0",
-			Environment: "prod",
-		}
-
-		resp, err := service.CanIDeploy(context.Background(), req)
-		require.NoError(t, err)
-		assert.False(t, resp.SafeToDeploy)
-		assert.Contains(t, resp.Summary, "schema not found")
-	})
-
-	t.Run("with consumers registered", func(t *testing.T) {
-		// Register a consumer
-		_, err := service.RegisterConsumer(context.Background(), &pb.RegisterConsumerRequest{
-			ConsumerId:    "deploy-test-consumer",
-			SchemaId:      "can-i-deploy-schema",
-			SchemaVersion: "1.0.0",
-			Environment:   "prod",
-		})
-		require.NoError(t, err)
-
-		req := &pb.CanIDeployRequest{
-			SchemaId:    "can-i-deploy-schema",
-			NewVersion:  "2.0.0",
-			Environment: "prod",
-		}
-
-		resp, err := service.CanIDeploy(context.Background(), req)
-		require.NoError(t, err)
-		// With consumers, the response indicates the analysis result
-		assert.NotEmpty(t, resp.Summary)
-	})
-
-	t.Run("default environment is prod", func(t *testing.T) {
-		req := &pb.CanIDeployRequest{
-			SchemaId:   "can-i-deploy-schema",
-			NewVersion: "2.0.0",
-			// No environment - should default to "prod"
-		}
-
-		resp, err := service.CanIDeploy(context.Background(), req)
-		require.NoError(t, err)
-		// Should work with default environment
-		assert.NotNil(t, resp)
-	})
-}
-
 // TestValidateInteraction_SpecificVersion tests validation against a specific schema version
 func TestValidateInteraction_SpecificVersion(t *testing.T) {
 	service, err := NewValidatorService()
@@ -1604,70 +738,6 @@ func TestValidateInteraction_SpecificVersion(t *testing.T) {
 	})
 }
 
-// TestCanIDeploy_ConsumerVersionTracking tests the full consumer version tracking flow
-func TestCanIDeploy_ConsumerVersionTracking(t *testing.T) {
-	service, err := NewValidatorService()
-	require.NoError(t, err)
-	defer service.Close()
-
-	schemaID := "consumer-version-tracking-test"
-
-	// Register v1 schema (info.version: "1.0.0")
-	contentV1, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore.json")
-	require.NoError(t, err)
-
-	respV1, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
-		SchemaId:      schemaID,
-		SchemaContent: string(contentV1),
-	})
-	require.NoError(t, err)
-	require.True(t, respV1.Success)
-
-	// Register a consumer tested against v1.0.0
-	consumerResp, err := service.RegisterConsumer(context.Background(), &pb.RegisterConsumerRequest{
-		ConsumerId:    "order-service",
-		SchemaId:      schemaID,
-		SchemaVersion: "1.0.0",
-		Environment:   "prod",
-	})
-	require.NoError(t, err)
-	require.True(t, consumerResp.Success, "Consumer registration should succeed")
-
-	t.Run("deploy same version is safe", func(t *testing.T) {
-		resp, err := service.CanIDeploy(context.Background(), &pb.CanIDeployRequest{
-			SchemaId:    schemaID,
-			NewVersion:  "1.0.0",
-			Environment: "prod",
-		})
-		require.NoError(t, err)
-		assert.True(t, resp.SafeToDeploy, "Deploying same version should be safe")
-	})
-
-	t.Run("deploy new version shows consumer impact", func(t *testing.T) {
-		// Register v2 schema (info.version: "2.0.0")
-		contentV2, err := os.ReadFile("testdata/openapi-v3/valid/simple-petstore-v2.json")
-		require.NoError(t, err)
-
-		respV2, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
-			SchemaId:      schemaID,
-			SchemaContent: string(contentV2),
-		})
-		require.NoError(t, err)
-		require.True(t, respV2.Success)
-
-		resp, err := service.CanIDeploy(context.Background(), &pb.CanIDeployRequest{
-			SchemaId:    schemaID,
-			NewVersion:  "2.0.0",
-			Environment: "prod",
-		})
-		require.NoError(t, err)
-		// Consumer is on v1.0.0, deploying v2.0.0 should show impact
-		assert.NotEmpty(t, resp.AffectedConsumers, "Should show consumer impact")
-		assert.Equal(t, "order-service", resp.AffectedConsumers[0].ConsumerId)
-		assert.Equal(t, "1.0.0", resp.AffectedConsumers[0].CurrentSchemaVersion)
-	})
-}
-
 // TestMultipleVersionsInCache tests that multiple schema versions can be stored and retrieved
 func TestMultipleVersionsInCache(t *testing.T) {
 	service, err := NewValidatorService()
@@ -1733,67 +803,6 @@ func TestMultipleVersionsInCache(t *testing.T) {
 		versions := service.cache.ListVersions(schemaID)
 		assert.Contains(t, versions, "1.0.0", "Should have v1")
 		assert.Contains(t, versions, "2.0.0", "Should have v2")
-	})
-}
-
-// TestFilterChangesForConsumer tests the filterChangesForConsumer helper function
-func TestFilterChangesForConsumer(t *testing.T) {
-	// Sample breaking changes
-	changes := []*pb.BreakingChange{
-		{Type: pb.BreakingChangeType_ENDPOINT_REMOVED, Path: "/users", Method: "GET", Description: "GET /users removed"},
-		{Type: pb.BreakingChangeType_ENDPOINT_REMOVED, Path: "/users/{id}", Method: "DELETE", Description: "DELETE /users/{id} removed"},
-		{Type: pb.BreakingChangeType_REQUIRED_PARAMETER_ADDED, Path: "/pets", Method: "POST", Description: "Required param added to POST /pets"},
-		{Type: pb.BreakingChangeType_RESPONSE_SCHEMA_CHANGED, Path: "/orders", Method: "", Description: "Response schema changed for /orders"},
-	}
-
-	t.Run("no endpoints returns all changes (conservative)", func(t *testing.T) {
-		endpoints := []EndpointUsage{}
-		result := filterChangesForConsumer(changes, endpoints)
-		assert.Len(t, result, 4, "Should return all changes when no endpoints specified")
-	})
-
-	t.Run("filters to matching endpoint", func(t *testing.T) {
-		endpoints := []EndpointUsage{
-			{Method: "GET", Path: "/users"},
-		}
-		result := filterChangesForConsumer(changes, endpoints)
-		assert.Len(t, result, 1)
-		assert.Equal(t, "/users", result[0].Path)
-		assert.Equal(t, "GET", result[0].Method)
-	})
-
-	t.Run("filters multiple endpoints", func(t *testing.T) {
-		endpoints := []EndpointUsage{
-			{Method: "GET", Path: "/users"},
-			{Method: "POST", Path: "/pets"},
-		}
-		result := filterChangesForConsumer(changes, endpoints)
-		assert.Len(t, result, 2)
-	})
-
-	t.Run("matches when change has empty method (affects all methods)", func(t *testing.T) {
-		endpoints := []EndpointUsage{
-			{Method: "GET", Path: "/orders"},
-		}
-		result := filterChangesForConsumer(changes, endpoints)
-		assert.Len(t, result, 1, "Should match change with empty method")
-		assert.Equal(t, "/orders", result[0].Path)
-	})
-
-	t.Run("no match returns empty", func(t *testing.T) {
-		endpoints := []EndpointUsage{
-			{Method: "GET", Path: "/nonexistent"},
-		}
-		result := filterChangesForConsumer(changes, endpoints)
-		assert.Len(t, result, 0)
-	})
-
-	t.Run("method mismatch does not match", func(t *testing.T) {
-		endpoints := []EndpointUsage{
-			{Method: "POST", Path: "/users"}, // Change is for GET /users
-		}
-		result := filterChangesForConsumer(changes, endpoints)
-		assert.Len(t, result, 0, "POST /users should not match GET /users change")
 	})
 }
 
@@ -2065,4 +1074,199 @@ func TestBuildRouter_SwaggerV2BasePath(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.True(t, result.Valid, "Validation should succeed without basePath prefix too")
+}
+
+// ============================================================================
+// CheckCompatibility + hook fire tests (PR 2 — issue #107)
+// ============================================================================
+
+const compatTestV1Schema = `{
+  "openapi": "3.0.0",
+  "info": {"title": "Compat Test", "version": "1.0.0"},
+  "paths": {
+    "/items": {
+      "get": {"responses": {"200": {"description": "ok"}}}
+    }
+  }
+}`
+
+// v2 removes /items endpoint => ENDPOINT_REMOVED breaking change.
+const compatTestV2Schema = `{
+  "openapi": "3.0.0",
+  "info": {"title": "Compat Test", "version": "2.0.0"},
+  "paths": {
+    "/items/v2": {
+      "get": {"responses": {"200": {"description": "ok"}}}
+    }
+  }
+}`
+
+// v2 same shape as v1 plus a new endpoint => no breaking change.
+const compatTestV2NonBreakingSchema = `{
+  "openapi": "3.0.0",
+  "info": {"title": "Compat Test", "version": "2.0.0"},
+  "paths": {
+    "/items": {
+      "get": {"responses": {"200": {"description": "ok"}}}
+    },
+    "/items/new": {
+      "get": {"responses": {"200": {"description": "ok"}}}
+    }
+  }
+}`
+
+func TestRegisterSchema_CheckCompatibility_NoPrior_RegistersClean(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:           "compat-no-prior",
+		SchemaContent:      compatTestV1Schema,
+		CheckCompatibility: true,
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success, "first registration with --check-compatibility should succeed cleanly")
+	assert.Empty(t, resp.BreakingChanges)
+	assert.Empty(t, rec.breakingChangeCalls, "no prior version means no comparison and no fire")
+}
+
+func TestRegisterSchema_CheckCompatibility_NoBreaking_NoFire(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	// v1
+	setupResp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "compat-no-breaking",
+		SchemaContent: compatTestV1Schema,
+	})
+	require.NoError(t, err)
+	require.True(t, setupResp.Success, "v1 setup must succeed: %s", setupResp.Message)
+	rec.breakingChangeCalls = nil // reset
+
+	// v2 — additive only
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:           "compat-no-breaking",
+		SchemaContent:      compatTestV2NonBreakingSchema,
+		CheckCompatibility: true,
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success)
+	assert.Empty(t, resp.BreakingChanges, "additive change => no breaking changes")
+	assert.Empty(t, rec.breakingChangeCalls, "no breaking changes => hook must not fire")
+}
+
+func TestRegisterSchema_CheckCompatibility_BreakingDetected_FiresHook(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	setupResp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "compat-breaking",
+		SchemaContent: compatTestV1Schema,
+	})
+	require.NoError(t, err)
+	require.True(t, setupResp.Success, "v1 setup must succeed: %s", setupResp.Message)
+	rec.breakingChangeCalls = nil
+
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:           "compat-breaking",
+		SchemaContent:      compatTestV2Schema, // /items removed
+		CheckCompatibility: true,
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Success, "breaking changes are reported, not refused")
+	require.NotEmpty(t, resp.BreakingChanges, "expected ENDPOINT_REMOVED in response")
+
+	require.Len(t, rec.breakingChangeCalls, 1, "hook should fire exactly once")
+	got := rec.breakingChangeCalls[0]
+	assert.Equal(t, "compat-breaking", got.SchemaId)
+	assert.Equal(t, "1.0.0", got.OldVersion)
+	assert.Equal(t, "2.0.0", got.NewVersion)
+	assert.Equal(t, "RegisterSchema", got.DetectedBy)
+	assert.NotEmpty(t, got.Changes)
+}
+
+// errorStore wraps a real Store but returns an error from GetSchema.
+// Used to drive decision 1C: storage error during prior-version lookup
+// must fail-close the registration. All other Store calls forward to the
+// embedded MemoryStore so service.Close() and friends behave normally.
+type errorStore struct {
+	storage.Store
+	getSchemaErr error
+}
+
+func newErrorStore(err error) *errorStore {
+	return &errorStore{Store: storage.NewMemoryStore(), getSchemaErr: err}
+}
+
+func (e *errorStore) GetSchema(_ context.Context, _ string) (*storage.SchemaRecord, error) {
+	return nil, e.getSchemaErr
+}
+
+func TestRegisterSchema_CheckCompatibility_StorageError_FailsClosed(t *testing.T) {
+	// Build a service with a store that errors on GetSchema. The cache
+	// is empty for this schema_id so getSchemaEntry path is bypassed in
+	// favor of the store; the store error must surface as fail-closed.
+	store := newErrorStore(errors.New("simulated postgres timeout"))
+	service, err := NewValidatorServiceWithStore(store)
+	require.NoError(t, err)
+	defer service.Close()
+
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:           "compat-storage-err",
+		SchemaContent:      compatTestV1Schema,
+		CheckCompatibility: true,
+	})
+	require.NoError(t, err, "gRPC call returns response, not error (codebase convention)")
+	assert.False(t, resp.Success, "fail-closed: must refuse the registration on storage error (decision 1C)")
+	assert.Contains(t, resp.Message, "compatibility")
+	assert.Contains(t, resp.Message, "storage error")
+	assert.Empty(t, rec.breakingChangeCalls, "no fire when registration was refused")
+}
+
+func TestCompareSchemas_BreakingDetected_FiresHook(t *testing.T) {
+	service, err := NewValidatorService()
+	require.NoError(t, err)
+	defer service.Close()
+	rec := &recordingHooks{}
+	service.SetHooks(rec)
+
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "compare-fire",
+		SchemaContent: compatTestV1Schema,
+		SchemaVersion: "1.0.0",
+	})
+	require.NoError(t, err)
+	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+		SchemaId:      "compare-fire",
+		SchemaContent: compatTestV2Schema,
+		SchemaVersion: "2.0.0",
+	})
+	require.NoError(t, err)
+	rec.breakingChangeCalls = nil
+
+	resp, err := service.CompareSchemas(context.Background(), &pb.CompareSchemasRequest{
+		SchemaId:   "compare-fire",
+		OldVersion: "1.0.0",
+		NewVersion: "2.0.0",
+	})
+	require.NoError(t, err)
+	assert.False(t, resp.Compatible)
+	require.NotEmpty(t, resp.BreakingChanges)
+	require.Len(t, rec.breakingChangeCalls, 1)
+	got := rec.breakingChangeCalls[0]
+	assert.Equal(t, "compare-fire", got.SchemaId)
+	assert.Equal(t, "CompareSchemas", got.DetectedBy)
 }

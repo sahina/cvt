@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -15,6 +16,15 @@ var (
 	commit    = "none"
 	buildDate = "unknown"
 )
+
+// errExit lets a subcommand request a specific non-zero exit code without
+// triggering cobra's "Error: ..." print AND without bypassing
+// runPluginShutdown via os.Exit. RunE returns errExit{code: 1} from the
+// validation-failure / breaking-change paths; main inspects it after
+// runPluginShutdown and exits with the encoded code.
+type errExit struct{ code int }
+
+func (e errExit) Error() string { return fmt.Sprintf("exit %d", e.code) }
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -51,7 +61,18 @@ Examples:
 	rootCmd.AddCommand(pluginsCmd())
 	rootCmd.AddCommand(versionCmd())
 
-	if err := rootCmd.Execute(); err != nil {
+	installPluginBootstrap(rootCmd)
+
+	err := rootCmd.Execute()
+	runPluginShutdown()
+	if err != nil {
+		// Subcommands signaling a specific exit code go through errExit
+		// — they've already printed user-facing output, so we just exit
+		// with the encoded code (no "Error: ..." prefix).
+		var ee errExit
+		if errors.As(err, &ee) {
+			os.Exit(ee.code)
+		}
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
