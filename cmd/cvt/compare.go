@@ -102,7 +102,12 @@ Examples:
 						}
 						fmt.Println()
 					}
-					os.Exit(1)
+					// Return through cobra so main runs runPluginShutdown
+					// before exiting; os.Exit here would orphan plugin
+					// subprocesses on every failed CI breaking-change check.
+					cmd.SilenceErrors = true
+					cmd.SilenceUsage = true
+					return errExit{code: 1}
 				}
 			}
 

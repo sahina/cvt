@@ -96,7 +96,10 @@ func bootstrapWithPaths(ctx context.Context, configPath, pluginRoot, statePath s
 	state, err := pluginmgr.ReadState(statePath)
 	if err != nil {
 		// Treat unreadable state as empty; pluginmgr will reject binaries
-		// that aren't recorded if it needs them.
+		// that aren't recorded if it needs them. Log so the operator can
+		// trace a confusing "binary not in state" error back to the real
+		// cause (corrupt state file, permissions, etc.).
+		fmt.Fprintf(os.Stderr, "warning: failed to read plugin state from %s: %v (treating as empty)\n", statePath, err)
 		state = &pluginmgr.StateFile{}
 	}
 	mgr := pluginmgr.New(cfg, state, pluginmgr.Options{})

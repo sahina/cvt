@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi2"
@@ -24,6 +26,27 @@ import (
 	"go.uber.org/zap"
 )
 
+// hooksHolder wraps the cvt.Hooks interface so it can live behind an
+// atomic.Pointer (atomic.Value would panic on type changes between
+// SetHooks calls because cvt.Hooks is an interface with multiple
+// concrete implementations).
+type hooksHolder struct{ h cvt.Hooks }
+
+// schemaCompatLocks gives CheckCompatibility a per-schema-ID critical
+// section so two concurrent RegisterSchema calls for the same schema_id
+// can't race on the lookup-prior → compare → cache.Set sequence. Worst-
+// case race without the lock: caller A reads prior=v1, caller B reads
+// prior=v1, both write v2 + v3, both fire breaking-change hooks against
+// the wrong baseline.
+type schemaCompatLocks struct{ m sync.Map } // map[string]*sync.Mutex
+
+func (l *schemaCompatLocks) lock(schemaID string) func() {
+	v, _ := l.m.LoadOrStore(schemaID, &sync.Mutex{})
+	mu := v.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
 // ValidatorService implements the ContractValidator gRPC service.
 // It provides two main operations:
 // 1. RegisterSchema - Registers an OpenAPI schema for later validation
@@ -32,25 +55,29 @@ import (
 // The service maintains a cache of registered schemas for efficient validation.
 type ValidatorService struct {
 	pb.UnimplementedContractValidatorServer
-	cache     *SchemaCache
-	store     storage.Store  // Optional persistent storage (nil = cache-only)
-	generator *cvt.Validator // Embedded generator for fixture generation (delegates to pkg/cvt)
-	hooks     cvt.Hooks      // Optional plugin hooks (nil = NoopHooks via hooksOrNoop)
+	cache       *SchemaCache
+	store       storage.Store  // Optional persistent storage (nil = cache-only)
+	generator   *cvt.Validator // Embedded generator for fixture generation (delegates to pkg/cvt)
+	hooks       atomic.Pointer[hooksHolder]
+	compatLocks schemaCompatLocks
 }
 
-// SetHooks installs a plugin Hooks adapter on the service. cmd/cvt/serve.go
-// calls this after constructing the plugin manager. Tests typically leave
-// hooks nil; hooksOrNoop returns NoopHooks{} in that case so call sites
-// stay simple.
-func (s *ValidatorService) SetHooks(h cvt.Hooks) { s.hooks = h }
+// SetHooks installs a plugin Hooks adapter on the service. Safe to call
+// concurrently (atomic.Pointer); the most recent value wins. cmd/cvt/serve.go
+// calls this once before Serve; future hot-reload paths can call it
+// repeatedly without a data race. Tests typically leave hooks unset;
+// hooksOrNoop returns NoopHooks{} in that case so call sites stay simple.
+func (s *ValidatorService) SetHooks(h cvt.Hooks) {
+	s.hooks.Store(&hooksHolder{h: h})
+}
 
 // hooksOrNoop returns the configured hooks adapter or a NoopHooks{} when
 // none has been set. Mirrors *Validator.hooksOrNoop in pkg/cvt.
 func (s *ValidatorService) hooksOrNoop() cvt.Hooks {
-	if s.hooks == nil {
-		return cvt.NoopHooks{}
+	if p := s.hooks.Load(); p != nil && p.h != nil {
+		return p.h
 	}
-	return s.hooks
+	return cvt.NoopHooks{}
 }
 
 // NewValidatorService creates a new instance of ValidatorService with an initialized cache.
@@ -211,11 +238,18 @@ func (s *ValidatorService) RegisterSchema(ctx context.Context, req *pb.RegisterS
 	// version we're about to write. Per decision 1C (eng review), a storage
 	// error during prior-version lookup is fail-closed: we refuse the
 	// registration so the caller knows the safety check did not run.
+	//
+	// Per-schema-ID lock prevents the lookup → cache.Set sequence from
+	// racing across concurrent registrations of the same schema_id. Two
+	// callers racing without this lock can both see prior=v1 and produce
+	// hook events against the wrong baseline.
 	var (
 		breakingChanges []*pb.BreakingChange
 		priorVersion    string
 	)
 	if req.CheckCompatibility {
+		unlock := s.compatLocks.lock(req.SchemaId)
+		defer unlock()
 		prior, found, lookupErr := s.lookupPriorSchemaForCompat(ctx, req.SchemaId)
 		if lookupErr != nil {
 			Error("CheckCompatibility failed: storage error during prior-version lookup",

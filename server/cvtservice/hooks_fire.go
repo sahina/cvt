@@ -19,9 +19,13 @@ import (
 // Errors from the plugin are intentionally ignored. The original RPC
 // already returned its result; hook failures are observability concerns
 // surfaced via the adapter's audit + metrics path, not propagated to the
-// caller.
+// caller. We deliberately use a fresh context.Background() rather than
+// the RPC's ctx: by the time we fire the hook, the response has already
+// been computed, and a client-side cancellation/deadline must NOT cancel
+// the plugin notification (mirrors pkg/cvt/hooks_fire.go). The plugin's
+// own per-call timeout still applies via the adapter.
 func (s *ValidatorService) fireOnBreakingChangeDetected(
-	ctx context.Context,
+	_ context.Context,
 	schemaID, oldVer, newVer string,
 	changes []*pb.BreakingChange,
 	detectedBy string,
@@ -37,7 +41,7 @@ func (s *ValidatorService) fireOnBreakingChangeDetected(
 		Changes:    convertBreakingChanges(changes),
 		DetectedBy: detectedBy,
 	}
-	_, _ = h.OnBreakingChangeDetected(ctx, req)
+	_, _ = h.OnBreakingChangeDetected(context.Background(), req)
 }
 
 // fireRegisterConsumerUsage dispatches the register_consumer_usage hook.
@@ -46,8 +50,9 @@ func (s *ValidatorService) fireOnBreakingChangeDetected(
 // used_fields propagates end-to-end as of plugin proto v1.1.
 //
 // Errors ignored, same rationale as fireOnBreakingChangeDetected.
+// Uses context.Background() for the same client-cancellation reason.
 func (s *ValidatorService) fireRegisterConsumerUsage(
-	ctx context.Context,
+	_ context.Context,
 	req *pb.RegisterConsumerRequest,
 ) {
 	h := s.hooksOrNoop()
@@ -58,5 +63,5 @@ func (s *ValidatorService) fireRegisterConsumerUsage(
 		Environment:   req.Environment,
 		Endpoints:     convertEndpointUsage(req.UsedEndpoints),
 	}
-	_, _ = h.RegisterConsumerUsage(ctx, pluginReq)
+	_, _ = h.RegisterConsumerUsage(context.Background(), pluginReq)
 }
