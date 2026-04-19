@@ -1,7 +1,7 @@
 ---
 name: cvt-breaking-changes
 description: Detect and report breaking changes between OpenAPI schema versions
-sdk_version: "0.5.0"
+sdk_version: "0.6.0"
 ---
 
 # CVT Breaking Changes Detection
