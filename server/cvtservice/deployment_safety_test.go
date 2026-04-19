@@ -66,14 +66,18 @@ func TestCanIDeploy(t *testing.T) {
 	})
 
 	t.Run("with consumers registered", func(t *testing.T) {
-		// Register a consumer
-		_, err := service.RegisterConsumer(context.Background(), &pb.RegisterConsumerRequest{
+		// Register a consumer. RegisterConsumer follows the
+		// response-payload failure convention (Success=false with err=nil),
+		// so assert Success explicitly — otherwise this subtest could
+		// silently exercise the "no consumers" path.
+		consumerResp, err := service.RegisterConsumer(context.Background(), &pb.RegisterConsumerRequest{
 			ConsumerId:    "deploy-test-consumer",
 			SchemaId:      "can-i-deploy-schema",
 			SchemaVersion: "1.0.0",
 			Environment:   "prod",
 		})
 		require.NoError(t, err)
+		require.True(t, consumerResp.Success, "consumer registration must succeed: %s", consumerResp.Message)
 
 		req := &pb.CanIDeployRequest{
 			SchemaId:    "can-i-deploy-schema",

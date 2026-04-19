@@ -773,6 +773,16 @@ func (s *ValidatorService) lookupPriorSchemaForCompat(ctx context.Context, schem
 	if parseErr != nil {
 		return nil, false, fmt.Errorf("rehydrate prior schema: %w", parseErr)
 	}
+	// Validate the rehydrated document before handing it to the
+	// compatibility engine. A persisted schema can drift out of validity
+	// if kin-openapi tightens its rules between releases; we don't want
+	// to feed a malformed doc to engine.CompareSchemas — that turns
+	// "fail-closed on bad input" into "silently report fewer breaking
+	// changes than reality" (decision 1C extends naturally to this case).
+	loader := openapi3.NewLoader()
+	if valErr := doc.Validate(loader.Context); valErr != nil {
+		return nil, false, fmt.Errorf("validate rehydrated prior schema: %w", valErr)
+	}
 	entry := NewSchemaEntry(schemaID, record.Content, doc, record.Version, record.Ownership)
 	return entry, true, nil
 }

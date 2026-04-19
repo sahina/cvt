@@ -1142,11 +1142,12 @@ func TestRegisterSchema_CheckCompatibility_NoBreaking_NoFire(t *testing.T) {
 	service.SetHooks(rec)
 
 	// v1
-	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+	setupResp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
 		SchemaId:      "compat-no-breaking",
 		SchemaContent: compatTestV1Schema,
 	})
 	require.NoError(t, err)
+	require.True(t, setupResp.Success, "v1 setup must succeed: %s", setupResp.Message)
 	rec.breakingChangeCalls = nil // reset
 
 	// v2 — additive only
@@ -1168,11 +1169,12 @@ func TestRegisterSchema_CheckCompatibility_BreakingDetected_FiresHook(t *testing
 	rec := &recordingHooks{}
 	service.SetHooks(rec)
 
-	_, err = service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
+	setupResp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
 		SchemaId:      "compat-breaking",
 		SchemaContent: compatTestV1Schema,
 	})
 	require.NoError(t, err)
+	require.True(t, setupResp.Success, "v1 setup must succeed: %s", setupResp.Message)
 	rec.breakingChangeCalls = nil
 
 	resp, err := service.RegisterSchema(context.Background(), &pb.RegisterSchemaRequest{
