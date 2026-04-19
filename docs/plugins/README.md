@@ -8,19 +8,17 @@ on their own release schedules.
 
 ## Hook call-site status
 
-Three of the four v1 hook call sites are wired today:
+All four v1 hook call sites are wired today:
 
 | Hook | Plugin service | Status |
 |---|---|---|
 | `on_validation_failed` | `EventHandler` | **wired** — fires from `ValidateInteraction` after a non-valid result |
 | `on_breaking_change_detected` | `EventHandler` | **wired** — fires from `CompareSchemas` and from `RegisterSchema` when `--check-compatibility` is set |
 | `register_consumer_usage` | `RegistryProvider` | **wired** — fires from `RegisterConsumer` on success |
-| `fetch_schema` | `RegistryProvider` | SDK + config surface only; core call site deferred pending the schema-by-ID resolution path from [issue #83](https://github.com/sahina/cvt/issues/83) |
+| `fetch_schema` | `RegistryProvider` | **wired** — fires on schema cache miss, before storage fallback, for every RPC that resolves a schema by ID |
 
 Plugins can be written, installed, and configured against all four hook
 names today. The SDK, proto contracts, and config schema are frozen.
-The unwired `fetch_schema` binding is a declarative no-op until its
-call site lands.
 
 ## When to use a plugin
 
@@ -30,8 +28,9 @@ Use a plugin when you want:
   and raw URLs. If your organization hosts schemas in a registry with its
   own API (internal Central API Registry, Backstage, Apicurio), write a
   `RegistryProvider` plugin and point `fetch_schema` / `register_consumer_usage`
-  at it. `register_consumer_usage` fires on every `RegisterConsumer`
-  today; `fetch_schema` is the one hook still awaiting its call site.
+  at it. `register_consumer_usage` fires on every `RegisterConsumer`;
+  `fetch_schema` fires on every schema cache miss before storage is
+  consulted, so a bound plugin is authoritative.
 - **Event integrations.** CVT fires events on breaking-change detection
   and validation failure. Write an `EventHandler` plugin that reacts to
   those events. Both `on_validation_failed` and `on_breaking_change_detected`

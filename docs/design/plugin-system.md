@@ -92,7 +92,7 @@ Four hook points wired via `pkg/cvt.Hooks` (server) and `pkg/cvt.Validator.SetHo
 
 | Hook | Fires in | Maps to plugin call |
 |---|---|---|
-| `fetch_schema` | Deferred to issue #83; not wired in v1 follow-ups (target site: `pkg/cvt/validator.go` before schema-by-ID resolve) | `RegistryProvider.FetchSchema` |
+| `fetch_schema` | `server/cvtservice/validator_service.go` in `getSchemaEntry` — between cache miss and storage lookup, so a bound plugin is authoritative | `RegistryProvider.FetchSchema` |
 | `register_consumer_usage` | `server/cvtservice/consumer_registry.go` at `RegisterConsumer` success | `RegistryProvider.RegisterConsumerUsage` |
 | `on_breaking_change_detected` | `server/cvtservice/validator_service.go` at success returns of `CompareSchemas` and `RegisterSchema --check-compatibility` | `EventHandler.OnBreakingChangeDetected` |
 | `on_validation_failed` | `pkg/cvt/validator.go` after `Validate` returns a non-valid result (CLI path) | `EventHandler.OnValidationFailed` |
@@ -107,7 +107,7 @@ The `RegisterSchema --check-compatibility` flag is server-side enforced as of is
 
 Each hook invokes **at most one plugin**, chosen by config key. Fanout = v1.1.
 
-**Status:** `on_validation_failed` (CLI), `on_breaking_change_detected`, and `register_consumer_usage` are wired as of issue #107. `fetch_schema` is blocked on the issue #83 rewrite.
+**Status:** All four v1 hooks are wired. `on_validation_failed` (CLI), `on_breaking_change_detected`, and `register_consumer_usage` landed with issue #107; `fetch_schema` fires from `getSchemaEntry` on cache miss before storage fallback.
 
 ## Config
 
