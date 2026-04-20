@@ -76,6 +76,10 @@ await validator.registerConsumer({
 
 Full walkthrough: [Consumer Testing → Consumer Registration](./consumer-testing.mdx#consumer-registration).
 
+:::info Who registers the schema itself?
+Either side. `registerConsumer` only references an existing `schemaId` — it doesn't take schema content. If the producer's CI already calls `registerSchema` on each release (the typical mature setup), consumers just reference that `schemaId` and don't register the schema themselves. If the producer hasn't onboarded yet, a consumer can register the schema once and everyone (including `can-i-deploy`) uses it. See the [FAQ entry on producer-already-registered schemas](../getting-started/faq.md#if-the-producer-already-registered-the-schema-do-i-need-to-register-it-again-as-a-consumer).
+:::
+
 :::info No consumers registered yet?
 `can-i-deploy` returns *safe* when no consumers are registered for the schema in that environment — there's nothing to break. This is expected on day one; it becomes load-bearing once consumers start registering. See the [no-consumers troubleshooting](#no-consumers-registered) note below.
 :::

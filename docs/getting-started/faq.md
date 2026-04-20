@@ -31,6 +31,15 @@ By default, extra fields pass validation. This is because OpenAPI's `additionalP
 
 Yes. CVT auto-converts Swagger 2.0 to OpenAPI 3.x at registration time. You don't need to convert your spec manually — just pass it to `registerSchema` as-is.
 
+## If the producer already registered the schema, do I need to register it again as a consumer?
+
+No. The schema registry is shared — there's no concept of "producer-owned" vs. "consumer-owned" schemas. Once any party has called `registerSchema` for a given `schemaId`, anyone else can validate against it by referencing the same ID. Two common flows:
+
+- **Producer registers first (typical in a mature setup)**: the producer's CI publishes the schema to CVT on each release. Consumers call `validate()` and `registerConsumer(...)` against the existing `schemaId` — they never call `registerSchema()` themselves.
+- **Consumer registers first (greenfield / producer not onboarded yet)**: the consumer registers the producer's OpenAPI spec they already have a copy of, then validates their own calls against it. When the producer later adopts CVT, they can take over publishing the schema; the consumer's registration keeps working.
+
+[`registerConsumer`](../guides/consumer-testing.mdx#consumer-registration) only takes a `schemaId` reference, not schema content — so joining an already-registered schema is the same one-call operation regardless of who originally registered it.
+
 ## Do I need to register the schema before every test run?
 
 `registerSchema` is idempotent — calling it with the same ID and content is a no-op. Most teams call it once in `beforeAll` or test setup. If you enable [persistent storage](../reference/configuration.mdx), schemas also survive server restarts, so re-registration on startup is fast (it just confirms the schema is already there).

@@ -18,6 +18,24 @@ The consumer registry enables:
 3. **Breaking change detection**: Identify incompatible schema changes
 4. **Deployment safety**: Prevent breaking changes from reaching production
 
+## Schema Ownership Model
+
+CVT's schema registry is **shared, not role-partitioned**. A schema is identified by its `schemaId` alone — there is no `registeredBy` field, no producer-vs-consumer role flag, and no ownership check in `ValidateInteraction` or `CanIDeploy`. This produces two symmetrical onboarding flows:
+
+**Flow A — Producer registers first (typical mature setup)**
+
+1. Producer's CI publishes the OpenAPI spec via `RegisterSchema` on each release.
+2. Consumer's test suite calls `ValidateInteraction` and `RegisterConsumer` referencing the existing `schemaId`. The consumer never calls `RegisterSchema`.
+3. `CanIDeploy` runs on the producer's next release and sees the consumer's registered dependency.
+
+**Flow B — Consumer registers first (greenfield / producer not onboarded)**
+
+1. Consumer obtains the producer's OpenAPI spec (from source, a portal, etc.) and calls `RegisterSchema` itself.
+2. Consumer calls `ValidateInteraction` and `RegisterConsumer` against the schema it just registered.
+3. When the producer later adopts CVT, they register the next schema version. The consumer's registration — keyed by `schemaId`, not by who registered the schema — keeps working across versions.
+
+`RegisterConsumer` never accepts schema content; it only references an existing `schemaId`. Both flows therefore converge on the same consumer-registry state.
+
 ## Consumer Registration Flow
 
 ```mermaid
