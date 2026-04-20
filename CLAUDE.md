@@ -280,6 +280,18 @@ cvt serve --port 9550 --metrics-port 9551
 cvt serve --port 9550 --tls --cert server.crt --key server.key
 ```
 
+**plugins** - Manage CVT plugins (list, install, remove):
+
+```bash
+cvt plugins list                      # List installed plugins
+cvt plugins list --json               # JSON output
+cvt plugins install ./my-plugin       # Install a local plugin binary
+cvt plugins install <path> --name foo # Install under a specific name
+cvt plugins remove <name>             # Remove an installed plugin
+```
+
+Plugins live in `~/.cvt/plugins/` and are declared in `~/.cvt/config.yaml`. See `docs/plugins/` for the authoring guide.
+
 **version** - Show version information:
 
 ```bash

@@ -271,7 +271,7 @@ const result = await testKit.validateResponse({
 expect(result.valid).toBe(true);
 
 // Don't forget to close
-await testKit.close();
+testKit.close();
 ```
 
 ### Consumer Registry

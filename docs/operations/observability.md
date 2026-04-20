@@ -309,7 +309,7 @@ Set via `LOG_LEVEL` environment variable:
 {
   "level": "info",
   "ts": 1638360000.123,
-  "caller": "server/cvtservice/service.go:110",
+  "caller": "server/cvtservice/validator_service.go:110",
   "msg": "Schema registered successfully",
   "schemaId": "petstore-v3"
 }
@@ -317,7 +317,7 @@ Set via `LOG_LEVEL` environment variable:
 {
   "level": "info",
   "ts": 1638360001.456,
-  "caller": "server/cvtservice/service.go:237",
+  "caller": "server/cvtservice/validator_service.go:237",
   "msg": "Interaction validated successfully",
   "schemaId": "petstore-v3",
   "method": "POST",

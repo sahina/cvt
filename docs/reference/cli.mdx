@@ -38,6 +38,7 @@ go install github.com/sahina/cvt/cmd/cvt@latest
 | `compare`         | Compare schemas for breaking changes                 |
 | `generate`        | Generate test fixtures from schemas                  |
 | `mock`            | Start a mock HTTP server from OpenAPI schemas        |
+| `plugins`         | Manage installed CVT plugins                         |
 | `register-schema` | Register an OpenAPI schema with the server           |
 | `serve`           | Start the server                                     |
 | `validate`        | Validate an interaction against a schema             |
@@ -447,6 +448,57 @@ cvt generate --schema ./openapi.json --method GET --path /pets/{petId} --seed 42
 | ---- | -------------------------------------- |
 | 0    | Server shut down cleanly               |
 | 1    | Failed to start (invalid schema, etc.) |
+
+---
+
+## plugins
+
+Manage installed CVT plugins. Plugin binaries live in `~/.cvt/plugins/` and are declared in `~/.cvt/config.yaml`.
+
+### Subcommands
+
+#### `plugins list`
+
+List installed plugins from `~/.cvt/plugins/state.json`.
+
+```bash
+cvt plugins list
+cvt plugins list --json   # Print state.json contents as JSON
+```
+
+| Flag     | Description                        | Default |
+| -------- | ---------------------------------- | ------- |
+| `--json` | Print state.json contents as JSON  | false   |
+
+#### `plugins install`
+
+Install a plugin binary into `~/.cvt/plugins/` and record its SHA256 in `state.json`.
+
+```bash
+cvt plugins install ./my-plugin-binary
+cvt plugins install ./cvt-plugin-registry-rest --name registry-rest
+```
+
+| Flag     | Description                                                                        | Default |
+| -------- | ---------------------------------------------------------------------------------- | ------- |
+| `--name` | Plugin name (defaults to binary basename with a leading `cvt-plugin-` stripped)    | derived |
+
+After install, add an entry under `plugins:` in `~/.cvt/config.yaml` and restart `cvt serve` so the plugin loads.
+
+#### `plugins remove`
+
+Remove an installed plugin binary and its state entry.
+
+```bash
+cvt plugins remove registry-rest
+```
+
+Takes the plugin name as a positional argument. After removal, also delete the plugin's entry from `~/.cvt/config.yaml`.
+
+### See also
+
+- [Plugin authoring guide](../plugins/authoring-go.md)
+- [Plugin config reference](../plugins/config.md)
 
 ---
 

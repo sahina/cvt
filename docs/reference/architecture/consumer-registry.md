@@ -410,12 +410,15 @@ storage.UpdateConsumerValidation(
 │     └─────────────────────────────────────────────────────┘ │
 │                          │                                   │
 │                          ▼                                   │
-│  2. Register Consumer                                        │
+│  2. Register Consumer (via SDK or gRPC RegisterConsumer)     │
 │     ┌─────────────────────────────────────────────────────┐ │
-│     │ cvt register-consumer                               │ │
-│     │   --consumer order-service                          │ │
-│     │   --schema user-api                                 │ │
-│     │   --endpoints "GET /users/{id}"                     │ │
+│     │ await client.registerConsumer({                     │ │
+│     │   consumerId: 'order-service',                      │ │
+│     │   schemaId: 'user-api',                             │ │
+│     │   consumerVersion: '1.0.0',                         │ │
+│     │   environment: 'prod',                              │ │
+│     │   endpoints: [{ method: 'GET', path: '/users/{id}' }│ │
+│     │ });                                                 │ │
 │     └─────────────────────────────────────────────────────┘ │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -471,12 +474,12 @@ jobs:
 
       - name: Register Consumer
         if: github.ref == 'refs/heads/main'
-        run: |
-          cvt register-consumer \
-            --consumer ${{ github.repository }} \
-            --version ${{ github.sha }} \
-            --schema user-api \
-            --env prod
+        run: npm run register-consumer
+        env:
+          CVT_CONSUMER_ID: ${{ github.repository }}
+          CVT_CONSUMER_VERSION: ${{ github.sha }}
+          CVT_SCHEMA_ID: user-api
+          CVT_ENV: prod
 ```
 
 ```yaml

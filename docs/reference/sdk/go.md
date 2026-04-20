@@ -669,14 +669,15 @@ type GeneratedResponse struct {
 }
 
 type GeneratedFixture struct {
-    Request  GeneratedRequest
-    Response GeneratedResponse
+    Request  *GeneratedRequest
+    Response *GeneratedResponse
 }
 
 type EndpointInfo struct {
-    Method  string
-    Path    string
-    Summary string
+    Method      string
+    Path        string
+    OperationID string
+    Summary     string
 }
 
 type ConsumerImpact struct {

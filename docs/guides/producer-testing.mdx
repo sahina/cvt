@@ -669,13 +669,13 @@ response, err := validator.GenerateResponse(ctx, "GET", "/pet/{petId}",
 
 ```java
 // Generate complete request/response fixture
-Fixture fixture = validator.generateFixture("GET", "/pet/{petId}");
+GeneratedFixture fixture = validator.generateFixture("GET", "/pet/{petId}", null);
 System.out.println(fixture.getRequest());   // { method, path, headers, body }
 System.out.println(fixture.getResponse());  // { statusCode, headers, body }
 
 // Generate response only with schema examples
-ResponseFixture response = validator.generateResponse("GET", "/pet/{petId}",
-    GenerateResponseOptions.builder()
+GeneratedResponse response = validator.generateResponse("GET", "/pet/{petId}",
+    GenerateOptions.builder()
         .statusCode(200)
         .useExamples(true)
         .build()
