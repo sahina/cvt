@@ -239,9 +239,9 @@ internal/pluginmgr/            # lifecycle via go-plugin, config load, audit wir
 cmd/cvt/plugins.go             # list/install/remove
 cmd/cvt/plugins_runtime.go     # runtime wiring when `cvt serve` loads configured plugins
 server/cvtservice/
-├── hooks_fire.go              # server-side hook helpers (on_breaking_change_detected, fetch_schema, on_consumer_registered)
+├── hooks_fire.go              # server-side hook helpers (on_breaking_change_detected, fetch_schema, register_consumer_usage)
 ├── validator_service.go       # breaking-change + fetch_schema call sites
-└── consumer_registry.go       # on_consumer_registered call site
+└── consumer_registry.go       # register_consumer_usage call site
 ```
 
 ## Documentation

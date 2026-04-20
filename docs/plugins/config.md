@@ -1,10 +1,8 @@
 # Plugin config
 
-CVT reads plugin configuration from a single YAML file at
-`~/.cvt/config.yaml`. If the file doesn't exist, the plugin system stays
-dormant (no plugins run, no overhead).
+CVT reads plugin configuration from a single YAML file at `~/.cvt/config.yaml`. If the file doesn't exist, the plugin system stays dormant — no plugins run, no overhead.
 
-## Minimal example
+## TL;DR — minimum viable config
 
 ```yaml
 config_version: 1
@@ -20,23 +18,45 @@ hooks:
   fetch_schema: registry
 ```
 
-Run CVT; the `registry` plugin forks at startup. All four hooks fire
-from core today — see the hook status table in `README.md`.
+This binds the `registry` plugin to `fetch_schema`. Run `cvt serve`; the plugin forks at startup, receives `base_url` and `token` via gRPC (not subprocess env), and handles every schema-by-ID resolution.
 
-## Full schema
+## Hook reference
+
+Four hook points. Each binds to at most one plugin; an unset hook falls back to CVT's built-in behavior.
+
+| Hook | Plugin service | Fires when | Status |
+|---|---|---|---|
+| `fetch_schema` | `RegistryProvider` | Schema-by-ID resolution, on cache miss, before storage fallback | **wired** |
+| `register_consumer_usage` | `RegistryProvider` | `RegisterConsumer` succeeds | **wired** |
+| `on_breaking_change_detected` | `EventHandler` | `CompareSchemas`, or `RegisterSchema` when `--check-compatibility` detects breaks | **wired** |
+| `on_validation_failed` | `EventHandler` | `ValidateInteraction` returns a non-valid result | **wired** |
+
+Binding a hook to a plugin that isn't declared under `plugins:` is a load-time error.
+
+## Recovering from a broken config
+
+```sh
+CVT_DISABLE_PLUGINS=1 cvt serve
+```
+
+Safe mode ignores `~/.cvt/config.yaml` entirely. Use it if a misconfigured plugin prevents CVT from starting. Then edit the config or `cvt plugins remove <name>` and restart.
+
+---
+
+<details>
+<summary>Full config schema</summary>
 
 ```yaml
-config_version: 1                # required; rejects unknown versions
+config_version: 1                # required; unknown versions rejected
 
 plugins:
   <name>:                         # name matches ^[a-z][a-z0-9-]{0,31}$
     binary: <path>                # required; must be under ~/.cvt/plugins/
     timeout: 5s                   # per-call gRPC deadline; default 5s
-    on_error: fail_closed         # fail_closed (default) or fail_open
-    secrets: [key1, key2]         # keys in config: that should be
-                                  # redacted and delivered via SetConfig
-    config:                       # free-form map delivered to the plugin
-      key: value                  # via SetConfig on startup
+    on_error: fail_closed         # fail_closed (default) | fail_open
+    secrets: [key1, key2]         # keys redacted + delivered via SetConfig
+    config:                       # free-form map, delivered via SetConfig
+      key: value
       token: ${ENV_VAR}           # ${VAR} interpolation
       base_url: ${OVERRIDE:-https://default.example.com}  # with default
 
@@ -47,117 +67,71 @@ hooks:
   on_validation_failed: <plugin-name>         # optional
 ```
 
-## Field reference
+</details>
+
+<details>
+<summary>Field reference</summary>
 
 ### `config_version`
 
-Schema version. CVT accepts `1` in this release. Unknown versions fail
-at load time with an upgrade hint. Bump only when the config shape
-changes incompatibly.
+Schema version. Current release accepts `1`. Unknown versions fail at load time with an upgrade hint. Bumps only on incompatible config-shape changes.
 
 ### `plugins.<name>`
 
-The map key is the plugin's CVT-visible name (not the plugin's
-self-reported name — that's recorded separately as `reported_version`).
-Plugin names must match `^[a-z][a-z0-9-]{0,31}$`: start with a lowercase
-letter, contain only lowercase letters, digits, and hyphens, 1 to 32
-chars. Invalid names are load-time errors.
+Map key = plugin's CVT-visible name (not the plugin's self-reported name, which is recorded separately as `reported_version`). Must match `^[a-z][a-z0-9-]{0,31}$`: lowercase letters, digits, hyphens, starting with a letter, 1–32 chars. Invalid name is a load-time error.
 
 ### `binary`
 
-Absolute path to the plugin binary. Must be under `~/.cvt/plugins/`. A
-leading `~/` is expanded. Any other location is rejected as a load-time
-error; this is the primary defense against a config file pointing at an
-arbitrary binary.
+Absolute path to the plugin binary. Must be under `~/.cvt/plugins/`; leading `~/` is expanded. Any other location is rejected — primary defense against a config pointing at an arbitrary binary.
 
 ### `timeout`
 
-Per-call gRPC deadline applied to every plugin RPC. Default `5s`.
-Plugin calls that exceed the deadline return `DeadlineExceeded`; the
-hook adapter applies `on_error` and records the call as `outcome=timeout`
-in audit.
+Per-call gRPC deadline for every plugin RPC. Default `5s`. Exceeded calls return `DeadlineExceeded`; the hook adapter applies `on_error` and records `outcome=timeout` in audit.
 
 ### `on_error`
 
-Either `fail_closed` (default) or `fail_open`.
-
-- `fail_closed`: plugin errors propagate to the caller. Use for plugins
-  the caller depends on (e.g., the primary schema registry).
-- `fail_open`: plugin errors are logged + audited but swallowed. Use for
-  truly-best-effort plugins (e.g., a Slack notifier — if Slack is down,
-  you don't want CI to fail).
+- `fail_closed` (default): plugin errors propagate to the caller. Use for plugins the caller depends on (a primary schema registry).
+- `fail_open`: plugin errors are logged and audited but swallowed. Use for best-effort sinks — a Slack notifier shouldn't fail CI.
 
 ### `secrets`
 
-List of keys in `config:` that should be treated as secret. Secret keys
-are:
+List of keys in `config:` treated as secret. Secret keys are:
 
-- Delivered to the plugin via the `SetConfig` gRPC call, NOT via
-  subprocess environment variables (env is readable from
-  `/proc/<pid>/environ`).
+- Delivered via `SetConfig` gRPC, **never** via subprocess env (env is readable from `/proc/<pid>/environ`).
 - Redacted from CVT logs and audit entries.
-- Required to have a value after env interpolation. A secret declared
-  in `secrets:` but missing from `config:` is a load-time error.
+- Required to have a value after env interpolation. A secret in `secrets:` missing from `config:` is a load-time error.
 
 ### `config`
 
-Free-form string-to-string map. CVT delivers every entry to the plugin
-via `SetConfig` at startup, before any extension-point RPC runs.
-Environment-variable interpolation (`${VAR}`, `${VAR:-default}`) applies
-to values. Unset `${VAR}` without a default fails load-time.
+Free-form string-to-string map, delivered to the plugin via `SetConfig` at startup, before any extension-point RPC runs. POSIX-style env interpolation applies (see below).
 
 ### `hooks`
 
-Maps each of the four v1 hook points to exactly one plugin name. An
-unset hook means CVT falls back to its built-in behavior (no plugin
-runs for that hook).
+Maps each hook name to a declared plugin. Unset hook = built-in CVT behavior. See the hook reference table above.
 
-| Hook | When it fires | Plugin service | Status |
-|---|---|---|---|
-| `on_validation_failed` | After `ValidateInteraction` returns a non-valid result | `EventHandler` | **wired** |
-| `on_breaking_change_detected` | After `CompareSchemas`, or after `RegisterSchema` when `check_compatibility=true` and breaking changes are detected | `EventHandler` | **wired** |
-| `register_consumer_usage` | After `RegisterConsumer` succeeds | `RegistryProvider` | **wired** |
-| `fetch_schema` | Before schema-by-ID resolution (on cache miss, before storage) | `RegistryProvider` | **wired** |
+</details>
 
-A hook referencing a plugin that isn't declared under `plugins:` is a
-load-time error.
+<details>
+<summary>Environment-variable interpolation</summary>
 
-## Environment variable interpolation
+Two POSIX-style forms, applied to `config:` values after YAML parse, before secret delivery:
 
-Values under `config:` support two POSIX-style expressions:
+- `${VAR}` — substitute `$VAR`. Unset `$VAR` = load-time error.
+- `${VAR:-default}` — substitute `$VAR`; use `default` if unset or empty.
 
-- `${VAR}` — substitute the value of `$VAR`. Unset = load-time error.
-- `${VAR:-default}` — substitute `$VAR`; if unset or empty, use `default`.
+Unterminated `${` is a load-time error. Nested expressions are not supported.
 
-Interpolation runs after YAML parse, before secret delivery. Nested
-expressions are not supported.
+</details>
 
-Unterminated `${` sequences are load-time errors.
+<details>
+<summary>Config precedence and per-project config</summary>
 
-## Safe mode
+v1 loads exactly one file: `~/.cvt/config.yaml`. There is no project-level override.
 
-Set `CVT_DISABLE_PLUGINS=1` in the environment and CVT behaves as if
-no plugins were configured, regardless of what the file says. Use this
-to recover from a broken plugin that prevents `cvt serve` from
-starting:
+If you need per-project config today, two workarounds:
+- Check the config into your repo and symlink at setup.
+- Use a wrapper that sets `HOME` to a project-specific directory before invoking `cvt`.
 
-```sh
-CVT_DISABLE_PLUGINS=1 cvt serve
-```
+Project overrides are tracked for v1.1+.
 
-## Config precedence
-
-v1 loads exactly one file: `~/.cvt/config.yaml`. There is no project-level
-override in this release. Teams that want per-project config check the
-file into their repo and symlink it at setup, or use a wrapper that
-points `HOME` at a project-specific directory.
-
-## Recovering from a stuck plugin
-
-1. `CVT_DISABLE_PLUGINS=1 cvt serve` — bring CVT back up without plugins.
-2. Investigate via `cvt plugins list`, logs, and `/metrics`.
-3. `cvt plugins remove <name>` if the plugin should go.
-4. Edit config; restart CVT.
-
-There is no live hot reload or admin IPC in v1. Restart is required for
-every config change.
+</details>
