@@ -62,7 +62,7 @@ The fix is a two-sided handshake over the **OpenAPI spec** Bob already publishes
 
 OpenAPI is a machine-readable format for describing HTTP APIs — paths, methods, parameters, and response shapes. If your API has a Swagger UI page, there's an OpenAPI spec behind it. CVT accepts OpenAPI v3 natively and auto-converts Swagger 2.0.
 
-Learn more: [openapi.io](https://www.openapis.org/).
+Learn more: [openapis.org](https://www.openapis.org/).
 
 </details>
 

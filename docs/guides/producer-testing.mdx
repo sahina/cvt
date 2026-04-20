@@ -289,6 +289,12 @@ http.Handle("/", adapters.NetHTTPMiddleware(config)(myHandler))
 
 ```java
 // Spring
+ProducerConfig config = ProducerConfig.builder()
+    .schemaId("petstore")
+    .validator(validator)
+    .mode(ValidationMode.STRICT)
+    .build();
+
 registry.addInterceptor(new SpringInterceptor(config))
     .addPathPatterns("/api/**");
 ```

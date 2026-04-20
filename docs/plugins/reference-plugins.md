@@ -10,7 +10,7 @@ Two first-party plugins live in separate repositories. Together they exercise th
 | Track consumer→schema usage in a central system | [`cvt-plugin-rest`](https://github.com/sahina/cvt-plugin-rest) | `RegistryProvider` |
 | Post breaking-change alerts to Slack | [`cvt-plugin-slack`](https://github.com/sahina/cvt-plugin-slack) | `EventHandler` |
 | Alert the on-call channel on validation failures | [`cvt-plugin-slack`](https://github.com/sahina/cvt-plugin-slack) | `EventHandler` |
-| Something else | Write your own — [authoring guide](authoring-go.md) |
+| Something else | Write your own — [authoring guide](authoring-go.md) | Custom |
 
 Both reference plugins were extracted from the main CVT repo on 2026-04-19 and track CVT releases via the `github.com/sahina/cvt` Go module dependency. Each plugin's own repo README carries its full config surface and a quick-test recipe.
 
@@ -86,7 +86,7 @@ The repo README has a toy Python HTTP server recipe that answers both endpoints 
 
 Posts CVT events to a Slack webhook. Without a plugin these events are logged and audited but nobody outside CVT notices.
 
-- `OnValidationFailed` → Slack message describing the failed interaction (method, path, schema ID, first validation error). Fires from `ValidateInteraction`. Plugin-side dedup so a misconfigured producer throwing 10k failures/minute doesn't page your channel 10k times.
+- `OnValidationFailed` → Slack message describing a failed validation (method, path, schema ID, first validation error). Fires from `pkg/cvt.Validator.Validate` when it returns a non-valid result (CLI `cvt validate` path and library callers). Note: the server's `ValidateInteraction` gRPC method runs validation directly via `openapi3filter` and does **not** call this hook in v1. Plugin-side dedup so a misconfigured producer throwing 10k failures/minute doesn't page your channel 10k times.
 - `OnBreakingChangeDetected` → Slack message listing each breaking change (kind, method, path). Fires from `CompareSchemas` and from `RegisterSchema --check-compatibility`.
 
 Designed **fail-open**: Slack outages should not block `cvt validate` or `cvt serve`.

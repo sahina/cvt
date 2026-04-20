@@ -140,9 +140,9 @@ Plugins that ignore `ctx.Done()` eventually get killed by the supervisor, but th
 </details>
 
 <details>
-<summary>Connection pooling (reuse http.Client)</summary>
+<summary>Connection pooling (reuse one http.Client)</summary>
 
-Reuse a single `http.Client` across calls. The default client opens a new connection per request, which is wasteful when CVT sends many consecutive `FetchSchema` calls.
+Reuse a single `http.Client` across calls. Go's `http.DefaultClient` pools connections via HTTP/1.1 keep-alive / HTTP/2 multiplexing, but only if you reuse the same client — constructing a new `http.Client` or `http.Transport` per call throws away the pool and forces fresh connections. Store one `http.Client` on your plugin struct and reuse it.
 
 ```go
 type myRegistry struct {
@@ -153,6 +153,8 @@ func newRegistry() *myRegistry {
     return &myRegistry{hc: &http.Client{Timeout: 10 * time.Second}}
 }
 ```
+
+Also: fully drain and `Close()` response bodies so keep-alive connections actually return to the pool.
 
 </details>
 

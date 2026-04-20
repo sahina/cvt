@@ -71,15 +71,16 @@ cvt plugins list
 # INFO plugin registered plugin=registry version=0.1.0 protocol_version=1 pid=12345
 
 # 3. /metrics exposes per-plugin counters
-curl -s http://localhost:9551/metrics | grep cvt_plugin_up
-# cvt_plugin_up{plugin="registry",version="0.1.0"} 1
+curl -s http://localhost:9551/metrics | grep -E 'cvt_plugin_(up|info)'
+# cvt_plugin_up{plugin="registry"} 1
+# cvt_plugin_info{plugin="registry",version="0.1.0",sha256="abc123def456..."} 1
 
 # 4. trigger the bound hook (e.g., `cvt validate --schema some-id`) and watch
 #    cvt_plugin_call_duration_seconds_count increment for your plugin
 curl -s http://localhost:9551/metrics | grep cvt_plugin_call_duration_seconds_count
 ```
 
-Four plugin metrics are always emitted: `cvt_plugin_call_duration_seconds`, `cvt_plugin_call_errors_total`, `cvt_plugin_up`, `cvt_plugin_restarts_total`.
+Five plugin metrics are always emitted: `cvt_plugin_call_duration_seconds`, `cvt_plugin_call_errors_total`, `cvt_plugin_up`, `cvt_plugin_info`, `cvt_plugin_restarts_total`. `cvt_plugin_up` is labelled by plugin name only; `cvt_plugin_info` carries the version and SHA256 labels.
 
 ## Trust boundary
 
@@ -126,7 +127,7 @@ See [reference-plugins.md](reference-plugins.md) for decision table + walkthroug
 - Go SDK only.
 - Linux + macOS.
 - `cvt plugins {list, install, remove}`.
-- Four plugin metrics + synchronous audit.
+- Five plugin metrics + synchronous audit.
 
 <details>
 <summary>Deferred to v1.1+</summary>
