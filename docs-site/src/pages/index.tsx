@@ -62,7 +62,7 @@ const FeatureList: FeatureItem[] = [
     icon: '⊕',
     description:
       'Extend CVT with custom validators, fetchers, and lifecycle hooks. Go-based plugins installed via cvt plugins install.',
-    link: '/docs/plugins/README',
+    link: '/docs/plugins/authoring-go',
   },
   {
     title: 'Mock Server',
