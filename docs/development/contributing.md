@@ -345,6 +345,17 @@ mvn install
 
 ## Common Development Tasks
 
+### Running Linters
+
+```bash
+make lint           # All linters
+make lint-go        # golangci-lint on server/, pkg/, cmd/, sdks/go/
+make lint-node      # ESLint on sdks/node/
+make lint-python    # ruff on sdks/python/
+make lint-java      # Maven verify on sdks/java/
+make check-coverage # Enforce 80% coverage across all components
+```
+
 ### Running CI Checks Locally
 
 ```bash

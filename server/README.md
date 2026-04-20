@@ -27,7 +27,13 @@ server/
 │   ├── validator_service.go   # Core validation service (RegisterSchema, ValidateInteraction, CanIDeploy)
 │   ├── compatibility_engine.go # Breaking change detection between schema versions
 │   ├── validation_utils.go    # Input validation utilities
-│   ├── cache.go               # Ristretto cache for schemas and consumers
+│   ├── cache.go               # Ristretto cache for OpenAPI schemas
+│   ├── consumer_registry.go   # Consumer registration and lookup
+│   ├── deployment_safety.go   # CanIDeploy and affected consumer analysis
+│   ├── fixture_generator.go   # Fixture generation from schemas
+│   ├── producer_validation.go # Producer-side response validation
+│   ├── hooks_fire.go          # Plugin hook dispatch
+│   ├── converters.go          # Proto/domain type conversion
 │   ├── health.go              # gRPC health check service
 │   ├── logger.go              # Structured logging with Zap
 │   ├── metrics.go             # Prometheus metrics

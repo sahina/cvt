@@ -83,7 +83,9 @@ env:
   #
   # CVT_API_KEY: ${{ secrets.CVT_API_KEY }}
   #
-  # The CVT CLI will automatically use this environment variable when set.
+  # Note: the CVT CLI does NOT auto-read CVT_API_KEY from the environment.
+  # Pass the key via gRPC metadata when using a language SDK (ContractValidator
+  # accepts an apiKey/api_key option in its constructor).
 
 jobs:
   producer-validation:

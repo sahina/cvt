@@ -61,7 +61,7 @@ This reference maps each audit scope to the implementation files that serve as t
 
 - **Command definitions**: `cmd/cvt/*.go` — each file defines a Cobra command with flags, args, and descriptions
 - **Main/root command**: `cmd/cvt/main.go` — root command registration and version info
-- **Commands**: validate.go, compare.go, generate.go, serve.go, can_i_deploy.go, wait.go, register_schema.go
+- **Commands**: validate.go, compare.go, generate.go, serve.go, can_i_deploy.go, wait.go, register_schema.go, mock.go, plugins.go, plugins_runtime.go
 - **Shared types**: `cmd/cvt/types.go` — shared CLI types and helpers
 - **Flag defaults**: Check `cmd.Flags().StringVar()`, `BoolVar()`, etc. calls for default values
 
@@ -83,7 +83,7 @@ This reference maps each audit scope to the implementation files that serve as t
 - Flag names, types, and defaults match
 - Command descriptions match
 - Output format examples are accurate
-- The 7 commands documented: validate, compare, generate, serve, can-i-deploy, wait, register-schema, version
+- The documented commands: validate, compare, generate, serve, can-i-deploy, wait, register-schema, mock, plugins, version
 
 ---
 
@@ -299,6 +299,11 @@ This reference maps each audit scope to the implementation files that serve as t
 - `docs/internal/prd.md` — Product requirements document
 - `docs/internal/adoption-strategy.md` — Internal adoption strategy
 - `docs/design/schema-inference.md` — Schema inference design
+- `docs/design/plugin-system.md` — Plugin system design
+- `docs/plugins/README.md` — Plugins overview
+- `docs/plugins/authoring-go.md` — Authoring plugins in Go
+- `docs/plugins/config.md` — Plugin config
+- `docs/plugins/reference-plugins.md` — Reference plugins
 
 ### Key checks
 

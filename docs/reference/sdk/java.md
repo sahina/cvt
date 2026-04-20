@@ -610,6 +610,7 @@ public class GeneratedFixture {
 public class EndpointInfo {
     private String method;
     private String path;
+    private String operationId;
     private String summary;
 }
 

@@ -220,11 +220,14 @@ api/protos/plugin/
 
 pkg/cvt/
 ├── hooks.go                   # Hooks interface (no impl)
-└── validator.go               # two hook call sites
+├── hooks_fire.go              # fireOnValidationFailed helper
+└── validator.go               # on_validation_failed call site
 
 pkg/cvtplugin/                 # public SDK for plugin authors
 ├── doc.go
 ├── serve.go                   # wraps plugin.Serve with shared HandshakeConfig
+├── handshake.go               # shared HandshakeConfig constants
+├── handshake_service.go       # handshake plugin service wiring
 ├── registry.go                # Go interface for RegistryProvider authors
 ├── events.go                  # Go interface for EventHandler authors
 ├── logger.go                  # Zap-backed hclog adapter
@@ -234,7 +237,11 @@ internal/pluginclient/         # core-side typed adapters that implement pkg/cvt
 internal/pluginmgr/            # lifecycle via go-plugin, config load, audit wiring
 
 cmd/cvt/plugins.go             # list/install/remove
-server/cvtservice/             # post-split: consumer_registry.go, producer_validation.go host the two server-side hook call sites
+cmd/cvt/plugins_runtime.go     # runtime wiring when `cvt serve` loads configured plugins
+server/cvtservice/
+├── hooks_fire.go              # server-side hook helpers (on_breaking_change_detected, fetch_schema, on_consumer_registered)
+├── validator_service.go       # breaking-change + fetch_schema call sites
+└── consumer_registry.go       # on_consumer_registered call site
 ```
 
 ## Documentation
