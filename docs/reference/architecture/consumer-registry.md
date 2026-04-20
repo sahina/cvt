@@ -20,21 +20,27 @@ The consumer registry enables:
 
 ## Schema Ownership Model
 
-CVT's schema registry is **shared, not role-partitioned**. A schema is identified by its `schemaId` alone — there is no `registeredBy` field, no producer-vs-consumer role flag, and no ownership check in `ValidateInteraction` or `CanIDeploy`. This produces two symmetrical onboarding flows:
+CVT's schema registry **keys schemas solely by `schemaId`**. The `SchemaOwnership` struct (`owner`, `team`, `contact_email`, `read_only`) is stored on `SchemaMetadata` and available for audit and display, but validation and deployment logic (`ValidateInteraction`, `CanIDeploy`, `RegisterConsumer`) do not enforce access control based on it. Any party can validate against, register a dependency on, or re-register any schema.
+
+:::note `read_only` is currently advisory
+The proto defines `SchemaOwnership.read_only` as "If true, schema cannot be updated," but no code path in `RegisterSchema` or the storage layer enforces this today. It should be treated as metadata-only until enforcement lands. Tracked as a follow-up defect.
+:::
+
+This produces two symmetrical onboarding flows:
 
 **Flow A — Producer registers first (typical mature setup)**
 
 1. Producer's CI publishes the OpenAPI spec via `RegisterSchema` on each release.
-2. Consumer's test suite calls `ValidateInteraction` and `RegisterConsumer` referencing the existing `schemaId`. The consumer never calls `RegisterSchema`.
+2. Consumer's test suite calls `RegisterSchema` on its SDK validator instance (required to bind `schemaId`; idempotent server-side when content matches), then `ValidateInteraction` and `RegisterConsumer` referencing the same `schemaId`.
 3. `CanIDeploy` runs on the producer's next release and sees the consumer's registered dependency.
 
 **Flow B — Consumer registers first (greenfield / producer not onboarded)**
 
-1. Consumer obtains the producer's OpenAPI spec (from source, a portal, etc.) and calls `RegisterSchema` itself.
+1. Consumer obtains the producer's OpenAPI spec and calls `RegisterSchema` itself.
 2. Consumer calls `ValidateInteraction` and `RegisterConsumer` against the schema it just registered.
-3. When the producer later adopts CVT, they register the next schema version. The consumer's registration — keyed by `schemaId`, not by who registered the schema — keeps working across versions.
+3. When the producer later adopts CVT, they register the next schema version. The consumer's registration — associated with the `schemaId`, not the registrant — keeps working across versions.
 
-`RegisterConsumer` never accepts schema content; it only references an existing `schemaId`. Both flows therefore converge on the same consumer-registry state.
+Only the `RegisterConsumer` call differs in shape: it takes just a `schemaId` reference (no schema content), so it is the one step that never duplicates work regardless of who registered the schema. Both flows converge on the same consumer-registry state, keyed by the `{consumerID, schemaID, environment}` tuple described below.
 
 ## Consumer Registration Flow
 

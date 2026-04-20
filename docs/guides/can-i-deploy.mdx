@@ -77,7 +77,7 @@ await validator.registerConsumer({
 Full walkthrough: [Consumer Testing → Consumer Registration](./consumer-testing.mdx#consumer-registration).
 
 :::info Who registers the schema itself?
-Either side. `registerConsumer` only references an existing `schemaId` — it doesn't take schema content. If the producer's CI already calls `registerSchema` on each release (the typical mature setup), consumers just reference that `schemaId` and don't register the schema themselves. If the producer hasn't onboarded yet, a consumer can register the schema once and everyone (including `can-i-deploy`) uses it. See the [FAQ entry on producer-already-registered schemas](../getting-started/faq.md#if-the-producer-already-registered-the-schema-do-i-need-to-register-it-again-as-a-consumer).
+`registerConsumer` only references an existing `schemaId` — it doesn't carry schema content, so it's the same call regardless of who first published the schema. The server-side schema registry is shared; ownership metadata exists but doesn't gate access. Note that the SDK's `registerSchema()` is still required on each validator instance to bind the `schemaId` for `validate()` — it's just idempotent server-side when the producer has already registered the same content. See the [FAQ entry on producer-already-registered schemas](../getting-started/faq.md#if-the-producer-already-registered-the-schema-do-i-need-to-register-it-again-as-a-consumer).
 :::
 
 :::info No consumers registered yet?
