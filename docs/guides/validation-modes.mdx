@@ -1,7 +1,7 @@
 ---
 title: Validation Modes
 sidebar_label: Validation Modes
-sidebar_position: 3
+sidebar_position: 4
 description: CVT producer middleware validation modes - strict, warn, and shadow
 ---
 
@@ -10,105 +10,35 @@ import TabItem from '@theme/TabItem';
 
 # Validation Modes
 
-## What are Validation Modes?
+When CVT middleware validates requests and responses in your running API server, **mode** decides what it does with violations: reject, log, or silently record. Three modes, picked to let you roll out contract enforcement without breaking clients.
 
-When you add CVT validation middleware to your API server, you need to decide what happens when a request or response doesn't match your OpenAPI schema. Should invalid requests be rejected? Should violations be logged? Or should validation run silently in the background?
+## TL;DR
 
-**Validation modes** control this behavior. They let you start with zero-risk observability and gradually move toward full contract enforcement as you gain confidence.
+| Mode | Request violation | Response violation | Use when |
+|---|---|---|---|
+| **shadow** | Silent, metrics only | Silent, metrics only | Day 1 — deploying middleware; zero risk |
+| **warn** | Log, continue | Log, continue | Once metrics look sane; debug real issues |
+| **strict** | Reject (400) | Log (too late to block) | Contract enforced; invalid requests blocked |
 
-Adding contract validation to a production API can be risky. You might discover that:
-- Your OpenAPI spec doesn't match your actual implementation
-- Some clients send requests that don't match the documented format
-- Edge cases in your responses weren't captured in the schema
+**Path**: deploy shadow → read metrics → fix issues → switch to warn → fix more → switch to strict.
 
-Validation modes let you deploy safely by starting in observation mode, fixing issues, then enabling enforcement—without breaking existing clients.
-
-## Mode Reference
-
-| Mode       | Request Violation                | Response Violation                | Metrics  | Use Case                                  |
-| ---------- | -------------------------------- | --------------------------------- | -------- | ----------------------------------------- |
-| **strict** | Reject with 400 Bad Request      | Log error (response already sent) | Recorded | Production enforcement after rollout      |
-| **warn**   | Log warning, continue processing | Log warning, continue             | Recorded | Gradual rollout, monitoring impact        |
-| **shadow** | Silent (no logging)              | Silent (no logging)               | Recorded | Initial deployment, metrics-only analysis |
-
-## Mode Behavior Details
-
-### Strict Mode
+## Rollout strategy
 
 ```text
-Request → Validate → Invalid? → Return 400 (handler never executes)
-                   → Valid?   → Execute handler → Validate response → Log if invalid
+┌──────────┐     ┌──────────┐     ┌──────────┐
+│  SHADOW  │ ──► │   WARN   │ ──► │  STRICT  │
+└──────────┘     └──────────┘     └──────────┘
+ Deploy +         Enable           Full
+ measure          logging          enforcement
 ```
 
-- **Request violations**: Immediately rejected with `400 Bad Request` and error details
-- **Response violations**: Logged as errors but response is still sent (can't unsend)
-- **Best for**: Production APIs after you've validated with warn/shadow modes
+1. **Deploy with `shadow`** — middleware on, zero behavioral change. Watch `cvt_validation_errors_total` in Grafana to establish a baseline.
+2. **Analyze metrics** — which endpoints violate most? Usually: missing required fields, wrong types, undocumented endpoints.
+3. **Switch to `warn`** — now you get detailed error logs for each violation. Review them.
+4. **Fix** — either update your OpenAPI spec to match reality, or fix server code to match the spec. This is where you decide what the contract actually is.
+5. **Switch to `strict`** — invalid requests get rejected with 400. Contract is enforced.
 
-### Warn Mode
-
-```text
-Request → Validate → Log if invalid → Execute handler → Validate response → Log if invalid
-```
-
-- **Request violations**: Logged as warnings, request continues to handler
-- **Response violations**: Logged as warnings, response is sent normally
-- **Best for**: Transitioning from shadow to strict, identifying issues without breaking clients
-
-### Shadow Mode
-
-```text
-Request → Validate → Execute handler → Validate response
-                ↓                              ↓
-          Record metrics                Record metrics
-           (no logging)                  (no logging)
-```
-
-- **Request violations**: Only recorded in metrics, no logs, no impact
-- **Response violations**: Only recorded in metrics, no logs, no impact
-- **Best for**: Initial deployment to measure contract compliance without any risk
-
-## Recommended Rollout Strategy
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Production Rollout Phases                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   Phase 1               Phase 2               Phase 3                       │
-│   ┌──────────┐          ┌──────────┐          ┌──────────┐                  │
-│   │  SHADOW  │ ──────►  │   WARN   │ ──────►  │  STRICT  │                  │
-│   └──────────┘          └──────────┘          └──────────┘                  │
-│                                                                             │
-│   • Deploy middleware    • Enable logging     • Full enforcement            │
-│   • Monitor metrics      • Review violations  • Reject invalid requests     │
-│   • Zero risk            • Fix issues found   • Contract is enforced        │
-│   • Measure baseline     • No client impact   • Clients must comply         │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-**Step-by-step:**
-
-1. **Deploy with `shadow`** — Add middleware to production with zero risk. Monitor the `cvt_validation_errors_total` metric to understand your baseline.
-
-2. **Analyze metrics** — Use Grafana dashboards to identify which endpoints have the most violations. Common issues: missing required fields, wrong types, undocumented endpoints.
-
-3. **Switch to `warn`** — Enable logging to get detailed error messages. Review logs to understand exactly what's failing and why.
-
-4. **Fix violations** — Either update your OpenAPI spec to match reality, or fix client/server code to match the spec. This is where you decide what the contract should be.
-
-5. **Switch to `strict`** — Full enforcement. Invalid requests are rejected. Your API contract is now enforced.
-
-## Mode Configuration by SDK
-
-Each SDK uses language-appropriate naming conventions:
-
-| SDK         | Strict                  | Warn                  | Shadow                  |
-| ----------- | ----------------------- | --------------------- | ----------------------- |
-| **Node.js** | `mode: "strict"`        | `mode: "warn"`        | `mode: "shadow"`        |
-| **Python**  | `ValidationMode.STRICT` | `ValidationMode.WARN` | `ValidationMode.SHADOW` |
-| **Go**      | `producer.ModeStrict`   | `producer.ModeWarn`   | `producer.ModeShadow`   |
-| **Java**    | `ValidationMode.STRICT` | `ValidationMode.WARN` | `ValidationMode.SHADOW` |
+## Configuring the mode
 
 <Tabs groupId="sdk-language">
   <TabItem value="nodejs" label="Node.js" default>
@@ -163,26 +93,47 @@ ProducerConfig config = ProducerConfig.builder()
   </TabItem>
 </Tabs>
 
-## Metrics Emitted
+<details>
+<summary>Full mode-by-mode behavior (request + response flow per mode)</summary>
 
-All modes emit Prometheus metrics for monitoring:
+**Strict mode**:
 
-| Metric                            | Description                                         |
-| --------------------------------- | --------------------------------------------------- |
-| `cvt_validations_total`           | Total validations by schema, method, result         |
-| `cvt_validation_errors_total`     | Validation failures by error category               |
-| `cvt_validation_duration_seconds` | Validation latency histogram by schema and method   |
+```text
+Request → Validate → Invalid? → Return 400 (handler never executes)
+                   → Valid?   → Execute handler → Validate response → Log if invalid
+```
 
-Use these metrics to:
+- Request violations rejected with `400 Bad Request` and error details.
+- Response violations logged as errors. The response is already on the wire — logging is all you can do.
+- Best for: production APIs after you've validated with warn/shadow first.
 
-- Track contract compliance over time
-- Identify problematic endpoints before enabling strict mode
-- Monitor the impact of API changes
-- Alert on sudden increases in validation failures
+**Warn mode**:
 
-## Response Validation Behavior
+```text
+Request → Validate → Log if invalid → Execute handler → Validate response → Log if invalid
+```
 
-**Important:** Response validation can only log, never block.
+- Request violations logged as warnings; request continues to your handler.
+- Response violations logged as warnings; response sent normally.
+- Best for: transitioning from shadow to strict — you see exactly what would break without breaking anyone.
+
+**Shadow mode**:
+
+```text
+Request → Validate → Execute handler → Validate response
+                ↓                              ↓
+          Record metrics                Record metrics
+           (no logging)                  (no logging)
+```
+
+- Request violations recorded in metrics only; no logs, no impact on the request.
+- Response violations recorded in metrics only; no logs, no impact.
+- Best for: Day 1 rollout — measure real contract compliance without any risk to clients.
+
+</details>
+
+<details>
+<summary>Why response validation can't block (physics of HTTP)</summary>
 
 ```text
 Client Request
@@ -200,14 +151,49 @@ Client Request
    Validate Response ─── Can only log (too late to block)
 ```
 
-This is by design: by the time we validate the response, it's already been sent to the client. Response validation helps you detect implementation drift (where your code diverges from your spec) but can't prevent invalid responses from reaching clients.
+By the time CVT validates your response, it's already on the wire. Response validation exists to detect implementation drift (your code diverging from your spec) — it can't prevent bad responses from reaching clients.
 
-**To prevent invalid responses:** Validate your response data before sending it, or use typed response builders that enforce the schema at compile time.
+**To actually prevent invalid responses**: validate response data in your handler before calling `res.send()` / equivalent, or use typed response builders that enforce schema at compile time.
+
+</details>
+
+<details>
+<summary>Metrics emitted (same for all modes)</summary>
+
+All modes emit Prometheus metrics; the only difference is mode-specific behavior around logging and request blocking.
+
+| Metric | Description |
+|---|---|
+| `cvt_validations_total` | Total validations by schema, method, result |
+| `cvt_validation_errors_total` | Validation failures by error category |
+| `cvt_validation_duration_seconds` | Validation latency histogram by schema and method |
+
+Use these to:
+- Track contract compliance over time.
+- Identify problematic endpoints before enabling strict mode.
+- Monitor the impact of API changes.
+- Alert on sudden increases in validation failures.
+
+See [Observability Guide](../operations/observability.md) for dashboards.
+
+</details>
+
+<details>
+<summary>Mode name reference (per SDK)</summary>
+
+| SDK | Strict | Warn | Shadow |
+|---|---|---|---|
+| **Node.js** | `mode: "strict"` | `mode: "warn"` | `mode: "shadow"` |
+| **Python** | `ValidationMode.STRICT` | `ValidationMode.WARN` | `ValidationMode.SHADOW` |
+| **Go** | `producer.ModeStrict` | `producer.ModeWarn` | `producer.ModeShadow` |
+| **Java** | `ValidationMode.STRICT` | `ValidationMode.WARN` | `ValidationMode.SHADOW` |
+
+</details>
 
 ---
 
-## Related Documentation
+## Related
 
-- **[Producer Testing Guide](./producer-testing.mdx)** - Full producer testing workflow
-- **[Observability Guide](../operations/observability.md)** - Metrics and monitoring
-- **[Configuration Reference](../reference/configuration.mdx)** - Environment variables
+- **[Producer Testing Guide](./producer-testing.mdx)** — full producer testing workflow (middleware is one approach among several).
+- **[Observability Guide](../operations/observability.md)** — reading the metrics this middleware emits.
+- **[Configuration Reference](../reference/configuration.mdx)** — server-side environment variables.

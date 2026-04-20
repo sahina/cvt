@@ -10,49 +10,58 @@ import TabItem from "@theme/TabItem";
 
 # Installation
 
-This guide covers installing the CVT server and client SDKs.
+Two things to install: the **CVT server** (one per shared environment) and an **SDK** for your service's language. In most team setups the platform team runs the server once; individual services only install SDKs.
 
-## Server Installation
-
-### Docker (Recommended)
-
-The easiest way to run CVT is with Docker:
+## Server
 
 ```bash
-# Run the published Docker image directly
 docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt:latest
 ```
 
-### From Source
-
-Build and run the server locally:
+Verify it's up:
 
 ```bash
-# Clone the repository
+curl http://localhost:9551/metrics
+# Should return Prometheus metrics
+```
+
+<details>
+<summary>Other ways to run the server (source, Docker Compose, go install)</summary>
+
+**From source** — clone and build locally (useful for contributors):
+
+```bash
 git clone https://github.com/sahina/cvt.git
 cd cvt
-
-# Build the server
 make build
-
-# Run locally
 make run-server
+```
 
-# Using Docker Compose (if you cloned the repo. includes observability stack)
+**Docker Compose** — includes the observability stack (Prometheus + Grafana):
+
+```bash
+cd cvt
 make up
 ```
 
-### Go Install
+**go install** — if you have a Go toolchain:
 
 ```bash
 go install github.com/sahina/cvt/cmd/cvt@latest
 ```
 
+**gRPC health probe** — for the `make health` target or Kubernetes readiness checks:
+
+```bash
+go install github.com/grpc-ecosystem/grpc-health-probe@latest
+grpc-health-probe -addr=localhost:9550
+```
+
+</details>
+
 ---
 
-## SDK Installation
-
-Install the SDK for your language:
+## SDK
 
 <Tabs groupId="sdk-language">
   <TabItem value="nodejs" label="Node.js" default>
@@ -61,14 +70,22 @@ Install the SDK for your language:
 npm install @sahina/cvt-sdk
 ```
 
+```typescript
+import { ContractValidator } from "@sahina/cvt-sdk";
+const validator = new ContractValidator("localhost:9550");
+```
+
   </TabItem>
   <TabItem value="python" label="Python">
 
 ```bash
 pip install cvt-sdk
+# or: uv add cvt-sdk
+```
 
-# Or with uv
-uv add cvt-sdk
+```python
+from cvt_sdk import ContractValidator
+validator = ContractValidator("localhost:9550")
 ```
 
   </TabItem>
@@ -78,120 +95,57 @@ uv add cvt-sdk
 go get github.com/sahina/cvt/sdks/go
 ```
 
+```go
+import "github.com/sahina/cvt/sdks/go/cvt"
+client, err := cvt.NewValidator("localhost:9550")
+```
+
   </TabItem>
   <TabItem value="java" label="Java">
 
-**Maven** (`pom.xml`):
+**Maven** — add to `pom.xml`:
 
 ```xml
 <dependency>
     <groupId>io.github.sahina</groupId>
     <artifactId>cvt-sdk</artifactId>
-    <version>0.1.3</version> <!-- Replace with latest from Maven Central -->
+    <version>0.1.3</version>
 </dependency>
 ```
 
-**Gradle** (`build.gradle`):
+**Gradle** — add to `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation("io.github.sahina:cvt-sdk:0.1.3") // Replace with latest from Maven Central
+    implementation("io.github.sahina:cvt-sdk:0.1.3")
 }
 ```
-
-Find the latest version on [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk).
-
-  </TabItem>
-</Tabs>
-
----
-
-## Verify Installation
-
-### Check Server
-
-```bash
-# Check metrics endpoint (no extra tools required)
-curl http://localhost:9551/metrics
-```
-
-#### Using grpc-health-probe (Optional)
-
-The `make health` command and direct health checks require [grpc-health-probe](https://github.com/grpc-ecosystem/grpc-health-probe) to be installed:
-
-```bash
-# Install grpc-health-probe
-go install github.com/grpc-ecosystem/grpc-health-probe@latest
-
-# Then you can run health checks
-make health
-
-# Or directly
-grpc-health-probe -addr=localhost:9550
-```
-
-### Check SDK
-
-<Tabs groupId="sdk-language">
-  <TabItem value="nodejs" label="Node.js" default>
-
-```typescript
-import { ContractValidator } from "@sahina/cvt-sdk";
-const validator = new ContractValidator("localhost:9550");
-console.log("Connected!");
-```
-
-  </TabItem>
-  <TabItem value="python" label="Python">
-
-```python
-from cvt_sdk import ContractValidator
-validator = ContractValidator('localhost:9550')
-print('Connected!')
-```
-
-  </TabItem>
-  <TabItem value="go" label="Go">
-
-```go
-import "github.com/sahina/cvt/sdks/go/cvt"
-
-client, err := cvt.NewValidator("localhost:9550")
-if err != nil {
-    log.Fatalf("Failed to connect: %v", err)
-}
-fmt.Println("Connected!")
-```
-
-  </TabItem>
-  <TabItem value="java" label="Java">
 
 ```java
 import io.github.sahina.sdk.ContractValidator;
-
 ContractValidator validator = new ContractValidator("localhost:9550");
-System.out.println("Connected!");
 ```
+
+Latest version: [Maven Central](https://central.sonatype.com/artifact/io.github.sahina/cvt-sdk).
 
   </TabItem>
 </Tabs>
 
 ---
 
-## Port Configuration
+## Next
 
-| Port | Service                                  |
-| ---- | ---------------------------------------- |
-| 9550 | gRPC server                              |
-| 9551 | Prometheus metrics                       |
-| 9091 | Prometheus UI (with observability stack) |
-| 3000 | Grafana UI (with observability stack)    |
+- **[Quick Start](./quick-start.mdx)** — write your first contract test in 5 minutes.
+- **[Configuration Reference](../reference/configuration.mdx)** — TLS, auth, persistent storage, all server settings.
 
----
+<details>
+<summary>Port reference</summary>
 
-## Next Steps
+| Port | Service |
+|---|---|
+| 9550 | gRPC server |
+| 9551 | Prometheus metrics |
+| 9091 | Prometheus UI (observability stack) |
+| 3000 | Grafana UI (observability stack) |
 
-- **[Quick Start](./quick-start.mdx)** - Your first contract test
-- **[Consumer Testing Guide](../guides/consumer-testing.mdx)** - Test API integrations
-- **[Producer Testing Guide](../guides/producer-testing.mdx)** - Validate your APIs
-- **[Configuration Reference](../reference/configuration.mdx)** - Server settings
+</details>

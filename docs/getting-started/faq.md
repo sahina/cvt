@@ -9,6 +9,16 @@ description: Non-obvious questions about CVT
 
 No. CVT is a test-time tool — the server runs in CI or on your local machine during development. Your production services never talk to it. Think of it like a test database: it exists to support your test suite, not your live traffic.
 
+## Do I need both consumer tests *and* producer tests?
+
+You need one side at minimum. You need both to get the full value.
+
+- **Consumer tests alone** catch your own integration bugs — you're calling the API in a way the spec allows.
+- **Producer tests alone** catch your own implementation drift — your handlers return what the spec promises.
+- **Both together** — plus consumer registration — enable [`can-i-deploy`](../guides/can-i-deploy.mdx), which blocks the producer's breaking changes before they reach any registered consumer. That's the payoff.
+
+In practice: if you own an API, you write producer tests. If you call someone else's API, you write consumer tests. In a microservice stack, most services end up doing both (they consume some APIs and produce others).
+
 ## How is this different from Pact?
 
 Pact is broker-centric and generates contracts from recorded interactions. CVT is schema-first — you bring an existing OpenAPI spec and validate against it directly. There's no broker to host, no contract generation step, and consumers don't need to coordinate with producers during test authoring. If you already have OpenAPI specs (most teams do), CVT lets you use them as the contract without an additional layer.
@@ -38,7 +48,7 @@ This is sometimes called "provider-generated stubs." The key advantage is that t
 | Go       | `NewMockClient()`       | `http.Client`        |
 | Java     | `MockInterceptor`       | OkHttp `Interceptor` |
 
-See [Approach 3: Mock Client](../guides/consumer-testing.mdx#approach-3-mock-client) in the Consumer Testing Guide for full setup examples.
+See [Approach 3 — Mock adapter](../guides/consumer-testing.mdx#approach-3--mock-adapter-no-real-api-needed) in the Consumer Testing Guide for full setup examples.
 
 ## Are CVT mock adapters a full mock server?
 
@@ -59,7 +69,7 @@ For automated testing, the in-process mock adapters remain the recommended appro
 
 Mock responses are structurally correct — they match the schema's types, required fields, and response codes — but they don't capture business logic. A mock for `GET /pet/123` will return a valid pet object, but it won't know that pet 123 is a dog named Max.
 
-This is by design. Mock adapters solve the "does my consumer code handle the response shape correctly?" question. For **"does the producer actually behave this way?"** you need [producer testing](../guides/producer-testing.mdx#schema-compliance-testing) and [contract validation](../guides/consumer-testing.mdx#approach-2-http-adapter-recommended).
+This is by design. Mock adapters solve the "does my consumer code handle the response shape correctly?" question. For **"does the producer actually behave this way?"** you need [producer testing](../guides/producer-testing.mdx#schema-compliance-testing) and [contract validation](../guides/consumer-testing.mdx#approach-2--http-adapter-recommended-for-existing-tests).
 
 The combination is powerful: mock adapters give consumers fast, offline feedback during development, and contract validation catches real integration issues in CI. Neither replaces the other.
 
@@ -69,4 +79,4 @@ For some workflows, yes:
 
 - **CLI offline commands** (**server not needed**) — [`cvt validate`](../reference/cli.mdx#validate), [`cvt compare`](../reference/cli.mdx#compare), [`cvt generate`](../reference/cli.mdx#generate), and [`cvt mock`](../reference/cli.mdx#mock) work without a CVT server. They operate on local schema files directly (or fetch from a URL if one is provided).
 - **Embedded Go library** (**server not needed**) — [`pkg/cvt`](https://pkg.go.dev/github.com/sahina/cvt/pkg/cvt) can be imported directly into Go code for in-process validation without any network calls.
-- **SDK-based workflow** (**server needed**) — [`registerSchema`](../reference/sdk/index.mdx#initialization), [`validate`](../reference/sdk/index.mdx#validation), [consumer registration](../guides/consumer-testing.mdx), and [`can-i-deploy`](../reference/cli.mdx#can-i-deploy) require a running server since SDKs communicate over [gRPC](../reference/api.mdx#service-methods).
+- **SDK-based workflow** (**server needed**) — [`registerSchema`](../reference/sdk/index.mdx#initialization), [`validate`](../reference/sdk/index.mdx#validation), [consumer registration](../guides/consumer-testing.mdx#consumer-registration), and [`can-i-deploy`](../guides/can-i-deploy.mdx) require a running server since SDKs communicate over [gRPC](../reference/api.mdx#service-methods).

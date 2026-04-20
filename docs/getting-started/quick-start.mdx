@@ -8,73 +8,109 @@ description: Your first contract test in 5 minutes
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
 
-# Quick Start
+# Quick Start: validate your first API call
 
-This guide walks you through your first contract test in under 5 minutes.
+You'll write one test that proves your service calls the Pets API correctly. New to CVT? Read the [Introduction](../intro.md) first — it explains Alice, Bob, and why this matters in 2 minutes.
 
-## Prerequisites
+:::info Assumes a running CVT server
+The examples assume CVT is reachable at `localhost:9550`. No server yet? See [Installation](./installation.mdx) (`docker run -d -p 9550:9550 ghcr.io/sahina/cvt:latest` is the short version).
 
-- CVT server running (see [Installation](./installation.mdx))
-- An OpenAPI schema to test against (we'll use the included Petstore schema)
-
-You can either:
-
-- Save the [Petstore OpenAPI schema](https://petstore3.swagger.io/api/v3/openapi.json) as `./openapi.json` in your project directory, OR
-- Use the URL directly: `https://petstore3.swagger.io/api/v3/openapi.json`
-
-All `registerSchema` methods accept both file paths and URLs. The examples below use a local file path, but you can substitute a URL.
-
-## Step 1: Start the Server
-
-```bash
-# Using the published Docker image (recommended)
-docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt:latest
-
-# Or using Docker Compose (if you've cloned the repository)
-make up
-
-# Or build and run locally
-make run-server
-```
-
-Verify it's running:
-
-```bash
-curl http://localhost:9551/metrics
-# Should return Prometheus metrics
-```
-
-:::info Producer vs Consumer
-In a team environment, the **producer** (API owner) registers their OpenAPI schema with the shared CVT server, and **consumers** validate against it. In this Quick Start, we combine both steps for simplicity. See the [CI/CD Integration Guide](../guides/ci-cd-integration.mdx#recommended-workflow) for the recommended production workflow.
+Save the [Petstore OpenAPI schema](https://petstore3.swagger.io/api/v3/openapi.json) as `./openapi.json` in your project, or pass the URL directly to `registerSchema`.
 :::
 
-## Step 2: Create a Simple Test
+## TL;DR
 
-<Tabs groupId="language">
-  <TabItem value="nodejs" label="Node.js" default>
-
-Create a test file `contract.test.ts`:
+The whole interaction in 20 lines of TypeScript:
 
 ```typescript
 import { ContractValidator } from "@sahina/cvt-sdk";
-import * as path from "path";
 
-describe("Petstore API Contract", () => {
+const validator = new ContractValidator("localhost:9550");
+await validator.registerSchema("petstore", "./openapi.json");
+
+const result = await validator.validate(
+  { method: "GET", path: "/pet/123" },
+  {
+    statusCode: 200,
+    body: {
+      id: 123,
+      name: "doggie",
+      photoUrls: ["https://example.com/photo.jpg"],
+      status: "available",
+    },
+  },
+);
+
+console.log(result.valid); // true
+validator.close();
+```
+
+The rest of this page turns that into a real test file, runs it, and shows what a failure looks like.
+
+## Step 1: install the SDK
+
+<Tabs groupId="sdk-language">
+  <TabItem value="nodejs" label="Node.js" default>
+
+```bash
+npm install @sahina/cvt-sdk
+```
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```bash
+pip install cvt-sdk
+```
+
+  </TabItem>
+  <TabItem value="go" label="Go">
+
+```bash
+go get github.com/sahina/cvt/sdks/go
+```
+
+  </TabItem>
+  <TabItem value="java" label="Java">
+
+Maven:
+
+```xml
+<dependency>
+    <groupId>io.github.sahina</groupId>
+    <artifactId>cvt-sdk</artifactId>
+    <version>0.1.3</version>
+</dependency>
+```
+
+Full install options (including Gradle): [Installation](./installation.mdx).
+
+  </TabItem>
+</Tabs>
+
+## Step 2: write the test
+
+One file, two test cases: a valid response (passes) and a response missing required fields (fails).
+
+<Tabs groupId="sdk-language">
+  <TabItem value="nodejs" label="Node.js" default>
+
+`contract.test.ts`:
+
+```typescript
+import { ContractValidator } from "@sahina/cvt-sdk";
+
+describe("Pets API contract", () => {
   let validator: ContractValidator;
 
   beforeAll(async () => {
     validator = new ContractValidator("localhost:9550");
-
-    // Register the Petstore schema from file
-    const schemaPath = path.resolve(__dirname, "./openapi.json");
-    await validator.registerSchema("petstore", schemaPath);
-    // Or register from URL:
-    // await validator.registerSchema('petstore', 'https://petstore3.swagger.io/api/v3/openapi.json');
+    await validator.registerSchema("petstore", "./openapi.json");
   });
 
   afterAll(() => validator.close());
 
-  it("validates a correct pet response", async () => {
+  it("passes for a well-formed pet response", async () => {
     const result = await validator.validate(
       { method: "GET", path: "/pet/123" },
       {
@@ -91,12 +127,12 @@ describe("Petstore API Contract", () => {
     expect(result.valid).toBe(true);
   });
 
-  it("catches invalid responses", async () => {
+  it("fails when required fields are missing", async () => {
     const result = await validator.validate(
       { method: "GET", path: "/pet/123" },
       {
         statusCode: 200,
-        body: { id: 123 }, // missing required 'name' and 'photoUrls' fields
+        body: { id: 123 }, // no `name`, no `photoUrls`
       },
     );
 
@@ -106,16 +142,10 @@ describe("Petstore API Contract", () => {
 });
 ```
 
-Run the test:
-
-```bash
-npm test
-```
-
   </TabItem>
   <TabItem value="python" label="Python">
 
-Create a test file `test_contract.py`:
+`test_contract.py`:
 
 ```python
 import pytest
@@ -124,55 +154,44 @@ from cvt_sdk import ContractValidator
 
 @pytest.fixture(scope="module")
 def validator():
-    v = ContractValidator('localhost:9550')
-
-    # Register the Petstore schema from file
-    v.register_schema('petstore', './openapi.json')
-    # Or register from URL:
-    # v.register_schema('petstore', 'https://petstore3.swagger.io/api/v3/openapi.json')
-
+    v = ContractValidator("localhost:9550")
+    v.register_schema("petstore", "./openapi.json")
     yield v
     v.close()
 
 
-def test_validates_correct_pet_response(validator):
+def test_passes_for_well_formed_pet_response(validator):
     result = validator.validate(
-        request={'method': 'GET', 'path': '/pet/123'},
+        request={"method": "GET", "path": "/pet/123"},
         response={
-            'status_code': 200,
-            'body': {
-                'id': 123,
-                'name': 'doggie',
-                'photoUrls': ['https://example.com/photo.jpg'],
-                'status': 'available'
-            }
-        }
+            "status_code": 200,
+            "body": {
+                "id": 123,
+                "name": "doggie",
+                "photoUrls": ["https://example.com/photo.jpg"],
+                "status": "available",
+            },
+        },
     )
     assert result["valid"] is True
 
 
-def test_catches_invalid_responses(validator):
+def test_fails_when_required_fields_are_missing(validator):
     result = validator.validate(
-        request={'method': 'GET', 'path': '/pet/123'},
+        request={"method": "GET", "path": "/pet/123"},
         response={
-            'status_code': 200,
-            'body': {'id': 123}  # missing required 'name' and 'photoUrls' fields
-        }
+            "status_code": 200,
+            "body": {"id": 123},  # no `name`, no `photoUrls`
+        },
     )
     assert result["valid"] is False
     assert len(result["errors"]) > 0
 ```
 
-Run the test:
-
-```bash
-pytest test_contract.py -v
-```
-
   </TabItem>
   <TabItem value="go" label="Go">
 
-Create a test file `contract_test.go`:
+`contract_test.go`:
 
 ```go
 package main
@@ -186,19 +205,16 @@ import (
     "github.com/stretchr/testify/require"
 )
 
-func TestPetstoreAPIContract(t *testing.T) {
+func TestPetsAPIContract(t *testing.T) {
     ctx := context.Background()
     validator, err := cvt.NewValidator("localhost:9550")
     require.NoError(t, err)
     defer validator.Close()
 
-    // Register the Petstore schema from file
     err = validator.RegisterSchema(ctx, "petstore", "./openapi.json")
-    // Or register from URL:
-    // err = validator.RegisterSchema(ctx, "petstore", "https://petstore3.swagger.io/api/v3/openapi.json")
     require.NoError(t, err)
 
-    t.Run("validates correct pet response", func(t *testing.T) {
+    t.Run("passes for a well-formed pet response", func(t *testing.T) {
         result, err := validator.Validate(ctx,
             cvt.ValidationRequest{Method: "GET", Path: "/pet/123"},
             cvt.ValidationResponse{
@@ -215,12 +231,12 @@ func TestPetstoreAPIContract(t *testing.T) {
         assert.True(t, result.Valid)
     })
 
-    t.Run("catches invalid responses", func(t *testing.T) {
+    t.Run("fails when required fields are missing", func(t *testing.T) {
         result, err := validator.Validate(ctx,
             cvt.ValidationRequest{Method: "GET", Path: "/pet/123"},
             cvt.ValidationResponse{
                 StatusCode: 200,
-                Body:       map[string]any{"id": 123}, // missing required 'name' and 'photoUrls'
+                Body:       map[string]any{"id": 123}, // no `name`, no `photoUrls`
             },
         )
         require.NoError(t, err)
@@ -230,41 +246,27 @@ func TestPetstoreAPIContract(t *testing.T) {
 }
 ```
 
-Run the test:
-
-```bash
-go test -v
-```
-
   </TabItem>
   <TabItem value="java" label="Java">
 
-Create a test file `ContractTest.java`:
+`PetsAPIContractTest.java`:
 
 ```java
-package com.example;
-
 import io.github.sahina.sdk.ContractValidator;
 import io.github.sahina.sdk.ValidationRequest;
 import io.github.sahina.sdk.ValidationResponse;
 import io.github.sahina.sdk.ValidationResult;
 import org.junit.jupiter.api.*;
 
-import java.io.IOException;
-
 import static org.junit.jupiter.api.Assertions.*;
 
-class PetstoreAPIContractTest {
+class PetsAPIContractTest {
     private static ContractValidator validator;
 
     @BeforeAll
-    static void setup() throws IOException {
+    static void setup() throws Exception {
         validator = new ContractValidator("localhost:9550");
-
-        // Register the Petstore schema from file
         validator.registerSchema("petstore", "./openapi.json");
-        // Or register from URL:
-        // validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
     }
 
     @AfterAll
@@ -273,43 +275,64 @@ class PetstoreAPIContractTest {
     }
 
     @Test
-    void validatesCorrectPetResponse() {
+    void passesForWellFormedPetResponse() {
         ValidationRequest request = ValidationRequest.builder()
-                .method("GET")
-                .path("/pet/123")
-                .build();
+                .method("GET").path("/pet/123").build();
 
         ValidationResponse response = ValidationResponse.builder()
                 .statusCode(200)
-                .body("{\"id\": 123, \"name\": \"doggie\", \"photoUrls\": [\"https://example.com/photo.jpg\"], \"status\": \"available\"}")
+                .body("{\"id\":123,\"name\":\"doggie\",\"photoUrls\":[\"https://example.com/photo.jpg\"],\"status\":\"available\"}")
                 .build();
 
         ValidationResult result = validator.validate(request, response);
-
         assertTrue(result.isValid());
     }
 
     @Test
-    void catchesInvalidResponses() {
+    void failsWhenRequiredFieldsAreMissing() {
         ValidationRequest request = ValidationRequest.builder()
-                .method("GET")
-                .path("/pet/123")
-                .build();
+                .method("GET").path("/pet/123").build();
 
         ValidationResponse response = ValidationResponse.builder()
                 .statusCode(200)
-                .body("{\"id\": 123}")  // missing required 'name' and 'photoUrls' fields
+                .body("{\"id\":123}")  // no `name`, no `photoUrls`
                 .build();
 
         ValidationResult result = validator.validate(request, response);
-
         assertFalse(result.isValid());
         assertFalse(result.getErrors().isEmpty());
     }
 }
 ```
 
-Run the test:
+  </TabItem>
+</Tabs>
+
+## Step 3: run it
+
+<Tabs groupId="sdk-language">
+  <TabItem value="nodejs" label="Node.js" default>
+
+```bash
+npm test
+```
+
+  </TabItem>
+  <TabItem value="python" label="Python">
+
+```bash
+pytest test_contract.py -v
+```
+
+  </TabItem>
+  <TabItem value="go" label="Go">
+
+```bash
+go test -v
+```
+
+  </TabItem>
+  <TabItem value="java" label="Java">
 
 ```bash
 mvn test
@@ -318,101 +341,79 @@ mvn test
   </TabItem>
 </Tabs>
 
-## Step 3: Use the CLI
+Both tests should pass:
 
-For quick validations without code:
+- The **first** test sends a well-formed pet response; CVT confirms it matches the schema.
+- The **second** test sends a malformed response missing `name` and `photoUrls`; CVT reports the required-field violations, and the test asserts that failure.
 
-```bash
-# Build the CLI
-go build -o cvt ./cmd/cvt
+That second test is the point. Your contract test now catches schema violations *before* they ship — exactly what would have saved Alice from last Tuesday's outage.
 
-# Create request and response files
-cat > request.json << 'EOF'
-{
-  "method": "GET",
-  "path": "/pet/123"
-}
-EOF
+## What you just did
 
-cat > response.json << 'EOF'
-{
-  "status_code": 200,
-  "body": "{\"id\": 123, \"name\": \"doggie\", \"photoUrls\": [\"https://example.com/photo.jpg\"], \"status\": \"available\"}"
-}
-EOF
+You proved that your code calls the Pets API in a way Bob's spec promises is valid. This is the **consumer half** of contract testing.
 
-# Validate the interaction
-cvt validate --schema openapi.json --request request.json --response response.json
-```
+The other half is on Bob's side: he verifies his handlers actually *return* what his spec promises. That's what makes `can-i-deploy` trustworthy later.
 
-### Mock Server
+## Other ways to validate
 
-Start a mock HTTP server from any OpenAPI schema — useful for frontend development, manual testing, or mocking upstream APIs:
+The explicit `validate()` call you just used is the simplest approach. CVT supports two more — each trades off setup complexity against coverage:
 
-```bash
-# Start mock server on port 8080
-cvt mock --schema openapi.json
+| Approach | How it works | When to use |
+|---|---|---|
+| **Direct `validate()`** (this quickstart) | Call `validator.validate(request, response)` per interaction | Learning CVT; validating a handful of specific calls |
+| **HTTP adapter** | Wrap your HTTP client (axios, requests, OkHttp…) so every call is validated automatically | Existing integration tests; no per-call changes |
+| **Mock adapter** | Skip the real API; CVT generates spec-compliant responses in-process | Unit tests; offline/fast feedback; frontend dev |
 
-# With request validation and hot-reload
-cvt mock --schema openapi.json --validate-requests --watch
+Full walkthrough of all three: [Consumer Testing Guide](../guides/consumer-testing.mdx).
 
-# Test it
-curl http://localhost:8080/pet/123
-```
+**Producing an API instead?** The [Producer Testing Guide](../guides/producer-testing.mdx) covers schema-compliance tests, middleware modes (strict / warn / shadow), and full HTTP integration.
 
-See the [CLI Reference](../reference/cli.mdx#mock) for all mock server options.
+→ Keep going: **[Consumer Testing Guide](../guides/consumer-testing.mdx)** (Alice's deeper walkthrough) or **[Producer Testing Guide](../guides/producer-testing.mdx)** (Bob's side).
 
-## What's Next?
+<details>
+<summary>Why register the schema if I'm just validating one call?</summary>
 
-Now that you've validated your first interaction, explore:
+`registerSchema` caches Bob's contract on the CVT server. Subsequent `validate` calls are fast lookups — no re-parse of the OpenAPI spec. It's idempotent: calling it with the same ID and content is a no-op. Most teams register once in `beforeAll`.
 
-- **[Consumer Testing Guide](../guides/consumer-testing.mdx)** - Test your API integrations
-- **[Producer Testing Guide](../guides/producer-testing.mdx)** - Validate your API implementations
-- **[Breaking Changes Guide](../guides/breaking-changes.mdx)** - Detect schema incompatibilities
-- **[SDK Reference](../reference/sdk/)** - Language-specific features
+In a real team setup, **Bob's CI registers the schema**, not Alice's tests. The call in this quickstart is a shortcut for local development. See [Consumer Testing Guide](../guides/consumer-testing.mdx) for the production pattern.
 
-## Common Patterns
+</details>
 
-### Loading Schema from URL
+<details>
+<summary>Validating from a URL instead of a file</summary>
+
+`registerSchema` accepts either a local path or an HTTP(S) URL. Useful when the spec is published as a build artifact or served by the producer's CI:
 
 ```typescript
-// Register schema directly from URL
 await validator.registerSchema(
   "petstore",
   "https://petstore3.swagger.io/api/v3/openapi.json",
 );
 ```
 
-### Using HTTP Adapters
+</details>
 
-Automatically validate all HTTP traffic:
+<details>
+<summary>No SDK? Use the `cvt` CLI</summary>
 
-```typescript
-import axios from "axios";
-import { createAxiosAdapter } from "@sahina/cvt-sdk/adapters";
+The CLI runs the same validation without any code, handy for bash scripts or smoke tests:
 
-const api = axios.create({ baseURL: "http://api.example.com" });
-const adapter = createAxiosAdapter({
-  axios: api,
-  validator,
-  autoValidate: true,
-});
-
-// All requests/responses are now validated automatically
-const pet = await api.get("/pet/123");
-
-// Check validation results
-const interactions = adapter.getInteractions();
-console.log(interactions[0].validationResult?.valid);
+```bash
+cvt validate --schema ./openapi.json --request request.json --response response.json
 ```
 
-### Registering as a Consumer
+Full CLI options: [CLI Reference](../reference/cli.mdx#validate). For a running mock HTTP server (frontend dev, manual testing): [`cvt mock`](../reference/cli.mdx#mock).
 
-Enable deployment safety checks:
+</details>
+
+<details>
+<summary>Registering your service as a consumer (needed for can-i-deploy)</summary>
+
+After your contract tests pass, register your service as a consumer so Bob's `can-i-deploy` check can see you:
 
 ```typescript
 await validator.registerConsumer({
-  consumerId: "my-service",
+  consumerId: "checkout-service",
   consumerVersion: "1.0.0",
   schemaId: "petstore",
   schemaVersion: "1.0.0",
@@ -426,3 +427,7 @@ await validator.registerConsumer({
   ],
 });
 ```
+
+This is how CVT knows to block Bob's breaking change before it reaches you. See [CanIDeploy](../guides/can-i-deploy.mdx).
+
+</details>

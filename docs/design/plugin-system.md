@@ -178,7 +178,8 @@ Every plugin call runs under a context deadline. On timeout, panic, or transport
 **Metrics** (Prometheus, existing `CVT_METRICS_PORT`):
 - `cvt_plugin_call_duration_seconds{plugin, service, method}` histogram.
 - `cvt_plugin_call_errors_total{plugin, service, method, code}` counter. `code` = canonical gRPC code name.
-- `cvt_plugin_up{plugin, version}` gauge.
+- `cvt_plugin_up{plugin}` gauge. Plugin-name only (version on `cvt_plugin_info`) so version bumps don't leak cardinality.
+- `cvt_plugin_info{plugin, version, sha256}` gauge. Always 1; carries reported identity; cleared on restart.
 - `cvt_plugin_restarts_total{plugin}` counter.
 
 **Audit:** `server/cvtservice/audit_logger.go` extended with plugin-call entries. Fields: `plugin`, `version`, `sha256`, `pid`, `request_id`, `service`, `method`, `duration_ms`, `outcome`, `error_code`. Secret config values redacted at emission. Writes are synchronous (small channel, block if full). Perf split deferred to v1.1 if it matters.
@@ -239,9 +240,9 @@ internal/pluginmgr/            # lifecycle via go-plugin, config load, audit wir
 cmd/cvt/plugins.go             # list/install/remove
 cmd/cvt/plugins_runtime.go     # runtime wiring when `cvt serve` loads configured plugins
 server/cvtservice/
-├── hooks_fire.go              # server-side hook helpers (on_breaking_change_detected, fetch_schema, on_consumer_registered)
+├── hooks_fire.go              # server-side hook helpers (on_breaking_change_detected, fetch_schema, register_consumer_usage)
 ├── validator_service.go       # breaking-change + fetch_schema call sites
-└── consumer_registry.go       # on_consumer_registered call site
+└── consumer_registry.go       # register_consumer_usage call site
 ```
 
 ## Documentation
