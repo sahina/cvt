@@ -57,6 +57,27 @@ const FeatureList: FeatureItem[] = [
       "CanIDeploy verification ensures schema changes won't break registered consumer contracts.",
     link: '/docs/guides/breaking-changes#deployment-safety-can-i-deploy',
   },
+  {
+    title: 'Plugin System',
+    icon: '⊕',
+    description:
+      'Extend CVT with custom validators, fetchers, and lifecycle hooks. Go-based plugins installed via cvt plugins install.',
+    link: '/docs/plugins',
+  },
+  {
+    title: 'Mock Server',
+    icon: '↯',
+    description:
+      'Spin up a mock HTTP server from any OpenAPI spec with cvt mock — request validation, latency simulation, and hot-reload built in.',
+    link: '/docs/reference/cli#mock',
+  },
+  {
+    title: 'CI/CD Integration',
+    icon: '⟳',
+    description:
+      'Drop-in templates and JSON output for GitHub Actions, GitLab, and Jenkins. Block PRs that introduce breaking changes.',
+    link: '/docs/guides/ci-cd-integration',
+  },
 ];
 
 type SDKExample = {
