@@ -55,7 +55,7 @@ const FeatureList: FeatureItem[] = [
     icon: '⊘',
     description:
       "CanIDeploy verification ensures schema changes won't break registered consumer contracts.",
-    link: '/docs/guides/breaking-changes#deployment-safety-can-i-deploy',
+    link: '/docs/guides/can-i-deploy',
   },
   {
     title: 'Plugin System',

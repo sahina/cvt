@@ -1,0 +1,304 @@
+---
+title: CanIDeploy
+sidebar_label: CanIDeploy
+sidebar_position: 3
+description: Block breaking deploys before they ship — CVT's safety gate between producers and consumers
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# CanIDeploy: the safety gate between producers and consumers
+
+`can-i-deploy` is the payoff of everything else CVT does. The producer writes an OpenAPI spec; consumers register which endpoints and fields they depend on; before the producer ships a schema change, `can-i-deploy` checks whether any real consumer would break. If the answer is yes, the deploy is blocked.
+
+This page walks through using it. For Alice and Bob's story and *why* you'd want this gate, see the [Introduction](../intro.md).
+
+## TL;DR
+
+```bash
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod
+```
+
+```text
+✅ SAFE TO DEPLOY
+No breaking changes detected that would affect registered consumers.
+```
+
+Exit code `0` → deploy. Exit code `1` → don't deploy; fix the breakage or coordinate with the affected consumer team first.
+
+## How it works
+
+```text
+     New schema v2.0.0 about to deploy
+                  │
+                  ▼
+       ┌──────────────────────────┐
+       │       CVT Server         │
+       │                          │
+       │ 1. Diff v2.0.0 vs v1.0.0 │   ← breaking-change detection
+       │ 2. Look up registered    │
+       │    consumers in `prod`   │   ← consumer registry
+       │ 3. Check which consumers │
+       │    touch affected        │
+       │    endpoints/fields      │
+       │ 4. Return verdict        │
+       └──────────────────────────┘
+                  │
+                  ▼
+       ┌──────────────────────────┐
+       │  SAFE / UNSAFE + details │
+       └──────────────────────────┘
+```
+
+The check combines two things CVT already knows:
+- **Breaking changes**: diff the new schema against the old one (see [Breaking Changes Guide](./breaking-changes.mdx)).
+- **Consumer registry**: which services registered as consumers in this environment, and which endpoints and fields they said they use (see [Consumer Testing Guide](./consumer-testing.mdx#consumer-registration)).
+
+A breaking change matters only if a registered consumer depends on the changed piece. That intersection is the verdict.
+
+## Step 1 — make sure consumers are registered
+
+`can-i-deploy` can only protect consumers that are registered with CVT in the target environment. Each consumer service registers after its contract tests pass:
+
+```typescript
+await validator.registerConsumer({
+  consumerId: "checkout-service",
+  consumerVersion: "1.0.0",
+  schemaId: "petstore",
+  schemaVersion: "1.0.0",
+  environment: "prod",
+  usedEndpoints: [
+    { method: "GET", path: "/pet/{petId}", usedFields: ["id", "name", "status"] },
+  ],
+});
+```
+
+Full walkthrough: [Consumer Testing → Consumer Registration](./consumer-testing.mdx#consumer-registration).
+
+:::info No consumers registered yet?
+`can-i-deploy` returns *safe* when no consumers are registered for the schema in that environment — there's nothing to break. This is expected on day one; it becomes load-bearing once consumers start registering. See the [no-consumers troubleshooting](#no-consumers-registered) note below.
+:::
+
+## Step 2 — run the check in CI
+
+Put the check in your producer's deploy pipeline, before the deploy step.
+
+### GitHub Actions
+
+```yaml
+- name: Check deployment safety
+  run: |
+    cvt can-i-deploy \
+      --schema petstore \
+      --version ${{ github.sha }} \
+      --env prod \
+      --server ${{ secrets.CVT_SERVER }}
+
+- name: Deploy
+  if: success()
+  run: ./deploy.sh
+```
+
+The CLI exits `1` on unsafe; failing the safety step stops the deploy. For GitLab and Jenkins examples, see the [CI/CD Integration Guide](./ci-cd-integration.mdx).
+
+### JSON output for custom pipelines
+
+```bash
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod --json > check.json
+
+if [ "$(jq '.safe_to_deploy' check.json)" != "true" ]; then
+  echo "Deploy blocked:"
+  jq '.affected_consumers[] | select(.will_break) | .consumer_id' check.json
+  exit 1
+fi
+```
+
+Full flag reference (including `--timeout`, `--server`, exit codes): [CLI Reference → can-i-deploy](../reference/cli.mdx#can-i-deploy).
+
+## Step 3 — interpret the verdict
+
+| Verdict | What it means | What to do |
+|---|---|---|
+| **✅ SAFE TO DEPLOY** | No breaking changes, or breaking changes don't touch any registered consumer's endpoints/fields | Deploy |
+| **❌ UNSAFE TO DEPLOY** | At least one registered consumer depends on something this change breaks | See breakage + affected-consumers list; fix the change or coordinate with the consumer team |
+| **⚠️ NO CONSUMERS** | No services are registered as consumers for this schema in this environment | Safe on technicality; confirm with your platform/consumer teams that they're actually registering |
+
+### Example: unsafe output
+
+```text
+Deployment Safety Check
+=======================
+Schema:      petstore
+Version:     2.0.0
+Environment: prod
+
+❌ UNSAFE TO DEPLOY
+
+Breaking changes in v2.0.0:
+  - RESPONSE_SCHEMA_CHANGED: GET /pet/{petId} response removed 'status'
+  - ENDPOINT_REMOVED: DELETE /pet/{petId}
+
+Affected consumers in prod:
+  ├── order-service v2.1.0
+  │   Schema version: 1.0.0
+  │   Impact: BREAKING
+  │   Affected by:
+  │     - GET /pet/{petId}
+  │
+  ├── notification-service v1.5.0
+  │   Schema version: 1.0.0
+  │   Impact: BREAKING
+  │   Affected by:
+  │     - DELETE /pet/{petId}
+  │
+  └── billing-service v1.0.0
+      Schema version: 1.0.0
+      Impact: None
+
+Safe consumers:     1/3
+Affected consumers: 2/3
+
+Recommendation: Coordinate with order-service and notification-service teams before deploying.
+```
+
+The verdict names the affected services and the specific endpoints they depend on — enough to start the conversation.
+
+## Next
+
+- **[CI/CD Integration Guide](./ci-cd-integration.mdx)** — full pipeline examples for GitHub Actions, GitLab, Jenkins.
+- **[Breaking Changes Guide](./breaking-changes.mdx)** — what counts as breaking, how to make changes without breaking consumers.
+- **[Consumer Testing Guide](./consumer-testing.mdx#consumer-registration)** — how consumers declare their dependencies so `can-i-deploy` can see them.
+
+<details>
+<summary>SDK usage (instead of the CLI)</summary>
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js" default>
+
+```typescript
+const result = await validator.canIDeploy("petstore", "2.0.0", "prod");
+
+if (result.safeToDeploy) {
+  console.log("Safe to deploy!");
+} else {
+  console.error("UNSAFE:", result.summary);
+  for (const change of result.breakingChanges) {
+    console.error(`- [${change.type}] ${change.description}`);
+  }
+  for (const consumer of result.affectedConsumers) {
+    if (consumer.willBreak) {
+      console.error(`Consumer ${consumer.consumerId} will break!`);
+    }
+  }
+  process.exit(1);
+}
+```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+result = validator.can_i_deploy("petstore", "2.0.0", "prod")
+
+if result["safe_to_deploy"]:
+    print("Safe to deploy!")
+else:
+    print(f"UNSAFE: {result['summary']}")
+    for change in result["breaking_changes"]:
+        print(f"- [{change['type']}] {change['description']}")
+    for consumer in result["affected_consumers"]:
+        if consumer["will_break"]:
+            print(f"Consumer {consumer['consumer_id']} will break!")
+    sys.exit(1)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+result, err := validator.CanIDeploy(ctx, "petstore", "2.0.0", "prod")
+if err != nil {
+    log.Fatal(err)
+}
+
+if result.SafeToDeploy {
+    fmt.Println("Safe to deploy!")
+} else {
+    fmt.Println("UNSAFE:", result.Summary)
+    for _, change := range result.BreakingChanges {
+        fmt.Printf("- [%s] %s\n", change.Type, change.Description)
+    }
+    for _, consumer := range result.AffectedConsumers {
+        if consumer.WillBreak {
+            fmt.Printf("Consumer %s will break!\n", consumer.ConsumerID)
+        }
+    }
+    os.Exit(1)
+}
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```java
+CanIDeployResult result = validator.canIDeploy("petstore", "2.0.0", "prod");
+
+if (result.isSafeToDeploy()) {
+    System.out.println("Safe to deploy!");
+} else {
+    System.err.println("UNSAFE: " + result.getSummary());
+    for (BreakingChange change : result.getBreakingChanges()) {
+        System.err.printf("- [%s] %s%n", change.getType(), change.getDescription());
+    }
+    for (ConsumerImpact consumer : result.getAffectedConsumers()) {
+        if (consumer.isWillBreak()) {
+            System.err.printf("Consumer %s will break!%n", consumer.getConsumerId());
+        }
+    }
+    System.exit(1);
+}
+```
+
+</TabItem>
+</Tabs>
+
+</details>
+
+<details>
+<summary>Environment promotion (dev → staging → prod)</summary>
+
+`can-i-deploy` is environment-scoped. A consumer registered in `dev` doesn't protect `prod`. Run the check per target environment before promoting:
+
+```bash
+# About to promote petstore v2.0.0 from staging to prod
+cvt can-i-deploy --schema petstore --version 2.0.0 --env staging  # first
+cvt can-i-deploy --schema petstore --version 2.0.0 --env prod     # then
+```
+
+Consumers typically register in each environment as they promote there — on dev deploy, on staging deploy, and on prod deploy. See [Consumer Testing → Consumer Registration](./consumer-testing.mdx#consumer-registration).
+
+</details>
+
+<details id="no-consumers-registered">
+<summary>Troubleshooting: "No consumers registered"</summary>
+
+If `can-i-deploy` returns *safe* with `NO CONSUMERS` in the summary, CVT has no record of any service registered against this schema in this environment. This can mean:
+
+- **You're the first to deploy and no one consumes you yet** — expected, not a problem.
+- **Consumers exist but aren't registering in CI** — the gate is a false-negative until they register. Confirm with their teams that they run `registerConsumer` in their pipelines.
+- **Wrong environment** — your CI passed `--env prod` but consumers registered in `staging`. Double-check the `--env` flag.
+- **Wrong schema ID** — typos in `--schema` silently pass because there are no registrations for `petsotre` (say).
+
+Fix by making consumer registration part of each consumer service's CI — on green main, register against each environment the service deploys to.
+
+</details>
+
+<details>
+<summary>What counts as "breaking"?</summary>
+
+Any change that would make an existing consumer fail: removed endpoints, newly-required fields, renamed response fields, type changes, removed enum values. Full list with examples: [Breaking Changes Guide](./breaking-changes.mdx#what-are-breaking-changes).
+
+Non-breaking (safe to add at any time): optional fields, new endpoints, new enum values, relaxed validation.
+
+</details>

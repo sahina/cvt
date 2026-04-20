@@ -17,8 +17,8 @@ A typical CVT-enabled pipeline includes:
 2. **Consumer registration** - Register your service's API dependencies after tests pass
 3. **Deployment safety checks** - Run `can-i-deploy` before deploying schema changes
 
-:::tip Schema-Specific PR Checks
-For PR checks that detect breaking changes when your OpenAPI spec file changes, see the [Breaking Changes CI/CD section](./breaking-changes.mdx#cicd-integration).
+:::tip PR check for breaking changes
+For a PR-time check that flags breaking changes the moment a spec change is opened, see the [Breaking Changes Guide → PR check](./breaking-changes.mdx#pr-check-catch-breaking-changes-before-merge). It's complementary to `can-i-deploy`: PR check catches accidental breakage early; `can-i-deploy` blocks the deploy when a real consumer would be hit.
 :::
 
 ---
@@ -355,5 +355,6 @@ pipeline {
 
 - **[Consumer Testing Guide](./consumer-testing.mdx)** - Test your API integrations
 - **[Producer Testing Guide](./producer-testing.mdx)** - Validate your own APIs
-- **[Breaking Changes Guide](./breaking-changes.mdx)** - Schema compatibility and can-i-deploy
+- **[CanIDeploy](./can-i-deploy.mdx)** - The deploy-time safety gate used in every pipeline example above
+- **[Breaking Changes Guide](./breaking-changes.mdx)** - What counts as breaking, plus a PR-time check
 - **[Configuration Reference](../reference/configuration.mdx)** - Environment variables and settings

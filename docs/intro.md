@@ -55,7 +55,7 @@ The fix is a two-sided handshake over the **OpenAPI spec** Bob already publishes
 
 - **Consuming an API?** → [Quick Start](./getting-started/quick-start.mdx) — write your first consumer test in 5 minutes.
 - **Own an API?** → [Producer Testing Guide](./guides/producer-testing.mdx) — register your schema and verify your handlers match it.
-- **Wiring CI?** → [CanIDeploy](./guides/breaking-changes.mdx#deployment-safety-can-i-deploy) — the safety gate that ties both sides together.
+- **Wiring CI?** → [CanIDeploy](./guides/can-i-deploy.mdx) — the safety gate that ties both sides together.
 
 <details>
 <summary>New to OpenAPI? (1 minute)</summary>

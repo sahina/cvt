@@ -10,116 +10,33 @@ import TabItem from "@theme/TabItem";
 
 # Producer Testing Guide
 
-This guide covers how to use CVT for producer-side contract testing. Producer testing ensures your API implementation matches your OpenAPI specification before deployment.
+Producer testing answers: **"Does my API actually return what my spec promises?"** This is Bob's side of the handshake — the consumer side is in [Consumer Testing](./consumer-testing.mdx). If you're new to CVT, read the [Introduction](../intro.md) first.
 
-:::tip Example Schema
-The examples in this guide use the Petstore schema from `sdks/shared/openapi.json`. Copy it to your project as `openapi.json` or adjust the paths to reference it directly.
+As the producer you own the OpenAPI spec; your CI should register it with the shared CVT server so consumers can validate against it and [`can-i-deploy`](./can-i-deploy.mdx) can gate your releases.
 
-All `registerSchema` methods accept both **file paths** and **URLs**:
+## Approaches at a glance
 
-```typescript
-// From file
-await validator.registerSchema("petstore", "./openapi.json");
-// From URL
-await validator.registerSchema(
-  "petstore",
-  "https://petstore3.swagger.io/api/v3/openapi.json",
-);
-```
+| Approach | How it works | Runs where | Speed | Best for |
+|---|---|---|---|---|
+| **Schema compliance tests** | Unit-test handlers against the spec using `ProducerTestKit` | Your test suite | Fast | Fast feedback during dev; CI |
+| **Middleware** (strict/warn/shadow) | CVT middleware validates real requests + responses in your running API | Your API server | Per-request overhead | Runtime enforcement; production rollout |
+| **HTTP integration** | End-to-end HTTP calls into your running API, validated by CVT | Integration test suite | Medium | Routing / serialization bugs |
 
-:::
-
-## Overview
-
-Producer testing answers the question: **"Does my API match my spec?"**
-
-:::tip Producer Owns the Schema
-As the producer, **you own the OpenAPI spec** — it is the source of truth for your API's contract. Your CI/CD pipeline should register the schema with the shared CVT server so that consumers can validate against it and register their dependencies. This enables deployment safety via `can-i-deploy`. See [Schema Registration in CI/CD](#schema-registration-in-cicd) below.
-:::
-
-| Approach             | Who Uses It   | What It Tests                    |
-| -------------------- | ------------- | -------------------------------- |
-| **Consumer Testing** | API consumers | "Can I call this API correctly?" |
-| **Producer Testing** | API producers | "Does my API match my spec?"     |
-
-```text
-┌─────────────────────┐     HTTP      ┌─────────────────────┐
-│   Client Requests   │ ────────────► │   Your API Server   │
-└─────────────────────┘               │   + CVT Middleware  │
-                                      └─────────────────────┘
-                                               │
-                                               │ Validate
-                                               ▼
-                                      ┌─────────────────────┐
-                                      │    CVT Server       │
-                                      │    + Your Schema    │
-                                      └─────────────────────┘
-```
+Most teams use all three: compliance tests in unit-test CI, middleware in staging+prod, HTTP integration in a pre-deploy job.
 
 ---
 
-## Capabilities
+## Schema compliance testing
 
-| Capability                    | Server Required? | What It Answers                                    |
-| ----------------------------- | ---------------- | -------------------------------------------------- |
-| **Schema compliance tests**   | Yes              | "Does my handler return spec-compliant responses?" |
-| **Breaking change detection** | No (CLI)         | "What changed between v1 and v2 of my spec?"       |
-| **Consumer registry**         | Yes              | "Which services depend on my API?"                 |
-| **can-i-deploy**              | Yes              | "Will this change break real consumers?"           |
-
----
-
-## Validation Approaches
-
-| Test Type             | Services Required | Speed  | Purpose                           |
-| --------------------- | ----------------- | ------ | --------------------------------- |
-| **Schema Compliance** | CVT only          | Fast   | Unit test handlers against schema |
-| **Middleware Modes**  | CVT only          | Fast   | Test Strict/Warn/Shadow behavior  |
-| **Consumer Registry** | CVT only          | Fast   | can-i-deploy checks               |
-| **HTTP Integration**  | Producer + CVT    | Medium | Full end-to-end validation        |
-
-- **Schema Compliance**: Test handlers directly without running a server. Fast feedback during development.
-- **Middleware Modes**: CVT middleware validates requests/responses in real-time. Three modes for different stages.
-- **Consumer Registry**: Track which endpoints consumers use. Enables `can-i-deploy` safety checks.
-- **HTTP Integration**: Real HTTP calls to running API. Tests complete stack including routing/serialization.
-
----
-
-## Schema Compliance Testing
-
-Schema compliance testing validates that your API handlers return responses matching your OpenAPI specification.
-
-### How It Works
-
-```mermaid
-sequenceDiagram
-    participant Test as Your Test
-    participant Handler as API Handler
-    participant TestKit as ProducerTestKit
-    participant CVT as CVT Server
-
-    Test->>Handler: Call handler
-    Handler-->>Test: Response
-    Test->>TestKit: validateResponse(response)
-    TestKit->>CVT: ValidateProducerResponse
-    CVT-->>TestKit: ValidationResult
-    TestKit-->>Test: Result (valid/errors)
-```
-
-1. Register your OpenAPI schema with CVT server
-2. Call your handler with test data
-3. Validate the response against the schema
-4. Get detailed error messages for any mismatches
-
-### Basic Example
+Call your handler, validate its response against the spec. No running HTTP server, no middleware — just the handler and CVT.
 
 <Tabs groupId="sdk-language">
-<TabItem value="nodejs" label="Node.js">
+<TabItem value="nodejs" label="Node.js" default>
 
 ```typescript
 import { ProducerTestKit } from "@sahina/cvt-sdk/producer";
 
-describe("Petstore API", () => {
+describe("Pets API", () => {
   let testKit: ProducerTestKit;
 
   beforeAll(async () => {
@@ -129,36 +46,25 @@ describe("Petstore API", () => {
     });
   });
 
-  afterAll(async () => {
-    testKit.close();
-  });
+  afterAll(async () => testKit.close());
 
-  it("GET /pet/{petId} returns valid response", async () => {
-    // Call your actual handler
+  it("GET /pet/{petId} returns a valid response", async () => {
     const response = await petHandler.getPet("123");
 
-    // Validate against schema
     const result = await testKit.validateResponse({
       method: "GET",
       path: "/pet/123",
-      response: {
-        statusCode: 200,
-        body: response,
-      },
+      response: { statusCode: 200, body: response },
     });
 
     expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
   });
 
   it("detects missing required fields", async () => {
     const result = await testKit.validateResponse({
       method: "GET",
       path: "/pet/123",
-      response: {
-        statusCode: 200,
-        body: { id: 123 }, // missing 'name' and 'photoUrls' fields
-      },
+      response: { statusCode: 200, body: { id: 123 } }, // no name, no photoUrls
     });
 
     expect(result.valid).toBe(false);
@@ -184,28 +90,19 @@ def test_kit():
     kit.close()
 
 def test_get_pet_returns_valid_response(test_kit, pet_handler):
-    # Call your handler
     response = pet_handler.get_pet("123")
 
-    # Validate
     result = test_kit.validate_response(
-        method="GET",
-        path="/pet/123",
-        status_code=200,
-        body=response,
+        method="GET", path="/pet/123",
+        status_code=200, body=response,
     )
-
     assert result.valid
-    assert len(result.errors) == 0
 
 def test_detects_missing_required_fields(test_kit):
     result = test_kit.validate_response(
-        method="GET",
-        path="/pet/123",
-        status_code=200,
-        body={"id": 123},  # missing 'name' and 'photoUrls' fields
+        method="GET", path="/pet/123",
+        status_code=200, body={"id": 123},
     )
-
     assert not result.valid
     assert "name" in result.errors[0]
 ```
@@ -215,42 +112,30 @@ def test_detects_missing_required_fields(test_kit):
 
 ```go
 func TestPetHandler(t *testing.T) {
-    testKit, err := producer.NewProducerTestKit(producer.TestConfig{
+    testKit, _ := producer.NewProducerTestKit(producer.TestConfig{
         SchemaID:      "petstore",
         ServerAddress: "localhost:9550",
     })
-    require.NoError(t, err)
-    defer func() { _ = testKit.Close() }()
+    defer testKit.Close()
 
     t.Run("GET /pet/{petId} returns valid response", func(t *testing.T) {
-        // Call your handler
         resp := petHandler.GetPet(ctx, "123")
 
-        // Validate
-        result, err := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
-            Method: "GET",
-            Path:   "/pet/123",
-            Response: producer.TestResponseData{
-                StatusCode: 200,
-                Body:       resp,
-            },
+        result, _ := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
+            Method: "GET", Path: "/pet/123",
+            Response: producer.TestResponseData{StatusCode: 200, Body: resp},
         })
-
-        require.NoError(t, err)
         assert.True(t, result.Valid)
     })
 
     t.Run("detects missing required fields", func(t *testing.T) {
-        result, err := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
-            Method: "GET",
-            Path:   "/pet/123",
+        result, _ := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
+            Method: "GET", Path: "/pet/123",
             Response: producer.TestResponseData{
                 StatusCode: 200,
-                Body:       map[string]any{"id": 123}, // missing 'name' and 'photoUrls' fields
+                Body:       map[string]any{"id": 123},
             },
         })
-
-        require.NoError(t, err)
         assert.False(t, result.Valid)
     })
 }
@@ -272,39 +157,24 @@ public class PetHandlerTest {
     }
 
     @AfterEach
-    void teardown() {
-        testKit.close();
-    }
+    void teardown() { testKit.close(); }
 
     @Test
     void getPetReturnsValidResponse() {
-        // Call your handler
         var response = petHandler.getPet("123");
 
-        // Validate
-        var result = testKit.validateResponse(
-            "GET",
-            "/pet/123",
-            TestResponseData.builder()
-                .statusCode(200)
-                .body(response)
-                .build()
-        );
+        var result = testKit.validateResponse("GET", "/pet/123",
+            TestResponseData.builder().statusCode(200).body(response).build());
 
         assertTrue(result.isValid());
-        assertTrue(result.getErrors().isEmpty());
     }
 
     @Test
     void detectsMissingRequiredFields() {
-        var result = testKit.validateResponse(
-            "GET",
-            "/pet/123",
+        var result = testKit.validateResponse("GET", "/pet/123",
             TestResponseData.builder()
-                .statusCode(200)
-                .body(Map.of("id", 123))  // missing 'name' and 'photoUrls' fields
-                .build()
-        );
+                .statusCode(200).body(Map.of("id", 123))
+                .build());
 
         assertFalse(result.isValid());
         assertTrue(result.getErrors().get(0).contains("name"));
@@ -315,44 +185,65 @@ public class PetHandlerTest {
 </TabItem>
 </Tabs>
 
----
-
-## Producer Middleware
-
-For runtime validation, add CVT middleware to your HTTP server.
-
-### How Middleware Works
+<details>
+<summary>How schema compliance testing works under the hood</summary>
 
 ```mermaid
 sequenceDiagram
-    participant Client as Client Request
-    participant MW as CVT Middleware
+    participant Test as Your Test
+    participant Handler as API Handler
+    participant TestKit as ProducerTestKit
     participant CVT as CVT Server
-    participant Handler as Your API Handler
 
-    Client->>MW: HTTP Request
-    MW->>CVT: Validate request
-    CVT-->>MW: ValidationResult
-    alt Request Valid
-        MW->>Handler: Forward request
-        Handler-->>MW: Response
-        MW->>CVT: Validate response
-        CVT-->>MW: ValidationResult
-        alt Response Valid
-            MW-->>Client: Return response
-        else Response Invalid
-            Note over MW: Log error (response already sent)
-            MW-->>Client: Return response
-        end
-    else Request Invalid
-        MW-->>Client: 400 Bad Request
-    end
+    Test->>Handler: Call handler
+    Handler-->>Test: Response
+    Test->>TestKit: validateResponse(response)
+    TestKit->>CVT: ValidateProducerResponse
+    CVT-->>TestKit: ValidationResult
+    TestKit-->>Test: Result (valid/errors)
 ```
 
-### Framework Examples
+TestKit talks to the CVT server over gRPC; CVT validates the response body, headers, and status code against the registered schema; errors come back as a list of specific violations.
 
-<Tabs groupId="producer-framework">
-<TabItem value="express" label="Express">
+</details>
+
+<details>
+<summary>Testing all response codes (200, 4xx, 5xx), not just the happy path</summary>
+
+Error responses have their own schemas. Validate them too:
+
+```typescript
+it("validates 404 response", async () => {
+  const result = await testKit.validateResponse({
+    method: "GET",
+    path: "/pet/nonexistent",
+    response: { statusCode: 404, body: {} },
+  });
+  expect(result.valid).toBe(true);
+});
+
+it("validates 400 response for bad request", async () => {
+  const result = await testKit.validateResponse({
+    method: "POST",
+    path: "/pet",
+    response: { statusCode: 400, body: {} },
+  });
+  expect(result.valid).toBe(true);
+});
+```
+
+Same pattern in Python / Go / Java with the respective `validateResponse` signatures.
+
+</details>
+
+---
+
+## Middleware: runtime validation in your running API
+
+Add CVT middleware to your HTTP server — every request and response is validated against the schema in real time. Middleware has three [validation modes](./validation-modes.mdx): `shadow` (metrics only), `warn` (log), `strict` (reject). Roll out shadow → warn → strict.
+
+<Tabs groupId="sdk-language">
+<TabItem value="nodejs" label="Node.js" default>
 
 ```typescript
 import { createExpressMiddleware } from "@sahina/cvt-sdk/producer";
@@ -361,44 +252,13 @@ app.use(
   createExpressMiddleware({
     schemaId: "petstore",
     validator,
-    mode: "strict", // or 'warn' or 'shadow'
+    mode: "strict", // or "warn" or "shadow"
   }),
 );
 ```
 
 </TabItem>
-<TabItem value="fastify" label="Fastify">
-
-```typescript
-import { fastifyProducerPlugin } from "@sahina/cvt-sdk/producer";
-
-fastify.register(fastifyProducerPlugin, { schemaId: "petstore", validator });
-```
-
-</TabItem>
-<TabItem value="go-http" label="Go net/http">
-
-```go
-import "github.com/sahina/cvt/sdks/go/cvt/producer/adapters"
-
-config := producer.Config{
-    SchemaID:  "petstore",
-    Validator: validator,
-    Mode:      producer.ModeStrict,
-}
-http.Handle("/", adapters.NetHTTPMiddleware(config)(myHandler))
-```
-
-</TabItem>
-<TabItem value="gin" label="Gin">
-
-```go
-router := gin.Default()
-router.Use(adapters.GinMiddleware(config))
-```
-
-</TabItem>
-<TabItem value="fastapi" label="FastAPI">
+<TabItem value="python" label="Python">
 
 ```python
 from cvt_sdk.producer import ProducerConfig, ValidationMode
@@ -413,18 +273,22 @@ app.add_middleware(ASGIMiddleware, config=config)
 ```
 
 </TabItem>
-<TabItem value="flask" label="Flask">
+<TabItem value="go" label="Go">
 
-```python
-from cvt_sdk.producer.adapters import WSGIMiddleware
-
-app.wsgi_app = WSGIMiddleware(app.wsgi_app, config=config)
+```go
+config := producer.Config{
+    SchemaID:  "petstore",
+    Validator: validator,
+    Mode:      producer.ModeStrict,
+}
+http.Handle("/", adapters.NetHTTPMiddleware(config)(myHandler))
 ```
 
 </TabItem>
-<TabItem value="spring" label="Spring">
+<TabItem value="java" label="Java">
 
 ```java
+// Spring
 registry.addInterceptor(new SpringInterceptor(config))
     .addPathPatterns("/api/**");
 ```
@@ -432,12 +296,50 @@ registry.addInterceptor(new SpringInterceptor(config))
 </TabItem>
 </Tabs>
 
-### Path Filtering
+For the three modes and the recommended rollout, see **[Validation Modes](./validation-modes.mdx)**.
 
-Exclude health checks, metrics, or other paths from validation:
+<details>
+<summary>Other framework adapters (Fastify, Gin, Flask, FastAPI, Spring…)</summary>
 
-<Tabs groupId="sdk-language">
-<TabItem value="nodejs" label="Node.js">
+<Tabs groupId="producer-framework">
+<TabItem value="fastify" label="Fastify">
+
+```typescript
+import { fastifyProducerPlugin } from "@sahina/cvt-sdk/producer";
+fastify.register(fastifyProducerPlugin, { schemaId: "petstore", validator });
+```
+
+</TabItem>
+<TabItem value="gin" label="Gin">
+
+```go
+router := gin.Default()
+router.Use(adapters.GinMiddleware(config))
+```
+
+</TabItem>
+<TabItem value="fastapi" label="FastAPI">
+
+```python
+from cvt_sdk.producer.adapters import ASGIMiddleware
+app.add_middleware(ASGIMiddleware, config=config)
+```
+
+</TabItem>
+<TabItem value="flask" label="Flask">
+
+```python
+from cvt_sdk.producer.adapters import WSGIMiddleware
+app.wsgi_app = WSGIMiddleware(app.wsgi_app, config=config)
+```
+
+</TabItem>
+</Tabs>
+
+</details>
+
+<details>
+<summary>Excluding health checks and metrics paths from validation</summary>
 
 ```typescript
 createExpressMiddleware({
@@ -449,283 +351,34 @@ createExpressMiddleware({
 });
 ```
 
-</TabItem>
-<TabItem value="python" label="Python">
+Python / Go / Java configs have matching `excludePaths` / `includePaths` fields.
 
-```python
-config = ProducerConfig(
-    schema_id="petstore",
-    validator=validator,
-    mode=ValidationMode.STRICT,
-    exclude_paths=["/health", "/metrics", "/ready"],
-    include_paths=["/api/**"],
-)
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-```go
-config := producer.Config{
-    SchemaID:     "petstore",
-    Validator:    validator,
-    Mode:         producer.ModeStrict,
-    ExcludePaths: []string{"/health", "/metrics", "/ready"},
-    IncludePaths: []string{"/api/**"},
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-ProducerConfig config = ProducerConfig.builder()
-    .schemaId("petstore")
-    .validator(validator)
-    .mode(ValidationMode.STRICT)
-    .excludePaths(List.of("/health", "/metrics", "/ready"))
-    .includePaths(List.of("/api/**"))
-    .build();
-```
-
-</TabItem>
-</Tabs>
+</details>
 
 ---
 
-## Validation Modes
+## Fixture generation
 
-See [Validation Modes](./validation-modes.mdx) for detailed information.
-
-| Mode       | Request Violation | Response Violation | Use Case               |
-| ---------- | ----------------- | ------------------ | ---------------------- |
-| **strict** | Reject with 400   | Log error          | Production enforcement |
-| **warn**   | Log, continue     | Log, continue      | Gradual rollout        |
-| **shadow** | Silent            | Silent             | Initial deployment     |
-
-### Recommended Rollout
-
-```text
-Deploy with SHADOW → Analyze metrics → Switch to WARN → Fix issues → Switch to STRICT
-```
-
----
-
-## Consumer Registry
-
-Track which services depend on your API.
-
-### Listing Your Consumers
-
-<Tabs groupId="sdk-language">
-<TabItem value="nodejs" label="Node.js">
-
-```typescript
-const consumers = await validator.listConsumers("petstore", "prod");
-
-console.log(`${consumers.length} services depend on petstore in prod`);
-for (const consumer of consumers) {
-  console.log(`- ${consumer.consumerId} v${consumer.consumerVersion}`);
-}
-```
-
-</TabItem>
-<TabItem value="python" label="Python">
-
-```python
-consumers = validator.list_consumers("petstore", "prod")
-
-print(f"{len(consumers)} services depend on petstore in prod")
-for consumer in consumers:
-    print(f"- {consumer['consumer_id']} v{consumer['consumer_version']}")
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-```go
-consumers, err := validator.ListConsumers(ctx, "petstore", "prod")
-if err != nil {
-    log.Fatal(err)
-}
-
-fmt.Printf("%d services depend on petstore in prod\n", len(consumers))
-for _, consumer := range consumers {
-    fmt.Printf("- %s v%s\n", consumer.ConsumerID, consumer.ConsumerVersion)
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-List<ConsumerInfo> consumers = validator.listConsumers("petstore", "prod");
-
-System.out.printf("%d services depend on petstore in prod%n", consumers.size());
-for (ConsumerInfo consumer : consumers) {
-    System.out.printf("- %s v%s%n", consumer.getConsumerId(), consumer.getConsumerVersion());
-}
-```
-
-</TabItem>
-</Tabs>
-
-### Understanding Consumer Registrations
-
-Consumers register after their contract tests pass:
-
-```typescript
-// A consumer (not you) registers like this:
-await validator.registerConsumer({
-  consumerId: "order-service",
-  consumerVersion: "2.1.0",
-  schemaId: "petstore", // Your API
-  schemaVersion: "1.0.0",
-  environment: "prod",
-  usedEndpoints: [
-    {
-      method: "GET",
-      path: "/pet/{petId}",
-      usedFields: ["id", "name", "status"],
-    },
-  ],
-});
-```
-
-This tells you:
-
-- `order-service` depends on your API
-- They use `GET /pet/{petId}`
-- They specifically need the `id`, `name`, and `status` fields
-
----
-
-## Deployment Safety (can-i-deploy)
-
-Before deploying a new schema version, use `can-i-deploy` to check if it will break any registered consumers. For complete CLI usage, SDK examples, breaking change types, and output formats, see the [Breaking Changes Guide](./breaking-changes.mdx#deployment-safety-can-i-deploy).
-
----
-
-## Test Fixture Generation
-
-Generate test data from your OpenAPI schema for documentation and testing.
-
-<Tabs groupId="sdk-language">
-<TabItem value="nodejs" label="Node.js">
-
-```typescript
-// Generate complete request/response fixture
-const fixture = await validator.generateFixture("GET", "/pet/{petId}");
-console.log(fixture.request); // { method, path, headers, body }
-console.log(fixture.response); // { statusCode, headers, body }
-
-// Generate response only with schema examples
-const response = await validator.generateResponse("GET", "/pet/{petId}", {
-  statusCode: 200,
-  useExamples: true,
-});
-```
-
-</TabItem>
-<TabItem value="python" label="Python">
-
-```python
-from cvt_sdk import GenerateOptions
-
-# Generate complete request/response fixture
-fixture = validator.generate_fixture("GET", "/pet/{petId}")
-print(fixture["request"])   # { method, path, headers, body }
-print(fixture["response"])  # { status_code, headers, body }
-
-# Generate response only with schema examples
-response = validator.generate_response("GET", "/pet/{petId}",
-    GenerateOptions(status_code=200, use_examples=True),
-)
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-```go
-// Generate complete request/response fixture
-fixture, err := validator.GenerateFixture(ctx, "GET", "/pet/{petId}", nil)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Println(fixture.Request)   // { Method, Path, Headers, Body }
-fmt.Println(fixture.Response)  // { StatusCode, Headers, Body }
-
-// Generate response only with schema examples
-response, err := validator.GenerateResponse(ctx, "GET", "/pet/{petId}",
-    &cvt.GenerateOptions{
-        StatusCode:  200,
-        UseExamples: true,
-    },
-)
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// Generate complete request/response fixture
-GeneratedFixture fixture = validator.generateFixture("GET", "/pet/{petId}", null);
-System.out.println(fixture.getRequest());   // { method, path, headers, body }
-System.out.println(fixture.getResponse());  // { statusCode, headers, body }
-
-// Generate response only with schema examples
-GeneratedResponse response = validator.generateResponse("GET", "/pet/{petId}",
-    GenerateOptions.builder()
-        .statusCode(200)
-        .useExamples(true)
-        .build()
-);
-```
-
-</TabItem>
-</Tabs>
-
-### CLI Usage
+Generate request/response examples directly from the schema — useful for documentation, golden tests, or bootstrapping new consumer services.
 
 ```bash
-# List all endpoints in a schema
-cvt generate --schema ./openapi.json --list
-
-# Generate fixture for an endpoint
-cvt generate --schema ./openapi.json --method GET --path /pet/{petId}
-
-# Generate request only
+cvt generate --schema ./openapi.json --list                            # list all endpoints
+cvt generate --schema ./openapi.json --method GET --path /pet/{petId}  # generate one
 cvt generate --schema ./openapi.json --method POST --path /pet --output-type request
-
-# Use examples from schema
-cvt generate --schema ./openapi.json --method GET --path /pet/{petId} --use-examples
 ```
+
+SDK equivalents exist for all languages; see [CLI Reference](../reference/cli.mdx#generate) for flags and [API Reference](../reference/api.mdx) for the SDK surface.
 
 ---
 
-## Schema Registration in CI/CD
+## Schema registration in CI/CD
 
-As the API producer, your CI/CD pipeline is responsible for registering your OpenAPI schema with the shared CVT server. This is how consumers discover your contract and how `can-i-deploy` knows what to check against.
-
-```text
-Producer CI/CD Pipeline:
-
-  Build & Test → Register Schema → Deploy
-                       │
-                       ▼
-                  CVT Server (shared)
-                       ▲
-                       │
-  Consumer CI/CD:  Validate interactions → Register as consumer
-```
-
-### Register on merge to main
+You (the producer) register your schema — consumers read it, they don't write it. Wire this into your CI so the registered schema always matches what's deployed:
 
 <Tabs groupId="sdk-language">
-<TabItem value="cli" label="CLI">
+<TabItem value="cli" label="CLI" default>
 
 ```bash
-# In your producer CI/CD pipeline
 cvt register-schema my-api ./openapi.json \
   --version "$API_VERSION" \
   --server "$CVT_SERVER_URL" \
@@ -737,12 +390,9 @@ cvt register-schema my-api ./openapi.json \
 <TabItem value="nodejs" label="Node.js">
 
 ```typescript
-// In a CI/CD script or test setup
 const validator = new ContractValidator(process.env.CVT_SERVER_URL);
 await validator.registerSchemaWithVersion(
-  "my-api",
-  "./openapi.json",
-  process.env.API_VERSION,
+  "my-api", "./openapi.json", process.env.API_VERSION
 );
 ```
 
@@ -751,284 +401,67 @@ await validator.registerSchemaWithVersion(
 
 ```go
 validator, _ := cvt.NewValidator(os.Getenv("CVT_SERVER_URL"))
-err := validator.RegisterSchemaWithVersion(ctx, "my-api", "./openapi.json", os.Getenv("API_VERSION"))
+validator.RegisterSchemaWithVersion(ctx, "my-api", "./openapi.json", os.Getenv("API_VERSION"))
 ```
 
 </TabItem>
 </Tabs>
 
-### Why the producer must register
+Full pipeline examples (including `can-i-deploy` as a deploy gate): **[CI/CD Integration Guide](./ci-cd-integration.mdx)**.
 
-| If the producer registers...         | If the consumer registers...                       |
-| ------------------------------------ | -------------------------------------------------- |
-| Schema always matches the real API   | Schema may be stale or incorrect                   |
-| Single source of truth               | Multiple consumers may register different versions |
-| `can-i-deploy` checks are meaningful | Breaking change detection is unreliable            |
-| Clear ownership and accountability   | Unclear who maintains the contract                 |
+<details>
+<summary>Why the producer owns schema registration</summary>
+
+| If the producer registers… | If a consumer registers… |
+|---|---|
+| Schema always matches the real API | Schema may be stale or wrong |
+| Single source of truth | Multiple consumers may register different versions |
+| `can-i-deploy` is meaningful | Breaking-change detection is unreliable |
+| Clear ownership | Unclear who maintains the contract |
+
+Consumers registering for **local development** is fine — it's what the Quick Start does. In CI, the producer's pipeline should be the only writer.
+
+</details>
 
 ---
 
-## CI/CD Integration
+## Deployment safety with `can-i-deploy`
 
-For complete CI/CD pipeline examples (GitHub Actions, GitLab CI, Jenkins) including producer deployment safety checks and contract testing, see the [CI/CD Integration Guide](./ci-cd-integration.mdx).
-
----
-
-## Best Practices
-
-### 1. Test All Response Scenarios
-
-Don't just test the happy path:
-
-<Tabs groupId="sdk-language">
-<TabItem value="nodejs" label="Node.js">
-
-```typescript
-it("validates 404 response", async () => {
-  const result = await testKit.validateResponse({
-    method: "GET",
-    path: "/pet/nonexistent",
-    response: {
-      statusCode: 404,
-      body: {},
-    },
-  });
-  expect(result.valid).toBe(true);
-});
-
-it("validates 400 response for bad request", async () => {
-  const result = await testKit.validateResponse({
-    method: "POST",
-    path: "/pet",
-    response: {
-      statusCode: 400,
-      body: {},
-    },
-  });
-  expect(result.valid).toBe(true);
-});
-```
-
-</TabItem>
-<TabItem value="python" label="Python">
-
-```python
-def test_validates_404_response(test_kit):
-    result = test_kit.validate_response(
-        method="GET",
-        path="/pet/nonexistent",
-        status_code=404,
-        body={},
-    )
-    assert result.valid
-
-def test_validates_400_response_for_bad_request(test_kit):
-    result = test_kit.validate_response(
-        method="POST",
-        path="/pet",
-        status_code=400,
-        body={},
-    )
-    assert result.valid
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-```go
-func TestValidates404Response(t *testing.T) {
-    result, err := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
-        Method: "GET",
-        Path:   "/pet/nonexistent",
-        Response: producer.TestResponseData{
-            StatusCode: 404,
-            Body:       map[string]any{},
-        },
-    })
-    require.NoError(t, err)
-    assert.True(t, result.Valid)
-}
-
-func TestValidates400ResponseForBadRequest(t *testing.T) {
-    result, err := testKit.ValidateResponse(ctx, producer.ValidateResponseParams{
-        Method: "POST",
-        Path:   "/pet",
-        Response: producer.TestResponseData{
-            StatusCode: 400,
-            Body:       map[string]any{},
-        },
-    })
-    require.NoError(t, err)
-    assert.True(t, result.Valid)
-}
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-@Test
-void validates404Response() {
-    var result = testKit.validateResponse(
-        "GET",
-        "/pet/nonexistent",
-        TestResponseData.builder()
-            .statusCode(404)
-            .body(Map.of())
-            .build()
-    );
-    assertTrue(result.isValid());
-}
-
-@Test
-void validates400ResponseForBadRequest() {
-    var result = testKit.validateResponse(
-        "POST",
-        "/pet",
-        TestResponseData.builder()
-            .statusCode(400)
-            .body(Map.of())
-            .build()
-    );
-    assertTrue(result.isValid());
-}
-```
-
-</TabItem>
-</Tabs>
-
-### 2. Run can-i-deploy in CI
-
-Make deployment safety checks a required gate:
+Before shipping a schema change, run [`can-i-deploy`](./can-i-deploy.mdx) to check whether any registered consumer would break. That page covers the full workflow — CI wiring, verdict interpretation, environment promotion. Summary:
 
 ```bash
-cvt can-i-deploy --schema petstore --version $NEW_VERSION --env prod || exit 1
-```
-
-### 3. Use Environment-Specific Checks
-
-Check each environment before promoting:
-
-```bash
-# Check staging first
-cvt can-i-deploy --schema petstore --version 2.0.0 --env staging
-
-# Then production
-cvt can-i-deploy --schema petstore --version 2.0.0 --env prod
-```
-
-### 4. Gradual Middleware Rollout
-
-Start with `shadow` mode, progress to `strict`:
-
-```typescript
-// Week 1: Shadow mode - metrics only
-mode: "shadow";
-
-// Week 2: Warn mode - log violations
-mode: "warn";
-
-// Week 3: Strict mode - full enforcement
-mode: "strict";
+cvt can-i-deploy --schema petstore --version $NEW_VERSION --env prod
+# Exit 0 = safe; exit 1 = blocked with affected-consumer details
 ```
 
 ---
 
-## Troubleshooting
+## Related
 
-### "Schema not found" Error
+- **[Consumer Testing](./consumer-testing.mdx)** — the other side of the handshake.
+- **[CanIDeploy](./can-i-deploy.mdx)** — pre-deploy safety gate.
+- **[Validation Modes](./validation-modes.mdx)** — strict / warn / shadow for middleware rollout.
+- **[Breaking Changes Guide](./breaking-changes.mdx)** — what counts as breaking.
+- **[CI/CD Integration Guide](./ci-cd-integration.mdx)** — GitHub Actions, GitLab, Jenkins.
+- **[API Reference](../reference/api.mdx)** / **[CLI Reference](../reference/cli.mdx)**.
 
-Ensure the schema is registered before running producer tests:
+<details>
+<summary>Best practices</summary>
 
-<Tabs groupId="sdk-language">
-<TabItem value="nodejs" label="Node.js">
+1. **Test all response scenarios, not just 200** — schema compliance for 4xx/5xx responses catches error-handler regressions. Example above.
+2. **Gate every prod deploy on `can-i-deploy`** — `cvt can-i-deploy --schema petstore --version $NEW_VERSION --env prod || exit 1`.
+3. **Check each environment before promoting** — run `can-i-deploy` per `--env`.
+4. **Roll out middleware gradually** — `shadow` → `warn` → `strict`, days or weeks apart, watching metrics at each step.
 
-```typescript
-await validator.registerSchema("petstore", "./openapi.json");
-```
+</details>
 
-</TabItem>
-<TabItem value="python" label="Python">
+<details>
+<summary>Troubleshooting</summary>
 
-```python
-validator.register_schema("petstore", "./openapi.json")
-```
+**"Schema not found"** — register it first: `await validator.registerSchema("petstore", "./openapi.json")`. In production, the producer's CI should handle this.
 
-</TabItem>
-<TabItem value="go" label="Go">
+**"Path not found"** — your test path must match the OpenAPI template with concrete values: `/pet/123`, not `/pet/{petId}`.
 
-```go
-err := validator.RegisterSchema(ctx, "petstore", "./openapi.json")
-```
+**"No consumers registered" warning in `can-i-deploy`** — safe, expected if you're the first deploy or no consumers use `registerConsumer` yet. See [CanIDeploy troubleshooting](./can-i-deploy.mdx#no-consumers-registered).
 
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-validator.registerSchema("petstore", "./openapi.json");
-```
-
-</TabItem>
-</Tabs>
-
-### "Path not found" Error
-
-Check that the path in your test matches the OpenAPI spec:
-
-<Tabs groupId="sdk-language">
-<TabItem value="nodejs" label="Node.js">
-
-```typescript
-// If spec has: /pet/{petId}
-// Use actual path values:
-path: '/pet/123',  // NOT '/pet/{petId}'
-```
-
-</TabItem>
-<TabItem value="python" label="Python">
-
-```python
-# If spec has: /pet/{petId}
-# Use actual path values:
-path="/pet/123"  # NOT "/pet/{petId}"
-```
-
-</TabItem>
-<TabItem value="go" label="Go">
-
-```go
-// If spec has: /pet/{petId}
-// Use actual path values:
-Path: "/pet/123",  // NOT "/pet/{petId}"
-```
-
-</TabItem>
-<TabItem value="java" label="Java">
-
-```java
-// If spec has: /pet/{petId}
-// Use actual path values:
-"/pet/123"  // NOT "/pet/{petId}"
-```
-
-</TabItem>
-</Tabs>
-
-### "No consumers registered" Warning
-
-This is normal if you're the first to deploy or if no consumers have registered:
-
-```text
-SAFE TO DEPLOY
-No consumers registered for this schema in prod.
-```
-
----
-
-## Next Steps
-
-- **[Consumer Testing Guide](./consumer-testing.mdx)** - Test your API integrations
-- **[CI/CD Integration Guide](./ci-cd-integration.mdx)** - Pipeline examples for deployment safety
-- **[Validation Modes](./validation-modes.mdx)** - Configure validation behavior
-- **[Breaking Changes Guide](./breaking-changes.mdx)** - Understand schema compatibility
-- **[API Reference](../reference/api.mdx)** - Full API documentation
+</details>

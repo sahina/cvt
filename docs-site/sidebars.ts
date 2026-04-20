@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'guides/consumer-testing',
         'guides/producer-testing',
+        'guides/can-i-deploy',
         'guides/breaking-changes',
         'guides/validation-modes',
         'guides/ci-cd-integration',
