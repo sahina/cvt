@@ -8,156 +8,91 @@ slug: /intro
 
 # Welcome to CVT
 
-**Contract Validator Toolkit (CVT)** is a consumer- and producer-based contract validation platform for OpenAPI v2/v3 specifications.
+**CVT (Contract Validator Toolkit)** catches API breakage before it reaches production by validating HTTP traffic against the API's OpenAPI spec.
 
-It helps teams ensure their API consumers and producers communicate correctly by validating HTTP interactions against published contracts.
+## The problem (Alice, Bob, and last Tuesday)
 
-## What is Contract Testing?
+Alice's **checkout service** calls Bob's **Pets API** to show pet inventory at checkout.
 
-Contract testing validates API interactions against a published contract (OpenAPI specification). Unlike integration tests that require real services, contract tests verify that:
+Last Tuesday Bob renamed `status` to `availability` in the Pets API response. Alice's checkout crashed in production because her code still read `status`. Nobody noticed until orders started failing.
 
-- **Consumers** send valid requests and handle responses correctly
-- **Producers** return responses that match their published specification
+CVT would have caught the rename at PR time — before Bob's change ever merged.
 
-## Key Features
+## How CVT fixes it
 
-| Feature                       | Description                                                        |
-| ----------------------------- | ------------------------------------------------------------------ |
-| **Schema Validation**         | Register OpenAPI v2/v3 schemas and validate request/response pairs |
-| **Consumer Testing**          | Validate your HTTP calls against upstream API contracts            |
-| **Producer Testing**          | Ensure your API implementation matches your specification          |
-| **Breaking Change Detection** | Compare schema versions to detect incompatible changes             |
-| **Safe Deployments**          | Use CanIDeploy to verify changes won't break consumers             |
-| **Multi-language SDKs**       | Native support for Node.js, Python, Go, and Java                   |
+The fix is a two-sided handshake over the **OpenAPI spec** Bob already publishes.
 
-## Quick Start
+**Bob's side (the producer)**: Bob registers his OpenAPI spec with a shared CVT server as part of his CI. CVT knows exactly what his API promises to return.
 
-### 1. Start the CVT Server
+**Alice's side (the consumer)**: Alice's tests call CVT to validate every HTTP interaction her service makes against Bob's registered spec. When Alice's CI is green, she also registers with CVT to say "I depend on these endpoints and fields."
 
-```bash
-# Using the published Docker image (recommended)
-docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt:latest
-
-# Or using Docker Compose (if you've cloned the repository)
-make up
-
-# Or build and run locally
-make run-server
-```
-
-### 2. Install an SDK
-
-```bash
-# Node.js
-npm install @sahina/cvt-sdk
-
-# Python
-pip install cvt-sdk
-
-# Go
-go get github.com/sahina/cvt/sdks/go
-```
-
-For Java (Maven), add to `pom.xml`:
-
-```xml
-<dependency>
-    <groupId>io.github.sahina</groupId>
-    <artifactId>cvt-sdk</artifactId>
-    <version>0.1.3</version> <!-- Replace with latest from Maven Central -->
-</dependency>
-```
-
-See [Installation](./getting-started/installation.mdx) for detailed instructions.
-
-### 3. Validate an Interaction
-
-Save the [Petstore OpenAPI schema](https://petstore3.swagger.io/api/v3/openapi.json) as `./openapi.json`, then:
-
-```typescript
-import { ContractValidator } from "@sahina/cvt-sdk";
-
-const validator = new ContractValidator("localhost:9550");
-
-// Register your schema from file
-await validator.registerSchema("petstore", "./openapi.json");
-// Or register from URL:
-// await validator.registerSchema("petstore", "https://petstore3.swagger.io/api/v3/openapi.json");
-
-// Validate an interaction
-const result = await validator.validate(
-  { method: "GET", path: "/pet/123" },
-  {
-    statusCode: 200,
-    body: {
-      id: 123,
-      name: "doggie",
-      photoUrls: ["https://example.com/photo.jpg"],
-      status: "available",
-    },
-  },
-);
-
-console.log(result.valid); // true or false
-validator.close();
-```
-
-## Architecture
-
-CVT runs as a gRPC service that can be deployed via Docker or run locally:
+**The payoff**: before Bob merges a change, his CI runs `can-i-deploy`. CVT compares Bob's new spec against every registered consumer. Alice reads `status`? Bob renamed it? The deploy is blocked. The rename never ships.
 
 ```text
-┌─────────────────┐     gRPC      ┌─────────────────┐
-│   Your Tests    │ ────────────► │   CVT Server    │
-│  (SDK Client)   │               │   (Port 9550)   │
-└─────────────────┘               └─────────────────┘
-                                          │
-                                          ▼
-                                  ┌─────────────────┐
-                                  │ Schema Registry │
-                                  │  + Validation   │
-                                  └─────────────────┘
+      Alice's checkout                      Bob's Pets API
+       (consumer)                            (producer)
+            │                                    │
+            │ validate interactions              │ register schema
+            │ register as consumer               │ run can-i-deploy
+            ▼                                    ▼
+       ┌───────────────────────────────────────────────┐
+       │              CVT Server (shared)              │
+       │         Bob's schema = source of truth        │
+       │      Registry of Alice's dependencies         │
+       └───────────────────────────────────────────────┘
 ```
 
-:::tip Architecture Deep Dive
-For detailed system architecture, component design, validation engine, and storage layer documentation, see the [Architecture Documentation](./reference/architecture/index.md).
-:::
+## Contract testing in 30 seconds
 
-## Documentation Structure
+- **Contract** — the OpenAPI spec an API publishes. Machine-readable promise about paths, params, and response shapes.
+- **Producer** — the team that owns an API and its spec. Bob.
+- **Consumer** — a service that calls that API. Alice.
+- **Contract test** — a test that checks an actual HTTP interaction matches the contract.
+- **Breaking change** — a spec change that would make existing consumers fail (removed fields, new required fields, renamed keys, tightened types).
+- **`can-i-deploy`** — CVT's safety gate. Compares a new spec version against registered consumers and returns a verdict.
 
-### Getting Started
+## Pick your starting point
 
-- **[Installation](./getting-started/installation.mdx)** - Install the server and SDKs
-- **[Quick Start](./getting-started/quick-start.mdx)** - Your first contract test
+- **Consuming an API?** → [Quick Start](./getting-started/quick-start.mdx) — write your first consumer test in 5 minutes.
+- **Own an API?** → [Producer Testing Guide](./guides/producer-testing.mdx) — register your schema and verify your handlers match it.
+- **Wiring CI?** → [CanIDeploy](./guides/breaking-changes.mdx#deployment-safety-can-i-deploy) — the safety gate that ties both sides together.
 
-### Guides
+<details>
+<summary>New to OpenAPI? (1 minute)</summary>
 
-- **[Consumer Testing](./guides/consumer-testing.mdx)** - Test your API integrations
-- **[Producer Testing](./guides/producer-testing.mdx)** - Validate your APIs
-- **[Breaking Changes](./guides/breaking-changes.mdx)** - Detect schema incompatibilities
-- **[Validation Modes](./guides/validation-modes.mdx)** - Configure validation behavior
+OpenAPI is a machine-readable format for describing HTTP APIs — paths, methods, parameters, and response shapes. If your API has a Swagger UI page, there's an OpenAPI spec behind it. CVT accepts OpenAPI v3 natively and auto-converts Swagger 2.0.
 
-### Reference
+Learn more: [openapi.io](https://www.openapis.org/).
 
-- **[API Reference](./reference/api.mdx)** - gRPC API documentation
-- **[CLI Reference](./reference/cli.mdx)** - Command-line interface
-- **[Configuration](./reference/configuration.mdx)** - Environment variables
-- **[SDK Documentation](./reference/sdk/)** - Language-specific guides
+</details>
 
-### Operations
+<details>
+<summary>How is CVT different from Pact and other contract tools?</summary>
 
-- **[Observability](./operations/observability.md)** - Metrics, logging, and dashboards
+Pact is broker-centric and generates contracts from recorded interactions. CVT is **schema-first** — you bring an existing OpenAPI spec and validate against it directly. No broker to host, no contract generation step, no coordination between consumer and producer to author the contract.
 
-### Development
+If your team already maintains OpenAPI specs (most do), CVT uses them as the contract without an extra layer.
 
-- **[Contributing](./development/contributing.md)** - Local development setup
+</details>
 
-## Next Steps
+<details>
+<summary>Architecture deep dive</summary>
 
-Choose your path based on your role:
+For system architecture, component design, validation engine internals, and storage layer details, see the [Architecture Documentation](./reference/architecture/index.md).
 
-**API Consumer?** Start with the [Consumer Testing Guide](./guides/consumer-testing.mdx) to learn how to validate your API integrations.
+</details>
 
-**API Producer?** Check out the [Producer Testing Guide](./guides/producer-testing.mdx) to ensure your API matches its specification.
+## Install
 
-**Setting up CVT?** Follow the [Installation Guide](./getting-started/installation.mdx) for server setup and configuration.
+```bash
+# Server (Docker — recommended)
+docker run -d -p 9550:9550 -p 9551:9551 ghcr.io/sahina/cvt:latest
+
+# SDKs
+npm install @sahina/cvt-sdk        # Node.js
+pip install cvt-sdk                # Python
+go get github.com/sahina/cvt/sdks/go  # Go
+# Java — see Installation guide for Maven/Gradle
+```
+
+See the [Installation Guide](./getting-started/installation.mdx) for other install methods, verification, and Java setup.
