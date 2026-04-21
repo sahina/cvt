@@ -31,6 +31,19 @@ By default, extra fields pass validation. This is because OpenAPI's `additionalP
 
 Yes. CVT auto-converts Swagger 2.0 to OpenAPI 3.x at registration time. You don't need to convert your spec manually — just pass it to `registerSchema` as-is.
 
+## If the producer already registered the schema, do I need to register it again as a consumer?
+
+It depends on what "register" means — and the distinction matters:
+
+- **Server-side `RegisterSchema` RPC**: the CVT server's schema registry is shared and keyed by `schemaId`. Ownership metadata (`SchemaOwnership`: `owner`, `team`, `contact_email`, `read_only`) can be attached for documentation and audit, but validation logic does not enforce access control based on it — any party can validate against or register dependencies on any schema. `RegisterSchema` is idempotent: calling it with the same ID and content is a no-op.
+- **SDK `registerSchema(id, path)` call**: the SDK client still requires this on each validator instance to bind `schemaId` for subsequent `validate()` calls. Skipping it throws "Schema not registered." So consumers still call `registerSchema` locally — just idempotently, alongside whoever else registered it.
+- **SDK `registerConsumer({ schemaId, ... })`**: only references an existing `schemaId`; no schema content is transmitted. This is the step where "no re-registration" literally applies.
+
+Two onboarding flows that both work:
+
+- **Producer registers first (typical mature setup)**: the producer's CI publishes the schema on each release. Consumers still call `registerSchema` on their validator instance (harmless idempotent sync) plus `registerConsumer(...)` to declare their dependency.
+- **Consumer registers first (greenfield / producer not onboarded)**: the consumer registers the producer's OpenAPI spec they already have a copy of, then validates their calls. When the producer later adopts CVT, their registration converges with the existing record.
+
 ## Do I need to register the schema before every test run?
 
 `registerSchema` is idempotent — calling it with the same ID and content is a no-op. Most teams call it once in `beforeAll` or test setup. If you enable [persistent storage](../reference/configuration.mdx), schemas also survive server restarts, so re-registration on startup is fast (it just confirms the schema is already there).

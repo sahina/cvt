@@ -22,7 +22,15 @@ This guide covers the three validation approaches and consumer registration (the
 | **HTTP adapter** | Wrap your HTTP client; every call is validated automatically | Yes | Retrofitting existing integration tests |
 | **Mock adapter** | CVT generates spec-compliant responses in-process; no real call | No | CI without upstream services; unit tests |
 
-All three require the producer's schema to be registered with CVT. In production workflows the producer's CI does that; for local dev you can register it yourself with `validator.registerSchema(...)`.
+All three require the producer's schema to be registered with CVT. The server-side registry is shared and keyed by `schemaId` — ownership metadata (`owner`, `team`, `contact_email`) can be attached, but validation doesn't gate on it, so there's no "producer-owned" vs. "consumer-owned" access distinction.
+
+What that means for your SDK code:
+
+- The SDK's `registerSchema(id, path)` is still required on each validator instance — `validate()` throws "Schema not registered" without it. Call it in `beforeAll` / test setup as usual.
+- `registerSchema` is idempotent server-side: calling it with the same `schemaId` and content when the producer already registered it is a harmless no-op.
+- `registerConsumer(...)` is the step that genuinely doesn't duplicate the producer's work — it only sends a `schemaId` reference, no schema content.
+
+So in practice: register the schema locally (whether you're the first to do it or not), validate, then call `registerConsumer` to declare your dependency. The producer's CI doing the same doesn't conflict with you.
 
 ---
 
