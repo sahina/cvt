@@ -244,12 +244,45 @@ export interface CanIDeployResult {
 }
 
 /**
+ * Ownership information for a registered schema.
+ */
+export interface SchemaOwnership {
+  owner: string;
+  team: string;
+  contactEmail: string;
+  readOnly: boolean;
+}
+
+/**
+ * Metadata describing a schema resolved via useSchema.
+ */
+export interface SchemaInfo {
+  /** Unique identifier for the schema. */
+  schemaId: string;
+  /** Concrete semantic version the validator is bound to. */
+  schemaVersion: string;
+  /** SHA256 hash of the schema content. */
+  schemaHash: string;
+  /** Unix timestamp of initial registration. */
+  registeredAt: number;
+  /** Unix timestamp of last update. */
+  updatedAt: number;
+  /** Optional ownership information. */
+  ownership?: SchemaOwnership;
+  /** OpenAPI version detected on the server (e.g., "3.0.0"). */
+  openapiVersion: string;
+  /** Number of endpoints exposed by the schema. */
+  endpointCount: number;
+}
+
+/**
  * Client for the Contract Validator Toolkit (CVT).
  * Allows validating HTTP interactions against OpenAPI schemas via a gRPC service.
  */
 export class ContractValidator {
   private client: any;
   private schemaId: string | null = null;
+  private schemaVersion: string | null = null;
   private apiKey: string | undefined;
 
   /**
@@ -362,6 +395,76 @@ export class ContractValidator {
     });
   }
 
+  /**
+   * Binds the validator to a schema already registered on the server, without
+   * requiring a local OpenAPI file. Resolves the schema's concrete version at
+   * call time; subsequent validate() calls are pinned to that version.
+   *
+   * @param schemaId - The schema identifier to bind.
+   * @param schemaVersion - Optional version to pin to (default: latest registered).
+   * @returns Resolved schema metadata from the server.
+   * @throws Error if the schema (or specific version) is not registered.
+   *
+   * @example
+   * const validator = new ContractValidator("localhost:9550");
+   * const info = await validator.useSchema("petstore");
+   * console.log(`Bound to ${info.schemaId}@${info.schemaVersion}`);
+   * await validator.validate(req, resp);
+   */
+  async useSchema(
+    schemaId: string,
+    schemaVersion?: string,
+  ): Promise<SchemaInfo> {
+    return new Promise((resolve, reject) => {
+      this.client.GetSchema(
+        {
+          schema_id: schemaId,
+          schema_version: schemaVersion || "",
+        },
+        this.createMetadata(),
+        (err: any, response: any) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          if (!response.found) {
+            const suffix = schemaVersion ? `@${schemaVersion}` : "";
+            reject(
+              new Error(
+                `Schema '${schemaId}${suffix}' not registered on server`,
+              ),
+            );
+            return;
+          }
+
+          const metadata = response.metadata || {};
+          const resolvedVersion: string = metadata.schema_version || "";
+          this.schemaId = schemaId;
+          this.schemaVersion = resolvedVersion;
+
+          const info: SchemaInfo = {
+            schemaId: metadata.schema_id || schemaId,
+            schemaVersion: resolvedVersion,
+            schemaHash: metadata.schema_hash || "",
+            registeredAt: Number(metadata.registered_at) || 0,
+            updatedAt: Number(metadata.updated_at) || 0,
+            openapiVersion: metadata.openapi_version || "",
+            endpointCount: Number(metadata.endpoint_count) || 0,
+          };
+          if (metadata.ownership) {
+            info.ownership = {
+              owner: metadata.ownership.owner || "",
+              team: metadata.ownership.team || "",
+              contactEmail: metadata.ownership.contact_email || "",
+              readOnly: Boolean(metadata.ownership.read_only),
+            };
+          }
+          resolve(info);
+        },
+      );
+    });
+  }
+
   private async fetchSchemaFromUrl(url: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const client = url.startsWith("https://") ? https : http;
@@ -409,7 +512,7 @@ export class ContractValidator {
       throw new Error("Schema not registered. Call registerSchema first.");
     }
 
-    const interactionRequest = {
+    const interactionRequest: any = {
       schema_id: this.schemaId,
       request: {
         method: request.method,
@@ -423,6 +526,9 @@ export class ContractValidator {
         body: response.body ? JSON.stringify(response.body) : "",
       },
     };
+    if (this.schemaVersion) {
+      interactionRequest.schema_version = this.schemaVersion;
+    }
 
     return new Promise((resolve, reject) => {
       this.client.ValidateInteraction(

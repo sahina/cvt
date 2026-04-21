@@ -184,6 +184,34 @@ type CanIDeployResult struct {
 	AffectedConsumers []ConsumerImpact
 }
 
+// SchemaOwnership contains ownership information for a registered schema.
+type SchemaOwnership struct {
+	Owner        string
+	Team         string
+	ContactEmail string
+	ReadOnly     bool
+}
+
+// SchemaInfo describes a schema resolved via UseSchema.
+type SchemaInfo struct {
+	// SchemaID is the unique identifier for the schema.
+	SchemaID string
+	// SchemaVersion is the concrete semantic version the validator is bound to.
+	SchemaVersion string
+	// SchemaHash is the SHA256 hash of the schema content.
+	SchemaHash string
+	// RegisteredAt is the Unix timestamp of initial registration.
+	RegisteredAt int64
+	// UpdatedAt is the Unix timestamp of last update.
+	UpdatedAt int64
+	// OpenapiVersion is the OpenAPI version detected on the server (e.g., "3.0.0").
+	OpenapiVersion string
+	// EndpointCount is the number of endpoints exposed by the schema.
+	EndpointCount int32
+	// Ownership is optional ownership information.
+	Ownership *SchemaOwnership
+}
+
 // TLSOptions configures TLS for secure connections.
 type TLSOptions struct {
 	// Enabled indicates whether to use TLS.
@@ -213,10 +241,11 @@ type ValidatorOptions struct {
 
 // Validator is a client for validating HTTP interactions against OpenAPI schemas.
 type Validator struct {
-	conn     *grpc.ClientConn
-	client   pb.ContractValidatorClient
-	schemaID string
-	apiKey   string
+	conn          *grpc.ClientConn
+	client        pb.ContractValidatorClient
+	schemaID      string
+	schemaVersion string
+	apiKey        string
 }
 
 // NewValidator creates a new Validator instance with an insecure connection.
@@ -377,6 +406,80 @@ func (v *Validator) RegisterSchema(ctx context.Context, schemaID, schemaPath str
 	return nil
 }
 
+// UseSchema binds the validator to a schema already registered on the server,
+// without requiring a local OpenAPI file. The schema's concrete version is
+// resolved at call time; subsequent Validate calls are pinned to that version.
+//
+// The optional version argument pins to an explicit version. If omitted, the
+// server's latest registered version for this schemaID is used.
+//
+// Returns a SchemaInfo describing the resolved schema.
+//
+// Example:
+//
+//	info, err := validator.UseSchema(ctx, "petstore")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	log.Printf("Bound to %s@%s", info.SchemaID, info.SchemaVersion)
+//	result, _ := validator.Validate(ctx, req, resp)
+func (v *Validator) UseSchema(ctx context.Context, schemaID string, version ...string) (*SchemaInfo, error) {
+	schemaVersion := ""
+	if len(version) > 0 {
+		schemaVersion = version[0]
+	}
+
+	req := &pb.GetSchemaRequest{
+		SchemaId:      schemaID,
+		SchemaVersion: schemaVersion,
+	}
+
+	ctx = v.contextWithAPIKey(ctx)
+
+	resp, err := v.client.GetSchema(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch schema: %w", err)
+	}
+
+	if !resp.Found {
+		if schemaVersion != "" {
+			return nil, fmt.Errorf("schema '%s@%s' not registered on server", schemaID, schemaVersion)
+		}
+		return nil, fmt.Errorf("schema '%s' not registered on server", schemaID)
+	}
+
+	md := resp.Metadata
+	info := &SchemaInfo{
+		SchemaID:       schemaID,
+		SchemaVersion:  "",
+		OpenapiVersion: "",
+		EndpointCount:  0,
+	}
+	if md != nil {
+		if md.SchemaId != "" {
+			info.SchemaID = md.SchemaId
+		}
+		info.SchemaVersion = md.SchemaVersion
+		info.SchemaHash = md.SchemaHash
+		info.RegisteredAt = md.RegisteredAt
+		info.UpdatedAt = md.UpdatedAt
+		info.OpenapiVersion = md.OpenapiVersion
+		info.EndpointCount = md.EndpointCount
+		if md.Ownership != nil {
+			info.Ownership = &SchemaOwnership{
+				Owner:        md.Ownership.Owner,
+				Team:         md.Ownership.Team,
+				ContactEmail: md.Ownership.ContactEmail,
+				ReadOnly:     md.Ownership.ReadOnly,
+			}
+		}
+	}
+
+	v.schemaID = schemaID
+	v.schemaVersion = info.SchemaVersion
+	return info, nil
+}
+
 // Validate validates an HTTP interaction against the registered schema.
 //
 // The request and response parameters should be ValidationRequest and ValidationResponse
@@ -443,6 +546,9 @@ func (v *Validator) Validate(ctx context.Context, request ValidationRequest, res
 		SchemaId: v.schemaID,
 		Request:  requestData,
 		Response: responseData,
+	}
+	if v.schemaVersion != "" {
+		interactionReq.SchemaVersion = v.schemaVersion
 	}
 
 	// Add API key to context if configured

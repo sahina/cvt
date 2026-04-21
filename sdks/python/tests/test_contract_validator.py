@@ -458,3 +458,131 @@ class TestCanIDeploy:
         assert result["safe_to_deploy"] is False
         assert len(result["affected_consumers"]) == 1
         assert result["affected_consumers"][0]["consumer_id"] == "order-service"
+
+
+class TestUseSchema:
+    """Tests for the use_schema() method."""
+
+    @staticmethod
+    def _build_metadata_mock(
+        schema_id: str = "petstore",
+        schema_version: str = "1.2.0",
+        with_ownership: bool = True,
+    ):
+        metadata = MagicMock()
+        metadata.schema_id = schema_id
+        metadata.schema_version = schema_version
+        metadata.schema_hash = "abc123"
+        metadata.registered_at = 1714000000
+        metadata.updated_at = 1714000500
+        metadata.openapi_version = "3.0.0"
+        metadata.endpoint_count = 7
+        metadata.HasField = lambda name: name == "ownership" and with_ownership
+        metadata.ownership.owner = "jane"
+        metadata.ownership.team = "platform"
+        metadata.ownership.contact_email = "platform@example.com"
+        metadata.ownership.read_only = False
+        return metadata
+
+    def test_resolves_latest_version(self, validator):
+        """use_schema(id) returns resolved SchemaInfo and binds latest version."""
+        metadata = self._build_metadata_mock()
+        response = MagicMock()
+        response.found = True
+        response.metadata = metadata
+        validator._client.GetSchema.return_value = response
+
+        info = validator.use_schema("petstore")
+
+        args = validator._client.GetSchema.call_args[0][0]
+        assert args.schema_id == "petstore"
+        assert args.schema_version == ""
+        assert info.schema_id == "petstore"
+        assert info.schema_version == "1.2.0"
+        assert info.endpoint_count == 7
+        assert info.ownership is not None
+        assert info.ownership.owner == "jane"
+        assert info.ownership.team == "platform"
+
+    def test_pins_explicit_version(self, validator):
+        """use_schema(id, version) passes version through to GetSchema."""
+        metadata = self._build_metadata_mock(schema_version="1.0.0")
+        response = MagicMock()
+        response.found = True
+        response.metadata = metadata
+        validator._client.GetSchema.return_value = response
+
+        info = validator.use_schema("petstore", "1.0.0")
+
+        args = validator._client.GetSchema.call_args[0][0]
+        assert args.schema_version == "1.0.0"
+        assert info.schema_version == "1.0.0"
+
+    def test_raises_when_schema_not_found(self, validator):
+        """use_schema raises ValueError when server returns found=False."""
+        response = MagicMock()
+        response.found = False
+        validator._client.GetSchema.return_value = response
+
+        with pytest.raises(ValueError, match="'nope'.*not registered"):
+            validator.use_schema("nope")
+
+    def test_error_message_includes_version_when_pinning(self, validator):
+        """Error message mentions the pinned version."""
+        response = MagicMock()
+        response.found = False
+        validator._client.GetSchema.return_value = response
+
+        with pytest.raises(ValueError, match=r"'petstore@9\.9\.9'"):
+            validator.use_schema("petstore", "9.9.9")
+
+    def test_validate_sends_schema_version_after_use_schema(self, validator):
+        """validate() sends schema_version on the wire after use_schema()."""
+        metadata = self._build_metadata_mock()
+        get_response = MagicMock()
+        get_response.found = True
+        get_response.metadata = metadata
+        validator._client.GetSchema.return_value = get_response
+
+        validation_response = MagicMock(spec=ValidationResult)
+        validation_response.valid = True
+        validation_response.errors = []
+        validator._client.ValidateInteraction.return_value = validation_response
+
+        validator.use_schema("petstore")
+        validator.validate(
+            request=ValidationRequest(method="GET", path="/pet/1"),
+            response=ValidationResponse(status_code=200),
+        )
+
+        sent = validator._client.ValidateInteraction.call_args[0][0]
+        assert sent.schema_id == "petstore"
+        assert sent.schema_version == "1.2.0"
+
+    def test_validate_does_not_send_version_after_register_schema(
+        self, validator, schema_path
+    ):
+        """Existing register_schema path must not start sending schema_version."""
+        mock_reg = MagicMock(spec=RegisterSchemaResponse)
+        mock_reg.success = True
+        validator._client.RegisterSchema.return_value = mock_reg
+
+        validation_response = MagicMock(spec=ValidationResult)
+        validation_response.valid = True
+        validation_response.errors = []
+        validator._client.ValidateInteraction.return_value = validation_response
+
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value='{"openapi": "3.0.0"}'),
+        ):
+            validator.register_schema("test-schema", schema_path)
+
+        validator.validate(
+            request=ValidationRequest(method="GET", path="/pet/1"),
+            response=ValidationResponse(status_code=200),
+        )
+
+        sent = validator._client.ValidateInteraction.call_args[0][0]
+        assert sent.schema_id == "test-schema"
+        assert sent.schema_version == ""

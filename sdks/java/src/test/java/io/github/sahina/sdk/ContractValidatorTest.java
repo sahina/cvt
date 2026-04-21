@@ -9,6 +9,8 @@ import io.github.sahina.proto.DeregisterConsumerRequest;
 import io.github.sahina.proto.DeregisterConsumerResponse;
 import io.github.sahina.proto.GenerateFixtureRequest;
 import io.github.sahina.proto.GenerateFixtureResponse;
+import io.github.sahina.proto.GetSchemaRequest;
+import io.github.sahina.proto.GetSchemaResponse;
 import io.github.sahina.proto.InteractionRequest;
 import io.github.sahina.proto.ListConsumersRequest;
 import io.github.sahina.proto.ListConsumersResponse;
@@ -19,6 +21,8 @@ import io.github.sahina.proto.RegisterConsumerRequest;
 import io.github.sahina.proto.RegisterConsumerResponse;
 import io.github.sahina.proto.RegisterSchemaRequest;
 import io.github.sahina.proto.RegisterSchemaResponse;
+import io.github.sahina.proto.SchemaMetadata;
+import io.github.sahina.proto.SchemaOwnership;
 import io.github.sahina.proto.ValidationResult;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -1088,5 +1092,188 @@ class ContractValidatorTest {
         assertEquals(201, response.getStatusCode());
         assertEquals("application/json", response.getHeaders().get("Content-Type"));
         assertNotNull(response.getBody());
+    }
+
+    // ============================================================================
+    // useSchema tests
+    // ============================================================================
+
+    private SchemaMetadata buildSchemaMetadata() {
+        return buildSchemaMetadata("1.2.0", true);
+    }
+
+    private SchemaMetadata buildSchemaMetadata(String version, boolean withOwnership) {
+        SchemaMetadata.Builder b = SchemaMetadata.newBuilder()
+                .setSchemaId("petstore")
+                .setSchemaVersion(version)
+                .setSchemaHash("abc123")
+                .setRegisteredAt(1714000000L)
+                .setUpdatedAt(1714000500L)
+                .setOpenapiVersion("3.0.0")
+                .setEndpointCount(7);
+        if (withOwnership) {
+            b.setOwnership(SchemaOwnership.newBuilder()
+                    .setOwner("jane")
+                    .setTeam("platform")
+                    .setContactEmail("platform@example.com")
+                    .setReadOnly(false)
+                    .build());
+        }
+        return b.build();
+    }
+
+    @Test
+    @DisplayName("useSchema resolves latest and returns SchemaInfo")
+    void testUseSchemaResolvesLatest() {
+        GetSchemaResponse response = GetSchemaResponse.newBuilder()
+                .setFound(true)
+                .setMetadata(buildSchemaMetadata())
+                .build();
+        when(mockStub.getSchema(any(GetSchemaRequest.class))).thenReturn(response);
+
+        SchemaInfo info = validator.useSchema("petstore");
+
+        ArgumentCaptor<GetSchemaRequest> captor = ArgumentCaptor.forClass(GetSchemaRequest.class);
+        verify(mockStub).getSchema(captor.capture());
+        assertEquals("petstore", captor.getValue().getSchemaId());
+        assertEquals("", captor.getValue().getSchemaVersion());
+
+        assertEquals("petstore", info.getSchemaId());
+        assertEquals("1.2.0", info.getSchemaVersion());
+        assertEquals(7, info.getEndpointCount());
+        assertNotNull(info.getOwnership());
+        assertEquals("jane", info.getOwnership().getOwner());
+        assertEquals("platform", info.getOwnership().getTeam());
+    }
+
+    @Test
+    @DisplayName("useSchema pins to an explicit version")
+    void testUseSchemaPinsVersion() {
+        GetSchemaResponse response = GetSchemaResponse.newBuilder()
+                .setFound(true)
+                .setMetadata(buildSchemaMetadata("1.0.0", false))
+                .build();
+        when(mockStub.getSchema(any(GetSchemaRequest.class))).thenReturn(response);
+
+        SchemaInfo info = validator.useSchema("petstore", "1.0.0");
+
+        ArgumentCaptor<GetSchemaRequest> captor = ArgumentCaptor.forClass(GetSchemaRequest.class);
+        verify(mockStub).getSchema(captor.capture());
+        assertEquals("1.0.0", captor.getValue().getSchemaVersion());
+        assertEquals("1.0.0", info.getSchemaVersion());
+    }
+
+    @Test
+    @DisplayName("useSchema throws when schema is not registered")
+    void testUseSchemaNotFound() {
+        GetSchemaResponse response = GetSchemaResponse.newBuilder().setFound(false).build();
+        when(mockStub.getSchema(any(GetSchemaRequest.class))).thenReturn(response);
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> validator.useSchema("nope"));
+        assertTrue(e.getMessage().contains("'nope'"));
+        assertTrue(e.getMessage().contains("not registered"));
+    }
+
+    @Test
+    @DisplayName("useSchema error message includes version when pinning")
+    void testUseSchemaNotFoundWithVersion() {
+        GetSchemaResponse response = GetSchemaResponse.newBuilder().setFound(false).build();
+        when(mockStub.getSchema(any(GetSchemaRequest.class))).thenReturn(response);
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> validator.useSchema("petstore", "9.9.9"));
+        assertTrue(e.getMessage().contains("'petstore@9.9.9'"));
+    }
+
+    @Test
+    @DisplayName("useSchema propagates gRPC errors")
+    void testUseSchemaPropagatesRpcError() {
+        when(mockStub.getSchema(any(GetSchemaRequest.class)))
+                .thenThrow(new StatusRuntimeException(Status.UNAVAILABLE));
+
+        assertThrows(IllegalStateException.class, () -> validator.useSchema("petstore"));
+    }
+
+    @Test
+    @DisplayName("validate() sends schema_version after useSchema")
+    void testValidateSendsVersionAfterUseSchema() {
+        GetSchemaResponse getResponse = GetSchemaResponse.newBuilder()
+                .setFound(true)
+                .setMetadata(buildSchemaMetadata())
+                .build();
+        when(mockStub.getSchema(any(GetSchemaRequest.class))).thenReturn(getResponse);
+        when(mockStub.validateInteraction(any(InteractionRequest.class)))
+                .thenReturn(ValidationResult.newBuilder().setValid(true).build());
+
+        validator.useSchema("petstore");
+        validator.validate(
+                ValidationRequest.builder().method("GET").path("/pet/1").build(),
+                ValidationResponse.builder().statusCode(200).build());
+
+        ArgumentCaptor<InteractionRequest> captor = ArgumentCaptor.forClass(InteractionRequest.class);
+        verify(mockStub).validateInteraction(captor.capture());
+        assertEquals("petstore", captor.getValue().getSchemaId());
+        assertEquals("1.2.0", captor.getValue().getSchemaVersion());
+    }
+
+    @Test
+    @DisplayName("SchemaOwnership getters and toString")
+    void testSchemaOwnershipGetters() {
+        io.github.sahina.sdk.SchemaOwnership o = new io.github.sahina.sdk.SchemaOwnership(
+                "jane", "platform", "platform@example.com", true);
+        assertEquals("jane", o.getOwner());
+        assertEquals("platform", o.getTeam());
+        assertEquals("platform@example.com", o.getContactEmail());
+        assertTrue(o.isReadOnly());
+        assertTrue(o.toString().contains("jane"));
+
+        io.github.sahina.sdk.SchemaOwnership nullCoalesced =
+                new io.github.sahina.sdk.SchemaOwnership(null, null, null, false);
+        assertEquals("", nullCoalesced.getOwner());
+        assertEquals("", nullCoalesced.getTeam());
+        assertEquals("", nullCoalesced.getContactEmail());
+        assertFalse(nullCoalesced.isReadOnly());
+    }
+
+    @Test
+    @DisplayName("SchemaInfo getters and toString")
+    void testSchemaInfoGetters() {
+        io.github.sahina.sdk.SchemaOwnership ownership =
+                new io.github.sahina.sdk.SchemaOwnership("jane", "platform", "", false);
+        SchemaInfo info = new SchemaInfo("petstore", "1.2.0", "abc123", 100L, 200L, "3.0.0", 7, ownership);
+        assertEquals("petstore", info.getSchemaId());
+        assertEquals("1.2.0", info.getSchemaVersion());
+        assertEquals("abc123", info.getSchemaHash());
+        assertEquals(100L, info.getRegisteredAt());
+        assertEquals(200L, info.getUpdatedAt());
+        assertEquals("3.0.0", info.getOpenapiVersion());
+        assertEquals(7, info.getEndpointCount());
+        assertSame(ownership, info.getOwnership());
+        assertTrue(info.toString().contains("petstore"));
+
+        SchemaInfo nullCoalesced = new SchemaInfo("x", "1.0", null, 0L, 0L, null, 0, null);
+        assertEquals("", nullCoalesced.getSchemaHash());
+        assertEquals("", nullCoalesced.getOpenapiVersion());
+        assertNull(nullCoalesced.getOwnership());
+    }
+
+    @Test
+    @DisplayName("validate() does NOT send schema_version after registerSchema only")
+    void testValidateDoesNotSendVersionAfterRegisterSchema() throws IOException {
+        when(mockStub.registerSchema(any(RegisterSchemaRequest.class)))
+                .thenReturn(RegisterSchemaResponse.newBuilder().setSuccess(true).build());
+        when(mockStub.validateInteraction(any(InteractionRequest.class)))
+                .thenReturn(ValidationResult.newBuilder().setValid(true).build());
+
+        validator.registerSchema("test-schema", "path/to/schema.json");
+        validator.validate(
+                ValidationRequest.builder().method("GET").path("/pet/1").build(),
+                ValidationResponse.builder().statusCode(200).build());
+
+        ArgumentCaptor<InteractionRequest> captor = ArgumentCaptor.forClass(InteractionRequest.class);
+        verify(mockStub).validateInteraction(captor.capture());
+        assertEquals("test-schema", captor.getValue().getSchemaId());
+        assertEquals("", captor.getValue().getSchemaVersion());
     }
 }
