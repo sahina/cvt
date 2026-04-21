@@ -421,6 +421,7 @@ class ContractValidator:
             raise ValueError(f"Schema registration failed: {response.message}")
 
         self._schema_id = schema_id
+        self._schema_version = None
 
     def use_schema(
         self, schema_id: str, schema_version: Optional[str] = None
@@ -564,6 +565,7 @@ class ContractValidator:
             raise ValueError(f"Schema registration failed: {response.message}")
 
         self._schema_id = schema_id
+        self._schema_version = None
 
     def compare_schemas(
         self, schema_id: str, old_version: str = "", new_version: str = ""
@@ -1148,6 +1150,8 @@ __all__ = [
     "RegisterConsumerOptions",
     "ConsumerImpact",
     "CanIDeployResult",
+    "SchemaOwnership",
+    "SchemaInfo",
 ]
 
 # Re-export auto-register types (must be at end to avoid circular imports)

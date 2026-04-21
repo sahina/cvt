@@ -388,6 +388,7 @@ export class ContractValidator {
             reject(new Error(response.message));
           } else {
             this.schemaId = schemaId;
+            this.schemaVersion = null;
             resolve();
           }
         },
@@ -509,7 +510,9 @@ export class ContractValidator {
     response: ValidationResponse<ResBody>,
   ): Promise<ValidationResult> {
     if (!this.schemaId) {
-      throw new Error("Schema not registered. Call registerSchema first.");
+      throw new Error(
+        "Schema not bound. Call registerSchema or useSchema first.",
+      );
     }
 
     const interactionRequest: any = {
@@ -580,6 +583,7 @@ export class ContractValidator {
             reject(new Error(response.message));
           } else {
             this.schemaId = schemaId;
+            this.schemaVersion = null;
             resolve();
           }
         },
@@ -672,7 +676,9 @@ export class ContractValidator {
     options: GenerateOptions = {},
   ): Promise<GeneratedFixture> {
     if (!this.schemaId) {
-      throw new Error("Schema not registered. Call registerSchema first.");
+      throw new Error(
+        "Schema not bound. Call registerSchema or useSchema first.",
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -735,7 +741,9 @@ export class ContractValidator {
     options: GenerateOptions = {},
   ): Promise<GeneratedResponse> {
     if (!this.schemaId) {
-      throw new Error("Schema not registered. Call registerSchema first.");
+      throw new Error(
+        "Schema not bound. Call registerSchema or useSchema first.",
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -786,7 +794,9 @@ export class ContractValidator {
     options: GenerateOptions = {},
   ): Promise<any> {
     if (!this.schemaId) {
-      throw new Error("Schema not registered. Call registerSchema first.");
+      throw new Error(
+        "Schema not bound. Call registerSchema or useSchema first.",
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -828,7 +838,9 @@ export class ContractValidator {
    */
   async listEndpoints(): Promise<EndpointInfo[]> {
     if (!this.schemaId) {
-      throw new Error("Schema not registered. Call registerSchema first.");
+      throw new Error(
+        "Schema not bound. Call registerSchema or useSchema first.",
+      );
     }
 
     return new Promise((resolve, reject) => {

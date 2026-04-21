@@ -403,6 +403,7 @@ func (v *Validator) RegisterSchema(ctx context.Context, schemaID, schemaPath str
 	}
 
 	v.schemaID = schemaID
+	v.schemaVersion = ""
 	return nil
 }
 
@@ -612,6 +613,7 @@ func (v *Validator) RegisterSchemaWithVersion(ctx context.Context, schemaID, sch
 	}
 
 	v.schemaID = schemaID
+	v.schemaVersion = ""
 	return nil
 }
 

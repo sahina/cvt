@@ -9,6 +9,8 @@ from cvt_sdk import (
     ValidationRequest,
     ValidationResponse,
     RegisterConsumerOptions,
+    SchemaInfo,
+    SchemaOwnership,
 )
 from cvt_sdk.proto import RegisterSchemaResponse, ValidationResult
 
@@ -460,6 +462,18 @@ class TestCanIDeploy:
         assert result["affected_consumers"][0]["consumer_id"] == "order-service"
 
 
+class TestSchemaInfoExports:
+    """Regression: SchemaInfo / SchemaOwnership must be in the public API."""
+
+    def test_schema_info_importable(self):
+        info = SchemaInfo(schema_id="x", schema_version="1.0")
+        assert info.schema_id == "x"
+
+    def test_schema_ownership_importable(self):
+        o = SchemaOwnership(owner="jane", team="platform")
+        assert o.owner == "jane"
+
+
 class TestUseSchema:
     """Tests for the use_schema() method."""
 
@@ -558,6 +572,39 @@ class TestUseSchema:
         sent = validator._client.ValidateInteraction.call_args[0][0]
         assert sent.schema_id == "petstore"
         assert sent.schema_version == "1.2.0"
+
+    def test_register_schema_clears_pin_after_use_schema(self, validator, schema_path):
+        """register_schema after use_schema must clear the version pin."""
+        metadata = self._build_metadata_mock()
+        get_response = MagicMock()
+        get_response.found = True
+        get_response.metadata = metadata
+        validator._client.GetSchema.return_value = get_response
+
+        mock_reg = MagicMock(spec=RegisterSchemaResponse)
+        mock_reg.success = True
+        validator._client.RegisterSchema.return_value = mock_reg
+
+        validation_response = MagicMock(spec=ValidationResult)
+        validation_response.valid = True
+        validation_response.errors = []
+        validator._client.ValidateInteraction.return_value = validation_response
+
+        validator.use_schema("petstore")
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value='{"openapi": "3.0.0"}'),
+        ):
+            validator.register_schema("other-schema", schema_path)
+
+        validator.validate(
+            request=ValidationRequest(method="GET", path="/pet/1"),
+            response=ValidationResponse(status_code=200),
+        )
+
+        sent = validator._client.ValidateInteraction.call_args[0][0]
+        assert sent.schema_id == "other-schema"
+        assert sent.schema_version == ""
 
     def test_validate_does_not_send_version_after_register_schema(
         self, validator, schema_path

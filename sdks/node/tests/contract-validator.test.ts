@@ -314,7 +314,7 @@ describe("ContractValidator", () => {
           { method: "GET", path: "/" },
           { statusCode: 200 },
         ),
-      ).rejects.toThrow("Schema not registered");
+      ).rejects.toThrow("Schema not bound");
     });
   });
 
@@ -771,7 +771,7 @@ describe("ContractValidator", () => {
 
       await expect(
         newValidator.generateFixture("GET", "/users"),
-      ).rejects.toThrow("Schema not registered");
+      ).rejects.toThrow("Schema not bound");
     });
 
     it("should handle generateFixture failure response", async () => {
@@ -959,7 +959,7 @@ describe("ContractValidator", () => {
       const newValidator = new ContractValidator();
       await expect(
         newValidator.generateResponse("GET", "/users"),
-      ).rejects.toThrow("Schema not registered");
+      ).rejects.toThrow("Schema not bound");
     });
 
     it("should reject on failure response", async () => {
@@ -1023,7 +1023,7 @@ describe("ContractValidator", () => {
       const newValidator = new ContractValidator();
       await expect(
         newValidator.generateRequestBody("POST", "/users"),
-      ).rejects.toThrow("Schema not registered");
+      ).rejects.toThrow("Schema not bound");
     });
 
     it("should reject on failure response", async () => {
@@ -1142,6 +1142,32 @@ describe("ContractValidator", () => {
       const sent = mockValidateInteraction.mock.calls[0][0];
       expect(sent.schema_id).toBe("petstore");
       expect(sent.schema_version).toBe("1.2.0");
+    });
+
+    it("clears version pin when registerSchema rebinds after useSchema", async () => {
+      mockGetSchema.mockImplementation((_req: any, _md: any, cb: any) => {
+        cb(null, { found: true, metadata: metadataFixture });
+      });
+      mockRegisterSchema.mockImplementation((_req: any, _md: any, cb: any) => {
+        cb(null, { success: true });
+      });
+      mockValidateInteraction.mockImplementation(
+        (_req: any, _md: any, cb: any) => {
+          cb(null, { valid: true, errors: [] });
+        },
+      );
+
+      await validator.useSchema("petstore");
+      const schemaPath = path.resolve(__dirname, "../../shared/openapi.json");
+      await validator.registerSchema("other-schema", schemaPath);
+      await validator.validate(
+        { method: "GET", path: "/pet/1" },
+        { statusCode: 200 },
+      );
+
+      const sent = mockValidateInteraction.mock.calls[0][0];
+      expect(sent.schema_id).toBe("other-schema");
+      expect(sent.schema_version).toBeUndefined();
     });
 
     it("does NOT send schema_version when only registerSchema was called", async () => {

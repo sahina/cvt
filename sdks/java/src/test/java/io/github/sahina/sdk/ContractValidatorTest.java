@@ -1259,6 +1259,31 @@ class ContractValidatorTest {
     }
 
     @Test
+    @DisplayName("registerSchema after useSchema clears the version pin")
+    void testRegisterSchemaClearsPinAfterUseSchema() throws IOException {
+        GetSchemaResponse getResponse = GetSchemaResponse.newBuilder()
+                .setFound(true)
+                .setMetadata(buildSchemaMetadata())
+                .build();
+        when(mockStub.getSchema(any(GetSchemaRequest.class))).thenReturn(getResponse);
+        when(mockStub.registerSchema(any(RegisterSchemaRequest.class)))
+                .thenReturn(RegisterSchemaResponse.newBuilder().setSuccess(true).build());
+        when(mockStub.validateInteraction(any(InteractionRequest.class)))
+                .thenReturn(ValidationResult.newBuilder().setValid(true).build());
+
+        validator.useSchema("petstore");
+        validator.registerSchema("other-schema", "path/to/schema.json");
+        validator.validate(
+                ValidationRequest.builder().method("GET").path("/pet/1").build(),
+                ValidationResponse.builder().statusCode(200).build());
+
+        ArgumentCaptor<InteractionRequest> captor = ArgumentCaptor.forClass(InteractionRequest.class);
+        verify(mockStub).validateInteraction(captor.capture());
+        assertEquals("other-schema", captor.getValue().getSchemaId());
+        assertEquals("", captor.getValue().getSchemaVersion());
+    }
+
+    @Test
     @DisplayName("validate() does NOT send schema_version after registerSchema only")
     void testValidateDoesNotSendVersionAfterRegisterSchema() throws IOException {
         when(mockStub.registerSchema(any(RegisterSchemaRequest.class)))

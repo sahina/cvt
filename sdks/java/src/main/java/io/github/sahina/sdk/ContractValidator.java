@@ -280,6 +280,7 @@ public class ContractValidator implements AutoCloseable {
                 throw new IllegalArgumentException("Schema registration failed: " + response.getMessage());
             }
             this.schemaId = schemaId;
+            this.schemaVersion = null;
         } catch (StatusRuntimeException e) {
             throw new IOException("Failed to register schema: " + e.getStatus(), e);
         }
@@ -440,6 +441,7 @@ public class ContractValidator implements AutoCloseable {
                 throw new IllegalArgumentException("Schema registration failed: " + response.getMessage());
             }
             this.schemaId = schemaId;
+            this.schemaVersion = null;
         } catch (StatusRuntimeException e) {
             throw new IOException("Failed to register schema: " + e.getStatus(), e);
         }
