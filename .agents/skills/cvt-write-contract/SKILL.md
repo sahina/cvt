@@ -1,7 +1,7 @@
 ---
 name: cvt-write-contract
 description: Write a consumer contract test against an OpenAPI schema
-sdk_version: "0.6.1"
+sdk_version: "0.7.0"
 ---
 
 # Write Consumer Contract Test

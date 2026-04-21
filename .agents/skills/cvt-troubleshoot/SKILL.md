@@ -1,7 +1,7 @@
 ---
 name: cvt-troubleshoot
 description: Diagnose and fix common CVT contract testing issues
-sdk_version: "0.6.1"
+sdk_version: "0.7.0"
 ---
 
 # CVT Troubleshoot

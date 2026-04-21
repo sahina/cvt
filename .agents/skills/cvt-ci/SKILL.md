@@ -1,7 +1,7 @@
 ---
 name: cvt-ci
 description: Integrate CVT contract validation into CI/CD pipelines
-sdk_version: "0.6.1"
+sdk_version: "0.7.0"
 ---
 
 # CVT CI/CD Integration
