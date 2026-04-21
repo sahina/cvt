@@ -24,13 +24,13 @@ This guide covers the three validation approaches and consumer registration (the
 
 All three require the producer's schema to be registered with CVT. The server-side registry is shared and keyed by `schemaId` — ownership metadata (`owner`, `team`, `contact_email`) can be attached, but validation doesn't gate on it, so there's no "producer-owned" vs. "consumer-owned" access distinction.
 
-What that means for your SDK code:
+What that means for your SDK code — two patterns:
 
-- The SDK's `registerSchema(id, path)` is still required on each validator instance — `validate()` throws "Schema not registered" without it. Call it in `beforeAll` / test setup as usual.
-- `registerSchema` is idempotent server-side: calling it with the same `schemaId` and content when the producer already registered it is a harmless no-op.
-- `registerConsumer(...)` is the step that genuinely doesn't duplicate the producer's work — it only sends a `schemaId` reference, no schema content.
+- **If the producer has already registered the schema (Flow A, recommended default for consumers):** use `useSchema(id)` on your validator. It resolves the schema by `schemaId` via `GetSchema`, pins the validator to the concrete version the server returned, and requires **no local OpenAPI file**. Optionally pass a version (`useSchema(id, version)`) to pin to a specific historical version.
+- **If you're the first to onboard the schema (Flow B, greenfield):** use `registerSchema(id, path)` with a local copy of the producer's OpenAPI spec. The server is idempotent — later calls with the same ID + content are no-ops, so this pattern also works when the producer later adopts CVT.
+- `registerConsumer(...)` is the step that declares your dependency — only a `schemaId` reference is sent, no schema content.
 
-So in practice: register the schema locally (whether you're the first to do it or not), validate, then call `registerConsumer` to declare your dependency. The producer's CI doing the same doesn't conflict with you.
+In practice: call `useSchema` (or `registerSchema` for greenfield) in `beforeAll` / test setup, validate, then `registerConsumer` to declare your dependency.
 
 ---
 

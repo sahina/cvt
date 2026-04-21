@@ -3,6 +3,10 @@
 from .cvt_pb2 import (
     RegisterSchemaRequest,
     RegisterSchemaResponse,
+    GetSchemaRequest,
+    GetSchemaResponse,
+    SchemaMetadata,
+    SchemaOwnership as ProtoSchemaOwnership,
     InteractionRequest,
     ValidationResult,
     RequestData,
@@ -39,6 +43,10 @@ from .cvt_pb2_grpc import ContractValidatorStub
 __all__ = [
     "RegisterSchemaRequest",
     "RegisterSchemaResponse",
+    "GetSchemaRequest",
+    "GetSchemaResponse",
+    "SchemaMetadata",
+    "ProtoSchemaOwnership",
     "InteractionRequest",
     "ValidationResult",
     "RequestData",

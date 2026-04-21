@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -1400,4 +1401,212 @@ func TestContextWithAPIKey(t *testing.T) {
 		// Context should be different since API key is set
 		assert.NotEqual(t, ctx, newCtx)
 	})
+}
+
+func buildSchemaMetadata() *pb.SchemaMetadata {
+	return &pb.SchemaMetadata{
+		SchemaId:       "petstore",
+		SchemaVersion:  "1.2.0",
+		SchemaHash:     "abc123",
+		RegisteredAt:   1714000000,
+		UpdatedAt:      1714000500,
+		OpenapiVersion: "3.0.0",
+		EndpointCount:  7,
+		Ownership: &pb.SchemaOwnership{
+			Owner:        "jane",
+			Team:         "platform",
+			ContactEmail: "platform@example.com",
+			ReadOnly:     false,
+		},
+	}
+}
+
+func TestUseSchema_ResolvesLatest(t *testing.T) {
+	validator, err := NewValidator("")
+	require.NoError(t, err)
+	defer func() { _ = validator.Close() }()
+
+	var capturedReq *pb.GetSchemaRequest
+	validator.client = &mockClient{
+		getSchemasFunc: func(_ context.Context, in *pb.GetSchemaRequest, _ ...grpc.CallOption) (*pb.GetSchemaResponse, error) {
+			capturedReq = in
+			return &pb.GetSchemaResponse{Found: true, Metadata: buildSchemaMetadata()}, nil
+		},
+	}
+
+	info, err := validator.UseSchema(context.Background(), "petstore")
+	require.NoError(t, err)
+	assert.Equal(t, "petstore", capturedReq.SchemaId)
+	assert.Equal(t, "", capturedReq.SchemaVersion)
+	assert.Equal(t, "petstore", info.SchemaID)
+	assert.Equal(t, "1.2.0", info.SchemaVersion)
+	assert.Equal(t, int32(7), info.EndpointCount)
+	require.NotNil(t, info.Ownership)
+	assert.Equal(t, "jane", info.Ownership.Owner)
+	assert.Equal(t, "platform", info.Ownership.Team)
+}
+
+func TestUseSchema_PinsExplicitVersion(t *testing.T) {
+	validator, err := NewValidator("")
+	require.NoError(t, err)
+	defer func() { _ = validator.Close() }()
+
+	var capturedReq *pb.GetSchemaRequest
+	validator.client = &mockClient{
+		getSchemasFunc: func(_ context.Context, in *pb.GetSchemaRequest, _ ...grpc.CallOption) (*pb.GetSchemaResponse, error) {
+			capturedReq = in
+			md := buildSchemaMetadata()
+			md.SchemaVersion = "1.0.0"
+			return &pb.GetSchemaResponse{Found: true, Metadata: md}, nil
+		},
+	}
+
+	info, err := validator.UseSchema(context.Background(), "petstore", "1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, "1.0.0", capturedReq.SchemaVersion)
+	assert.Equal(t, "1.0.0", info.SchemaVersion)
+}
+
+func TestUseSchema_ReturnsErrorWhenNotFound(t *testing.T) {
+	validator, err := NewValidator("")
+	require.NoError(t, err)
+	defer func() { _ = validator.Close() }()
+
+	validator.client = &mockClient{
+		getSchemasFunc: func(_ context.Context, _ *pb.GetSchemaRequest, _ ...grpc.CallOption) (*pb.GetSchemaResponse, error) {
+			return &pb.GetSchemaResponse{Found: false}, nil
+		},
+	}
+
+	_, err = validator.UseSchema(context.Background(), "nope")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "'nope'")
+	assert.Contains(t, err.Error(), "not registered")
+}
+
+func TestUseSchema_ErrorIncludesVersionWhenPinning(t *testing.T) {
+	validator, err := NewValidator("")
+	require.NoError(t, err)
+	defer func() { _ = validator.Close() }()
+
+	validator.client = &mockClient{
+		getSchemasFunc: func(_ context.Context, _ *pb.GetSchemaRequest, _ ...grpc.CallOption) (*pb.GetSchemaResponse, error) {
+			return &pb.GetSchemaResponse{Found: false}, nil
+		},
+	}
+
+	_, err = validator.UseSchema(context.Background(), "petstore", "9.9.9")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "'petstore@9.9.9'")
+}
+
+func TestUseSchema_PropagatesRPCError(t *testing.T) {
+	validator, err := NewValidator("")
+	require.NoError(t, err)
+	defer func() { _ = validator.Close() }()
+
+	validator.client = &mockClient{
+		getSchemasFunc: func(_ context.Context, _ *pb.GetSchemaRequest, _ ...grpc.CallOption) (*pb.GetSchemaResponse, error) {
+			return nil, errors.New("connection refused")
+		},
+	}
+
+	_, err = validator.UseSchema(context.Background(), "petstore")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "connection refused")
+}
+
+func TestValidate_SendsSchemaVersionAfterUseSchema(t *testing.T) {
+	validator, err := NewValidator("")
+	require.NoError(t, err)
+	defer func() { _ = validator.Close() }()
+
+	var capturedInteraction *pb.InteractionRequest
+	validator.client = &mockClient{
+		getSchemasFunc: func(_ context.Context, _ *pb.GetSchemaRequest, _ ...grpc.CallOption) (*pb.GetSchemaResponse, error) {
+			return &pb.GetSchemaResponse{Found: true, Metadata: buildSchemaMetadata()}, nil
+		},
+		validateInteractionFunc: func(_ context.Context, in *pb.InteractionRequest, _ ...grpc.CallOption) (*pb.ValidationResult, error) {
+			capturedInteraction = in
+			return &pb.ValidationResult{Valid: true}, nil
+		},
+	}
+
+	_, err = validator.UseSchema(context.Background(), "petstore")
+	require.NoError(t, err)
+	_, err = validator.Validate(context.Background(),
+		ValidationRequest{Method: "GET", Path: "/pet/1"},
+		ValidationResponse{StatusCode: 200},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, capturedInteraction)
+	assert.Equal(t, "petstore", capturedInteraction.SchemaId)
+	assert.Equal(t, "1.2.0", capturedInteraction.SchemaVersion)
+}
+
+func TestRegisterSchema_ClearsPinAfterUseSchema(t *testing.T) {
+	tmpDir := t.TempDir()
+	schemaPath := filepath.Join(tmpDir, "openapi.json")
+	require.NoError(t, os.WriteFile(schemaPath, []byte(`{"openapi":"3.0.0"}`), 0o600))
+
+	validator, err := NewValidator("")
+	require.NoError(t, err)
+	defer func() { _ = validator.Close() }()
+
+	var capturedInteraction *pb.InteractionRequest
+	validator.client = &mockClient{
+		getSchemasFunc: func(_ context.Context, _ *pb.GetSchemaRequest, _ ...grpc.CallOption) (*pb.GetSchemaResponse, error) {
+			return &pb.GetSchemaResponse{Found: true, Metadata: buildSchemaMetadata()}, nil
+		},
+		registerSchemaFunc: func(_ context.Context, _ *pb.RegisterSchemaRequest, _ ...grpc.CallOption) (*pb.RegisterSchemaResponse, error) {
+			return &pb.RegisterSchemaResponse{Success: true}, nil
+		},
+		validateInteractionFunc: func(_ context.Context, in *pb.InteractionRequest, _ ...grpc.CallOption) (*pb.ValidationResult, error) {
+			capturedInteraction = in
+			return &pb.ValidationResult{Valid: true}, nil
+		},
+	}
+
+	_, err = validator.UseSchema(context.Background(), "petstore")
+	require.NoError(t, err)
+	require.NoError(t, validator.RegisterSchema(context.Background(), "other-schema", schemaPath))
+	_, err = validator.Validate(context.Background(),
+		ValidationRequest{Method: "GET", Path: "/pet/1"},
+		ValidationResponse{StatusCode: 200},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, capturedInteraction)
+	assert.Equal(t, "other-schema", capturedInteraction.SchemaId)
+	assert.Equal(t, "", capturedInteraction.SchemaVersion)
+}
+
+func TestValidate_DoesNotSendVersionAfterRegisterSchema(t *testing.T) {
+	tmpDir := t.TempDir()
+	schemaPath := filepath.Join(tmpDir, "openapi.json")
+	require.NoError(t, os.WriteFile(schemaPath, []byte(`{"openapi":"3.0.0"}`), 0o600))
+
+	validator, err := NewValidator("")
+	require.NoError(t, err)
+	defer func() { _ = validator.Close() }()
+
+	var capturedInteraction *pb.InteractionRequest
+	validator.client = &mockClient{
+		registerSchemaFunc: func(_ context.Context, _ *pb.RegisterSchemaRequest, _ ...grpc.CallOption) (*pb.RegisterSchemaResponse, error) {
+			return &pb.RegisterSchemaResponse{Success: true}, nil
+		},
+		validateInteractionFunc: func(_ context.Context, in *pb.InteractionRequest, _ ...grpc.CallOption) (*pb.ValidationResult, error) {
+			capturedInteraction = in
+			return &pb.ValidationResult{Valid: true}, nil
+		},
+	}
+
+	require.NoError(t, validator.RegisterSchema(context.Background(), "test-schema", schemaPath))
+	_, err = validator.Validate(context.Background(),
+		ValidationRequest{Method: "GET", Path: "/pet/1"},
+		ValidationResponse{StatusCode: 200},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, capturedInteraction)
+	assert.Equal(t, "test-schema", capturedInteraction.SchemaId)
+	assert.Equal(t, "", capturedInteraction.SchemaVersion)
 }

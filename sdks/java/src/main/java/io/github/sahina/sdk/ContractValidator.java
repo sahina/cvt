@@ -26,6 +26,8 @@ import io.github.sahina.proto.DeregisterConsumerRequest;
 import io.github.sahina.proto.DeregisterConsumerResponse;
 import io.github.sahina.proto.GenerateFixtureRequest;
 import io.github.sahina.proto.GenerateFixtureResponse;
+import io.github.sahina.proto.GetSchemaRequest;
+import io.github.sahina.proto.GetSchemaResponse;
 import io.github.sahina.proto.InteractionRequest;
 import io.github.sahina.proto.ListConsumersRequest;
 import io.github.sahina.proto.ListConsumersResponse;
@@ -38,6 +40,7 @@ import io.github.sahina.proto.RegisterSchemaRequest;
 import io.github.sahina.proto.RegisterSchemaResponse;
 import io.github.sahina.proto.RequestData;
 import io.github.sahina.proto.ResponseData;
+import io.github.sahina.proto.SchemaMetadata;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -84,6 +87,7 @@ public class ContractValidator implements AutoCloseable {
     private final ManagedChannel channel;
     private final ContractValidatorGrpc.ContractValidatorBlockingStub client;
     private String schemaId;
+    private String schemaVersion;
 
     /**
      * Creates a new ContractValidator instance connecting to the default address
@@ -276,9 +280,77 @@ public class ContractValidator implements AutoCloseable {
                 throw new IllegalArgumentException("Schema registration failed: " + response.getMessage());
             }
             this.schemaId = schemaId;
+            this.schemaVersion = null;
         } catch (StatusRuntimeException e) {
             throw new IOException("Failed to register schema: " + e.getStatus(), e);
         }
+    }
+
+    /**
+     * Binds the validator to a schema already registered on the server, without
+     * requiring a local OpenAPI file. The schema's concrete version is resolved
+     * at call time; subsequent {@link #validate} calls are pinned to that
+     * version.
+     *
+     * @param schemaId The schema identifier to bind
+     * @return Resolved schema metadata from the server
+     * @throws IllegalArgumentException if the schema is not registered
+     */
+    public SchemaInfo useSchema(String schemaId) {
+        return useSchema(schemaId, null);
+    }
+
+    /**
+     * Binds the validator to a specific version of a schema already registered
+     * on the server, without requiring a local OpenAPI file.
+     *
+     * @param schemaId      The schema identifier to bind
+     * @param schemaVersion Optional version to pin to (null = latest registered)
+     * @return Resolved schema metadata from the server
+     * @throws IllegalArgumentException if the schema or version is not registered
+     */
+    public SchemaInfo useSchema(String schemaId, String schemaVersion) {
+        GetSchemaRequest request = GetSchemaRequest.newBuilder()
+                .setSchemaId(schemaId)
+                .setSchemaVersion(schemaVersion != null ? schemaVersion : "")
+                .build();
+
+        GetSchemaResponse response;
+        try {
+            response = client.getSchema(request);
+        } catch (StatusRuntimeException e) {
+            throw new IllegalStateException("Failed to fetch schema: " + e.getStatus(), e);
+        }
+
+        if (!response.getFound()) {
+            String suffix = (schemaVersion != null && !schemaVersion.isEmpty()) ? "@" + schemaVersion : "";
+            throw new IllegalArgumentException(
+                    "Schema '" + schemaId + suffix + "' not registered on server");
+        }
+
+        SchemaMetadata md = response.getMetadata();
+        String resolvedVersion = md.getSchemaVersion();
+        this.schemaId = schemaId;
+        this.schemaVersion = resolvedVersion;
+
+        SchemaOwnership ownership = null;
+        if (md.hasOwnership()) {
+            ownership = new SchemaOwnership(
+                    md.getOwnership().getOwner(),
+                    md.getOwnership().getTeam(),
+                    md.getOwnership().getContactEmail(),
+                    md.getOwnership().getReadOnly());
+        }
+
+        return new SchemaInfo(
+                md.getSchemaId().isEmpty() ? schemaId : md.getSchemaId(),
+                resolvedVersion,
+                md.getSchemaHash(),
+                md.getRegisteredAt(),
+                md.getUpdatedAt(),
+                md.getOpenapiVersion(),
+                md.getEndpointCount(),
+                ownership);
     }
 
     /**
@@ -319,11 +391,14 @@ public class ContractValidator implements AutoCloseable {
             responseBuilder.setBody(response.getBody());
         }
 
-        InteractionRequest interactionRequest = InteractionRequest.newBuilder()
+        InteractionRequest.Builder interactionBuilder = InteractionRequest.newBuilder()
                 .setSchemaId(schemaId)
                 .setRequest(requestBuilder)
-                .setResponse(responseBuilder)
-                .build();
+                .setResponse(responseBuilder);
+        if (schemaVersion != null && !schemaVersion.isEmpty()) {
+            interactionBuilder.setSchemaVersion(schemaVersion);
+        }
+        InteractionRequest interactionRequest = interactionBuilder.build();
 
         try {
             io.github.sahina.proto.ValidationResult result = client.validateInteraction(interactionRequest);
@@ -366,6 +441,7 @@ public class ContractValidator implements AutoCloseable {
                 throw new IllegalArgumentException("Schema registration failed: " + response.getMessage());
             }
             this.schemaId = schemaId;
+            this.schemaVersion = null;
         } catch (StatusRuntimeException e) {
             throw new IOException("Failed to register schema: " + e.getStatus(), e);
         }

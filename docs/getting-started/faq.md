@@ -33,16 +33,25 @@ Yes. CVT auto-converts Swagger 2.0 to OpenAPI 3.x at registration time. You don'
 
 ## If the producer already registered the schema, do I need to register it again as a consumer?
 
-It depends on what "register" means — and the distinction matters:
+**No — use `useSchema(id)` instead of `registerSchema(id, path)`.** The distinction matters:
 
-- **Server-side `RegisterSchema` RPC**: the CVT server's schema registry is shared and keyed by `schemaId`. Ownership metadata (`SchemaOwnership`: `owner`, `team`, `contact_email`, `read_only`) can be attached for documentation and audit, but validation logic does not enforce access control based on it — any party can validate against or register dependencies on any schema. `RegisterSchema` is idempotent: calling it with the same ID and content is a no-op.
-- **SDK `registerSchema(id, path)` call**: the SDK client still requires this on each validator instance to bind `schemaId` for subsequent `validate()` calls. Skipping it throws "Schema not registered." So consumers still call `registerSchema` locally — just idempotently, alongside whoever else registered it.
-- **SDK `registerConsumer({ schemaId, ... })`**: only references an existing `schemaId`; no schema content is transmitted. This is the step where "no re-registration" literally applies.
+- **Server-side `RegisterSchema` RPC** is idempotent and the server's schema registry is shared, keyed by `schemaId`. Ownership metadata (`SchemaOwnership`: `owner`, `team`, `contact_email`, `read_only`) is for documentation and audit; validation logic does not enforce access control. Any party can validate against or register dependencies on any schema.
+- **SDK `useSchema(id)`** (recommended for consumers joining an existing registration): calls the server's `GetSchema` RPC to resolve the schema by ID, pins the validator to the concrete version the server returned, and requires **no local OpenAPI file**. Subsequent `validate()` calls are locked to that version.
+- **SDK `registerSchema(id, path)`** (for publishing/greenfield): reads a local OpenAPI file and publishes it to the server. Use this when **you are the producer** or when you're on the consumer-first path and the producer has not onboarded yet.
+- **SDK `registerConsumer({ schemaId, ... })`**: only references an existing `schemaId`; no schema content is transmitted. Declares your dependency once the validator is bound.
 
-Two onboarding flows that both work:
+Two onboarding flows:
 
-- **Producer registers first (typical mature setup)**: the producer's CI publishes the schema on each release. Consumers still call `registerSchema` on their validator instance (harmless idempotent sync) plus `registerConsumer(...)` to declare their dependency.
-- **Consumer registers first (greenfield / producer not onboarded)**: the consumer registers the producer's OpenAPI spec they already have a copy of, then validates their calls. When the producer later adopts CVT, their registration converges with the existing record.
+- **Producer registers first (typical mature setup) — Flow A**: consumers call `useSchema(id)` (no local file) + `registerConsumer(...)`. The producer's CI publishes the schema on each release; consumers just join.
+- **Consumer registers first (greenfield / producer not onboarded) — Flow B**: the consumer calls `registerSchema(id, path)` with a local copy of the producer's OpenAPI spec, then validates. When the producer later adopts CVT, their registration converges with the existing record.
+
+```ts
+// Flow A — consumer joins an existing registration (no file needed)
+const validator = new ContractValidator("localhost:9550");
+const info = await validator.useSchema("petstore");
+console.log(`Bound to ${info.schemaId}@${info.schemaVersion}`);
+await validator.validate(req, resp);
+```
 
 ## Do I need to register the schema before every test run?
 

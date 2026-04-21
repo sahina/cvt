@@ -77,7 +77,14 @@ await validator.registerConsumer({
 Full walkthrough: [Consumer Testing → Consumer Registration](./consumer-testing.mdx#consumer-registration).
 
 :::info Who registers the schema itself?
-`registerConsumer` only references an existing `schemaId` — it doesn't carry schema content, so it's the same call regardless of who first published the schema. The server-side schema registry is shared; ownership metadata exists but doesn't gate access. Note that the SDK's `registerSchema()` is still required on each validator instance to bind the `schemaId` for `validate()` — it's just idempotent server-side when the producer has already registered the same content. See the [FAQ entry on producer-already-registered schemas](../getting-started/faq.md#if-the-producer-already-registered-the-schema-do-i-need-to-register-it-again-as-a-consumer).
+`registerConsumer` only references an existing `schemaId` — it doesn't carry schema content, so it's the same call regardless of who first published the schema. The server-side schema registry is shared; ownership metadata exists but doesn't gate access.
+
+On the SDK side, the validator still needs to know which `schemaId` to bind — but there are two paths:
+
+- **Producer already registered (Flow A, recommended default):** call `useSchema(id)` on your validator. Resolves the schema server-side and binds without a local OpenAPI file.
+- **Greenfield / consumer-first (Flow B):** call `registerSchema(id, path)` with a local copy of the spec. Idempotent server-side when the producer later adopts CVT.
+
+See the [FAQ entry on producer-already-registered schemas](../getting-started/faq.md#if-the-producer-already-registered-the-schema-do-i-need-to-register-it-again-as-a-consumer).
 :::
 
 :::info No consumers registered yet?

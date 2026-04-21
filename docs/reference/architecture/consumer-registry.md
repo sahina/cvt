@@ -31,16 +31,23 @@ This produces two symmetrical onboarding flows:
 **Flow A — Producer registers first (typical mature setup)**
 
 1. Producer's CI publishes the OpenAPI spec via `RegisterSchema` on each release.
-2. Consumer's test suite calls `RegisterSchema` on its SDK validator instance (required to bind `schemaId`; idempotent server-side when content matches), then `ValidateInteraction` and `RegisterConsumer` referencing the same `schemaId`.
+2. Consumer's test suite calls **`useSchema(id)`** on its SDK validator — this calls the `GetSchema` RPC, resolves the schema by ID, and pins the validator to the concrete version the server returned. **No local OpenAPI file required.** Then `ValidateInteraction` and `RegisterConsumer` reference the same `schemaId`.
 3. `CanIDeploy` runs on the producer's next release and sees the consumer's registered dependency.
 
 **Flow B — Consumer registers first (greenfield / producer not onboarded)**
 
-1. Consumer obtains the producer's OpenAPI spec and calls `RegisterSchema` itself.
-2. Consumer calls `ValidateInteraction` and `RegisterConsumer` against the schema it just registered.
-3. When the producer later adopts CVT, they register the next schema version. The consumer's registration — associated with the `schemaId`, not the registrant — keeps working across versions.
+1. Consumer obtains a local copy of the producer's OpenAPI spec and calls `RegisterSchema` themselves (via `registerSchema(id, path)`).
+2. Consumer calls `ValidateInteraction` and `RegisterConsumer` against the schema they just registered.
+3. When the producer later adopts CVT, they register the next schema version. The consumer's registration — associated with the `schemaId`, not the registrant — keeps working across versions. The consumer can then switch to `useSchema(id)` to drop the local file.
 
-Only the `RegisterConsumer` call differs in shape: it takes just a `schemaId` reference (no schema content), so it is the one step that never duplicates work regardless of who registered the schema. Both flows converge on the same consumer-registry state, keyed by the `{consumerID, schemaID, environment}` tuple described below.
+SDK method at a glance:
+
+| Method | Requires local file? | Use for |
+|---|---|---|
+| `useSchema(id)` / `useSchema(id, version)` | No | Consumers joining an existing registration (Flow A) |
+| `registerSchema(id, path)` | Yes (path to OpenAPI) | Producers publishing a schema, or consumer-first greenfield (Flow B) |
+
+Only the `RegisterConsumer` call never transmits schema content: it takes just a `schemaId` reference. Both flows converge on the same consumer-registry state, keyed by the `{consumerID, schemaID, environment}` tuple described below.
 
 ## Consumer Registration Flow
 

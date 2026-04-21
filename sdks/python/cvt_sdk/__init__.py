@@ -16,6 +16,7 @@ import grpc
 from .proto import (
     ContractValidatorStub,
     RegisterSchemaRequest,
+    GetSchemaRequest,
     InteractionRequest,
     RequestData,
     ResponseData,
@@ -284,6 +285,30 @@ class CanIDeployResult(TypedDict):
     """Impact on each affected consumer."""
 
 
+@dataclass
+class SchemaOwnership:
+    """Ownership information for a registered schema."""
+
+    owner: str = ""
+    team: str = ""
+    contact_email: str = ""
+    read_only: bool = False
+
+
+@dataclass
+class SchemaInfo:
+    """Metadata describing a schema resolved via use_schema()."""
+
+    schema_id: str
+    schema_version: str
+    schema_hash: str = ""
+    registered_at: int = 0
+    updated_at: int = 0
+    openapi_version: str = ""
+    endpoint_count: int = 0
+    ownership: Optional[SchemaOwnership] = None
+
+
 class ContractValidator:
     """
     Client for the Contract Validator Toolkit (CVT).
@@ -335,6 +360,7 @@ class ContractValidator:
 
         self._client = ContractValidatorStub(self._channel)
         self._schema_id: Optional[str] = None
+        self._schema_version: Optional[str] = None
 
     def _create_tls_credentials(
         self, tls_options: TLSOptions
@@ -395,6 +421,66 @@ class ContractValidator:
             raise ValueError(f"Schema registration failed: {response.message}")
 
         self._schema_id = schema_id
+        self._schema_version = None
+
+    def use_schema(
+        self, schema_id: str, schema_version: Optional[str] = None
+    ) -> SchemaInfo:
+        """
+        Binds the validator to a schema already registered on the server, without
+        requiring a local OpenAPI file. The schema's concrete version is resolved
+        at call time; subsequent validate() calls are pinned to that version.
+
+        Args:
+            schema_id: The schema identifier to bind.
+            schema_version: Optional version to pin to (default: latest registered).
+
+        Returns:
+            A SchemaInfo describing the resolved schema.
+
+        Raises:
+            ValueError: If the schema (or specific version) is not registered.
+
+        Example:
+            >>> validator = ContractValidator("localhost:9550")
+            >>> info = validator.use_schema("petstore")
+            >>> print(f"Bound to {info.schema_id}@{info.schema_version}")
+            >>> validator.validate(request, response)
+        """
+        request = GetSchemaRequest(
+            schema_id=schema_id,
+            schema_version=schema_version or "",
+        )
+        response = self._client.GetSchema(request, metadata=self._create_metadata())
+
+        if not response.found:
+            suffix = f"@{schema_version}" if schema_version else ""
+            raise ValueError(f"Schema '{schema_id}{suffix}' not registered on server")
+
+        metadata = response.metadata
+        resolved_version = metadata.schema_version
+        self._schema_id = schema_id
+        self._schema_version = resolved_version
+
+        ownership: Optional[SchemaOwnership] = None
+        if metadata.HasField("ownership"):
+            ownership = SchemaOwnership(
+                owner=metadata.ownership.owner,
+                team=metadata.ownership.team,
+                contact_email=metadata.ownership.contact_email,
+                read_only=metadata.ownership.read_only,
+            )
+
+        return SchemaInfo(
+            schema_id=metadata.schema_id or schema_id,
+            schema_version=resolved_version,
+            schema_hash=metadata.schema_hash,
+            registered_at=metadata.registered_at,
+            updated_at=metadata.updated_at,
+            openapi_version=metadata.openapi_version,
+            endpoint_count=metadata.endpoint_count,
+            ownership=ownership,
+        )
 
     def validate(
         self, request: ValidationRequest, response: ValidationResponse
@@ -432,9 +518,14 @@ class ContractValidator:
         )
 
         # Validate interaction
-        interaction_request = InteractionRequest(
-            schema_id=self._schema_id, request=request_data, response=response_data
-        )
+        interaction_kwargs: Dict[str, Any] = {
+            "schema_id": self._schema_id,
+            "request": request_data,
+            "response": response_data,
+        }
+        if self._schema_version:
+            interaction_kwargs["schema_version"] = self._schema_version
+        interaction_request = InteractionRequest(**interaction_kwargs)
         result: ProtoValidationResult = self._client.ValidateInteraction(
             interaction_request, metadata=self._create_metadata()
         )
@@ -474,6 +565,7 @@ class ContractValidator:
             raise ValueError(f"Schema registration failed: {response.message}")
 
         self._schema_id = schema_id
+        self._schema_version = None
 
     def compare_schemas(
         self, schema_id: str, old_version: str = "", new_version: str = ""
@@ -1058,6 +1150,8 @@ __all__ = [
     "RegisterConsumerOptions",
     "ConsumerImpact",
     "CanIDeployResult",
+    "SchemaOwnership",
+    "SchemaInfo",
 ]
 
 # Re-export auto-register types (must be at end to avoid circular imports)
