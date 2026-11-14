@@ -7,6 +7,10 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+# Checkout, tests, and artifacts only. No job publishes or pushes.
+permissions:
+  contents: read
+
 jobs:
   # Build and test Go server
   server:

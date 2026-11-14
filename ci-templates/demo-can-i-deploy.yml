@@ -69,6 +69,10 @@ on:
         required: true
         default: 'prod'
 
+# Checkout only. The token does not need write access.
+permissions:
+  contents: read
+
 # -----------------------------------------------------------------------------
 # ENVIRONMENT VARIABLES
 # -----------------------------------------------------------------------------
@@ -187,12 +191,14 @@ jobs:
       #
       - name: Generate detailed report
         if: always()
+        env:
+          DEPLOY_RESULT: ${{ steps.can_i_deploy.outputs.result }}
         run: |
           echo "## Can I Deploy? - Deployment Safety Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Status banner
-          if [ "${{ steps.can_i_deploy.outputs.result }}" == "safe" ]; then
+          if [ "$DEPLOY_RESULT" == "safe" ]; then
             echo "> **SAFE TO DEPLOY**" >> $GITHUB_STEP_SUMMARY
             echo "> No breaking changes detected for any registered consumers." >> $GITHUB_STEP_SUMMARY
           else
