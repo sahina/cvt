@@ -9,10 +9,10 @@ on:
       - 'docs-site/**'
   workflow_dispatch:
 
+# Read-only by default. configure-pages may create the Pages site (pages: write).
+# Only the deploy job may mint the OIDC token used to publish the site.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -21,6 +21,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -49,6 +52,9 @@ jobs:
           path: docs-site/build
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

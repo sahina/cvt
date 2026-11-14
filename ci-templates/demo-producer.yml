@@ -65,6 +65,10 @@ on:
         required: true
         default: '1.0.0'
 
+# Checkout only. The token does not need write access.
+permissions:
+  contents: read
+
 # -----------------------------------------------------------------------------
 # ENVIRONMENT VARIABLES
 # -----------------------------------------------------------------------------
@@ -116,6 +120,8 @@ jobs:
       # - This uses LOCAL validation (no server required)
       #
       - name: Validate OpenAPI schema syntax
+        env:
+          WORKSPACE: ${{ github.workspace }}
         run: |
           echo "Validating schema at: $CVT_SCHEMA_URL"
           echo ""
@@ -123,7 +129,7 @@ jobs:
           # Run CVT CLI from Docker image
           # The --list flag parses the schema and outputs all endpoints
           docker run --rm \
-            -v "${{ github.workspace }}:/workspace" \
+            -v "$WORKSPACE:/workspace" \
             -w /workspace \
             ghcr.io/sahina/cvt:latest \
             generate --schema "$CVT_SCHEMA_URL" --list
@@ -152,6 +158,8 @@ jobs:
       # or a service container instead for better isolation.
       #
       - name: Register schema with CVT server
+        env:
+          WORKSPACE: ${{ github.workspace }}
         run: |
           echo "Registering schema with CVT server..."
           echo "  Schema ID: $CVT_SCHEMA_ID"
@@ -161,7 +169,7 @@ jobs:
 
           docker run --rm \
             --network host \
-            -v "${{ github.workspace }}:/workspace" \
+            -v "$WORKSPACE:/workspace" \
             -w /workspace \
             ghcr.io/sahina/cvt:latest \
             register-schema "$CVT_SCHEMA_ID" "$CVT_SCHEMA_URL" \
@@ -222,6 +230,9 @@ jobs:
       #
       - name: Generate summary report
         if: always()
+        env:
+          WORKSPACE: ${{ github.workspace }}
+          CAN_I_DEPLOY_OUTCOME: ${{ steps.can_i_deploy.outcome }}
         run: |
           echo "## Producer Validation Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -233,7 +244,7 @@ jobs:
           echo "| Server | \`$CVT_SERVER_URL\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.can_i_deploy.outcome }}" == "success" ]; then
+          if [ "$CAN_I_DEPLOY_OUTCOME" == "success" ]; then
             echo "### Result: Safe to Deploy" >> $GITHUB_STEP_SUMMARY
             echo "No breaking changes detected for registered consumers." >> $GITHUB_STEP_SUMMARY
           else
@@ -246,7 +257,7 @@ jobs:
           echo "### Endpoints in Schema" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           docker run --rm \
-            -v "${{ github.workspace }}:/workspace" \
+            -v "$WORKSPACE:/workspace" \
             -w /workspace \
             ghcr.io/sahina/cvt:latest \
             generate --schema "$CVT_SCHEMA_URL" --list >> $GITHUB_STEP_SUMMARY 2>&1 || true

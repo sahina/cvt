@@ -53,35 +53,45 @@ runs:
 
     - name: Build CVT CLI
       shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       run: |
-        cd ${{ github.action_path }}/../../..
+        cd "$ACTION_PATH/../../.."
         go build -o /tmp/cvt ./cmd/cvt
         echo "/tmp" >> $GITHUB_PATH
 
     - name: Validate Schema
       id: validate-schema
       shell: bash
+      env:
+        SCHEMA_PATH: ${{ inputs.schema-path }}
       run: |
-        echo "Validating schema: ${{ inputs.schema-path }}"
-        if [ ! -f "${{ inputs.schema-path }}" ]; then
-          echo "::error::Schema file not found: ${{ inputs.schema-path }}"
+        echo "Validating schema: $SCHEMA_PATH"
+        if [ ! -f "$SCHEMA_PATH" ]; then
+          echo "::error::Schema file not found: $SCHEMA_PATH"
           exit 1
         fi
         # Parse the schema to verify it's valid
-        cvt validate --schema "${{ inputs.schema-path }}" --request /dev/null --response /dev/null 2>&1 || true
+        cvt validate --schema "$SCHEMA_PATH" --request /dev/null --response /dev/null 2>&1 || true
         echo "Schema validation complete"
 
     - name: Validate Fixtures
       id: validate
       if: inputs.validate-fixtures != ''
       shell: bash
+      env:
+        SCHEMA_PATH: ${{ inputs.schema-path }}
+        VALIDATE_FIXTURES: ${{ inputs.validate-fixtures }}
       run: |
-        echo "Validating fixtures matching: ${{ inputs.validate-fixtures }}"
+        echo "Validating fixtures matching: $VALIDATE_FIXTURES"
         VALID=true
-        for fixture in ${{ inputs.validate-fixtures }}; do
+        # Unquoted so a caller-supplied glob still expands. The value is data,
+        # not script source, so metacharacters are not executed.
+        # shellcheck disable=SC2086
+        for fixture in $VALIDATE_FIXTURES; do
           if [ -f "$fixture" ]; then
             echo "Validating: $fixture"
-            if ! cvt validate --schema "${{ inputs.schema-path }}" --interaction "$fixture"; then
+            if ! cvt validate --schema "$SCHEMA_PATH" --interaction "$fixture"; then
               echo "::error::Fixture validation failed: $fixture"
               VALID=false
             fi
@@ -96,34 +106,42 @@ runs:
       id: compare
       if: inputs.compare-with != ''
       shell: bash
+      env:
+        SCHEMA_PATH: ${{ inputs.schema-path }}
+        COMPARE_WITH: ${{ inputs.compare-with }}
+        FAIL_ON_BREAKING: ${{ inputs.fail-on-breaking-changes }}
       run: |
         echo "Comparing schemas for breaking changes"
-        echo "Old: ${{ inputs.compare-with }}"
-        echo "New: ${{ inputs.schema-path }}"
+        echo "Old: $COMPARE_WITH"
+        echo "New: $SCHEMA_PATH"
 
-        RESULT=$(cvt compare --old "${{ inputs.compare-with }}" --new "${{ inputs.schema-path }}" 2>&1) || true
+        RESULT=$(cvt compare --old "$COMPARE_WITH" --new "$SCHEMA_PATH" 2>&1) || true
         echo "$RESULT"
 
         # Count breaking changes
         BREAKING_COUNT=$(echo "$RESULT" | grep -c "BREAKING:" || echo "0")
         echo "breaking-changes=$BREAKING_COUNT" >> $GITHUB_OUTPUT
 
-        if [ "$BREAKING_COUNT" -gt 0 ] && [ "${{ inputs.fail-on-breaking-changes }}" = "true" ]; then
+        if [ "$BREAKING_COUNT" -gt 0 ] && [ "$FAIL_ON_BREAKING" = "true" ]; then
           echo "::error::$BREAKING_COUNT breaking change(s) detected"
           exit 1
         fi
 
     - name: Summary
       shell: bash
+      env:
+        VALIDATE_FIXTURES: ${{ inputs.validate-fixtures }}
+        COMPARE_WITH: ${{ inputs.compare-with }}
+        BREAKING_CHANGES: ${{ steps.compare.outputs.breaking-changes }}
       run: |
         echo "## CVT Contract Validation Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
         echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
         echo "| Schema Valid | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY
-        if [ -n "${{ inputs.validate-fixtures }}" ]; then
+        if [ -n "$VALIDATE_FIXTURES" ]; then
           echo "| Fixtures Valid | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY
         fi
-        if [ -n "${{ inputs.compare-with }}" ]; then
-          echo "| Breaking Changes | ${{ steps.compare.outputs.breaking-changes }} |" >> $GITHUB_STEP_SUMMARY
+        if [ -n "$COMPARE_WITH" ]; then
+          echo "| Breaking Changes | $BREAKING_CHANGES |" >> $GITHUB_STEP_SUMMARY
         fi
